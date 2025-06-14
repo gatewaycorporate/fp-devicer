@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gatewaycorporate/fp-devicer-js.git"
+    "url": "git+https://github.com/gatewaycorporate/fp-devicer.git"
   },
   "keywords": [
     "fingerprinting",
@@ -20,9 +20,9 @@
   "author": "Samuel Roux, Steven Perso, and one anonymous co-author",
   "license": "SEE LICENSE IN license.txt",
   "bugs": {
-    "url": "https://github.com/gatewaycorporate/fp-devicer-js/issues"
+    "url": "https://github.com/gatewaycorporate/fp-devicer/issues"
   },
-  "homepage": "https://github.com/gatewaycorporate/fp-devicer-js#readme",
+  "homepage": "https://github.com/gatewaycorporate/fp-devicer#readme",
   "dependencies": {
     "tlsh": "^1.0.8",
     "vitest": "^3.2.3"
