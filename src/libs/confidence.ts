@@ -2,7 +2,6 @@ import { getHash, compareHashes } from "./tlsh.ts";
 import { UserData } from "./data.ts";
 
 interface IndexableUserData {
-  // deno-lint-ignore no-explicit-any
   [key: string]: any;
 }
 
