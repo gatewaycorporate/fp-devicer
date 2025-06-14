@@ -1,5 +1,5 @@
 import { it, describe, expect } from 'vitest';
-import { UserData } from '../src/libs/data';
+import { UserData } from '../src/types/data';
 import { getHash, compareHashes } from '../src/libs/tlsh';
 import { randomString } from './tlsh.test';
 

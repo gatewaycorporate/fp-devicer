@@ -19,3 +19,7 @@ export interface UserData {
   audioHash: string;
   webglHash: string;
 }
+
+export interface IndexableUserData {
+  [key: string]: any;
+}

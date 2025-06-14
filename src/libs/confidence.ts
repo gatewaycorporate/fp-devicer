@@ -1,8 +1,5 @@
 import { getHash, compareHashes } from "./tlsh";
-
-interface IndexableUserData {
-  [key: string]: any;
-}
+import { IndexableUserData } from "../types/data";
 
 export function calculateConfidence(data1: IndexableUserData, data2: IndexableUserData): number {
   // Calculate the hash for each user data
