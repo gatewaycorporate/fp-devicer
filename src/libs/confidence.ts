@@ -1,7 +1,7 @@
 import { getHash, compareHashes } from "./tlsh";
-import { IndexableUserData } from "../types/data";
+import { FPDataSet } from "../types/data";
 
-export function calculateConfidence(data1: IndexableUserData, data2: IndexableUserData): number {
+export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number {
   // Calculate the hash for each user data
   const hash1 = getHash(JSON.stringify(data1));
   const hash2 = getHash(JSON.stringify(data2));

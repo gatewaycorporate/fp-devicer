@@ -1,4 +1,4 @@
-export interface UserData {
+export interface FPUserDataSet {
   fonts: string[];
   hardware: {
     cpu: string;
@@ -20,6 +20,6 @@ export interface UserData {
   webglHash: string;
 }
 
-export interface IndexableUserData {
+export interface FPDataSet {
   [key: string]: any;
 }

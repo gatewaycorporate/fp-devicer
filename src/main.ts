@@ -1,4 +1,4 @@
-import { UserData } from "./types/data";
+import { FPUserDataSet, FPDataSet } from "./types/data";
 import { calculateConfidence } from "./libs/confidence";
 
-export { type UserData, calculateConfidence };
+export { type FPUserDataSet, type FPDataSet, calculateConfidence };

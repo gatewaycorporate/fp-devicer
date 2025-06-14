@@ -1,10 +1,10 @@
 import { it, describe, expect } from 'vitest';
-import { UserData } from '../src/types/data';
+import { FPUserDataSet } from '../src/types/data';
 import { getHash } from '../src/libs/tlsh';
 import { calculateConfidence } from '../src/libs/confidence';
 import { randomString } from './tlsh.test';
 
-const sampleData1: UserData = {
+const sampleData1: FPUserDataSet = {
   fonts: ['Arial', 'Verdana'],
   hardware: {
     cpu: 'Intel Core i7',
@@ -26,7 +26,7 @@ const sampleData1: UserData = {
   webglHash: getHash(randomString(524))
 };
 
-const sampleData2: UserData = {
+const sampleData2: FPUserDataSet = {
   fonts: ['Arial', 'Verdana'],
   hardware: {
     cpu: 'Pentium 4',
@@ -63,7 +63,7 @@ describe('Confidence Calculation', () => {
   });
 
   it('should return high confidence for similar user data', () => {
-    const similarData: UserData = {
+    const similarData: FPUserDataSet = {
       ...sampleData1,
       hardware: {
         ...sampleData1.hardware,
@@ -82,7 +82,7 @@ describe('Confidence Calculation', () => {
   });
 
   it('should return middling confidence for partially similar data', () => {
-    const partialData: UserData = {
+    const partialData: FPUserDataSet = {
       ...sampleData1,
       hardware: {
         ...sampleData1.hardware,

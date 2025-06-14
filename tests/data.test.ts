@@ -1,9 +1,9 @@
 import { it, describe, expect } from 'vitest';
-import { UserData } from '../src/types/data';
+import { FPUserDataSet } from '../src/types/data';
 import { getHash, compareHashes } from '../src/libs/tlsh';
 import { randomString } from './tlsh.test';
 
-const sampleData1: UserData = {
+const sampleData1: FPUserDataSet = {
   fonts: ['Arial', 'Verdana'],
   hardware: {
     cpu: 'Intel Core i7',
@@ -25,7 +25,7 @@ const sampleData1: UserData = {
   webglHash: getHash(randomString(524))
 };
 
-const sampleData2: UserData = {
+const sampleData2: FPUserDataSet = {
   fonts: ['Arial', 'Verdana'],
   hardware: {
     cpu: 'Pentium 4',
