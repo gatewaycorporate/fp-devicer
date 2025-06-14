@@ -1,11 +1,10 @@
 import { getHash, compareHashes } from "./tlsh.ts";
-import { UserData } from "./data.ts";
 
 interface IndexableUserData {
   [key: string]: any;
 }
 
-export function calculateConfidence(data1: Partial<UserData>, data2: Partial<UserData>): number {
+export function calculateConfidence(data1: IndexableUserData, data2: IndexableUserData): number {
   // Calculate the hash for each user data
   const hash1 = getHash(JSON.stringify(data1));
   const hash2 = getHash(JSON.stringify(data2));
@@ -17,9 +16,9 @@ export function calculateConfidence(data1: Partial<UserData>, data2: Partial<Use
   let fields = 0;
   let matches = 0;
   for (const key in data1) {
-    if ((data1 as IndexableUserData)[key] !== undefined && (data2 as IndexableUserData)[key] !== undefined) {
+    if (data1[key] !== undefined && data2[key] !== undefined) {
       fields++;
-      if ((data1 as IndexableUserData)[key] == (data2 as IndexableUserData)[key]) {
+      if (data1[key] == data2[key]) {
         matches++;
       }
     }
