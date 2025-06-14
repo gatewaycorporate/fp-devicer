@@ -1,7 +1,7 @@
 import { it, describe, expect } from 'vitest';
-import { UserData } from '../src/libs/data.ts';
-import { getHash, compareHashes } from '../src/libs/tlsh.ts';
-import { randomString } from './tlsh.test.ts';
+import { UserData } from '../src/libs/data';
+import { getHash, compareHashes } from '../src/libs/tlsh';
+import { randomString } from './tlsh.test';
 
 const sampleData1: UserData = {
   fonts: ['Arial', 'Verdana'],

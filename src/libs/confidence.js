@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.calculateConfidence = void 0;
-const tlsh_ts_1 = require("./tlsh.ts");
+const tlsh_1 = require("./tlsh");
 function calculateConfidence(data1, data2) {
     // Calculate the hash for each user data
-    const hash1 = (0, tlsh_ts_1.getHash)(JSON.stringify(data1));
-    const hash2 = (0, tlsh_ts_1.getHash)(JSON.stringify(data2));
+    const hash1 = (0, tlsh_1.getHash)(JSON.stringify(data1));
+    const hash2 = (0, tlsh_1.getHash)(JSON.stringify(data2));
     // Compare the hashes to get their difference
-    const differenceScore = (0, tlsh_ts_1.compareHashes)(hash1, hash2);
+    const differenceScore = (0, tlsh_1.compareHashes)(hash1, hash2);
     // Compare how many fields are the same in both datasets
     let fields = 0;
     let matches = 0;

@@ -1,4 +1,4 @@
-import { getHash, compareHashes } from "./tlsh.ts";
+import { getHash, compareHashes } from "./tlsh";
 
 interface IndexableUserData {
   [key: string]: any;

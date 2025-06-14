@@ -1,5 +1,5 @@
 import { expect, describe, it } from 'vitest';
-import { getHash, compareHashes } from '../src/libs/tlsh.ts';
+import { getHash, compareHashes } from '../src/libs/tlsh';
 
 export function randomString(length: number): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]{};!@#$%^&*()-_=+|;:",.<>?';

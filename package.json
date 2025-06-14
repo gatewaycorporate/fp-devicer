@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "test": "npx vitest",
-    "build": "tsc src/main.ts"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",

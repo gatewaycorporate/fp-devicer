@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const vitest_1 = require("vitest");
-const tlsh_ts_1 = require("../src/libs/tlsh.ts");
-const confidence_ts_1 = require("../src/libs/confidence.ts");
-const tlsh_test_ts_1 = require("./tlsh.test.ts");
+const tlsh_1 = require("../src/libs/tlsh");
+const confidence_1 = require("../src/libs/confidence");
+const tlsh_test_1 = require("./tlsh.test");
 const sampleData1 = {
     fonts: ['Arial', 'Verdana'],
     hardware: {
@@ -21,9 +21,9 @@ const sampleData1 = {
     ip: '157.185.170.244',
     languages: ['en-US', 'en'],
     plugins: ['Chrome PDF Viewer', 'Shockwave Flash'],
-    canvasHash: (0, tlsh_ts_1.getHash)((0, tlsh_test_ts_1.randomString)(524)),
-    audioHash: (0, tlsh_ts_1.getHash)((0, tlsh_test_ts_1.randomString)(524)),
-    webglHash: (0, tlsh_ts_1.getHash)((0, tlsh_test_ts_1.randomString)(524))
+    canvasHash: (0, tlsh_1.getHash)((0, tlsh_test_1.randomString)(524)),
+    audioHash: (0, tlsh_1.getHash)((0, tlsh_test_1.randomString)(524)),
+    webglHash: (0, tlsh_1.getHash)((0, tlsh_test_1.randomString)(524))
 };
 const sampleData2 = {
     fonts: ['Arial', 'Verdana'],
@@ -42,31 +42,31 @@ const sampleData2 = {
     ip: '178.238.11.6',
     languages: ['en-GB', 'en'],
     plugins: ['Chrome PDF Viewer', 'Shockwave Flash'],
-    canvasHash: (0, tlsh_ts_1.getHash)((0, tlsh_test_ts_1.randomString)(524)),
-    audioHash: (0, tlsh_ts_1.getHash)((0, tlsh_test_ts_1.randomString)(524)),
-    webglHash: (0, tlsh_ts_1.getHash)((0, tlsh_test_ts_1.randomString)(524))
+    canvasHash: (0, tlsh_1.getHash)((0, tlsh_test_1.randomString)(524)),
+    audioHash: (0, tlsh_1.getHash)((0, tlsh_test_1.randomString)(524)),
+    webglHash: (0, tlsh_1.getHash)((0, tlsh_test_1.randomString)(524))
 };
 (0, vitest_1.describe)('Confidence Calculation', () => {
     (0, vitest_1.it)('should calculate confidence between two user data objects', () => {
-        const confidence = (0, confidence_ts_1.calculateConfidence)(sampleData1, sampleData2);
+        const confidence = (0, confidence_1.calculateConfidence)(sampleData1, sampleData2);
         console.log('Confidence:', confidence);
         (0, vitest_1.expect)(typeof confidence).toBe('number');
         (0, vitest_1.expect)(confidence).toBeGreaterThanOrEqual(0);
         (0, vitest_1.expect)(confidence).toBeLessThanOrEqual(100);
     });
     (0, vitest_1.it)('should return 100% confidence for identical user data', () => {
-        const confidence = (0, confidence_ts_1.calculateConfidence)(sampleData1, sampleData1);
+        const confidence = (0, confidence_1.calculateConfidence)(sampleData1, sampleData1);
         (0, vitest_1.expect)(confidence).toBe(100);
     });
     (0, vitest_1.it)('should return high confidence for similar user data', () => {
         const similarData = Object.assign(Object.assign({}, sampleData1), { hardware: Object.assign(Object.assign({}, sampleData1.hardware), { ram: 8192 // Slightly different RAM
              }) });
-        const confidence = (0, confidence_ts_1.calculateConfidence)(sampleData1, similarData);
+        const confidence = (0, confidence_1.calculateConfidence)(sampleData1, similarData);
         console.log('Confidence for similar data:', confidence);
         (0, vitest_1.expect)(confidence).toBeGreaterThan(80);
     });
     (0, vitest_1.it)('should return lower confidence for different user data', () => {
-        const confidence = (0, confidence_ts_1.calculateConfidence)(sampleData1, sampleData2);
+        const confidence = (0, confidence_1.calculateConfidence)(sampleData1, sampleData2);
         console.log('Confidence for different data:', confidence);
         (0, vitest_1.expect)(confidence).toBeLessThan(10);
     });
@@ -74,7 +74,7 @@ const sampleData2 = {
         const partialData = Object.assign(Object.assign({}, sampleData1), { hardware: Object.assign(Object.assign({}, sampleData1.hardware), { gpu: 'Intel HD Graphics' // Different GPU
              }), screen: Object.assign(Object.assign({}, sampleData1.screen), { width: 1280, height: 720 // Different screen height
              }), timezone: 'Europe/London' });
-        const confidence = (0, confidence_ts_1.calculateConfidence)(sampleData1, partialData);
+        const confidence = (0, confidence_1.calculateConfidence)(sampleData1, partialData);
         console.log('Confidence for partially similar data:', confidence);
         (0, vitest_1.expect)(confidence).toBeGreaterThan(10);
         (0, vitest_1.expect)(confidence).toBeLessThan(95);
