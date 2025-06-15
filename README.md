@@ -5,7 +5,7 @@ FP-Devicer is a digital fingerprinting middleware library designed for ease of u
 
 Importing and using the library to compare fingerprints between users is as simple as collecting some user data and running the calculateConfidence function.
 ```javascript
-import { FPUserDataSet as UserData, calculateConfidence } from "fp-devicer";
+import { FPUserDataSet as UserData, calculateConfidence } from "devicer.js";
 
 const user1: UserData = {
   // Collected data goes here
