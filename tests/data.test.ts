@@ -20,9 +20,9 @@ const sampleData1: FPUserDataSet = {
   ip: '157.185.170.244',
   languages: ['en-US', 'en'],
   plugins: ['Chrome PDF Viewer', 'Shockwave Flash'],
-  canvasHash: getHash(randomString(524)),
-  audioHash: getHash(randomString(524)),
-  webglHash: getHash(randomString(524))
+  canvasHash: randomString(524),
+  audioHash: randomString(524),
+  webglHash: randomString(524)
 };
 
 const sampleData2: FPUserDataSet = {
@@ -42,9 +42,9 @@ const sampleData2: FPUserDataSet = {
   ip: '178.238.11.6',
   languages: ['en-GB', 'en'],
   plugins: ['Chrome PDF Viewer', 'Shockwave Flash'],
-  canvasHash: getHash(randomString(524)),
-  audioHash: getHash(randomString(524)),
-  webglHash: getHash(randomString(524))
+  canvasHash: randomString(524),
+  audioHash: randomString(524),
+  webglHash: randomString(524)
 };
 
 describe('User Data Fingerprinting', () => {
