@@ -9,7 +9,7 @@ function compareDataSets(data1: FPDataSet, data2: FPDataSet): [number, number] {
       fields++;
       if (typeof data1[key] == "object") {
         const subData = compareDataSets(data1[key] as FPDataSet, data2[key] as FPDataSet);
-        fields += subData[0];
+        fields += subData[0] - 1; // Subtract 1 for the key itself
         matches += subData[1];
       }
       if (data1[key] == data2[key]) {

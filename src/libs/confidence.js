@@ -10,7 +10,7 @@ function compareDataSets(data1, data2) {
             fields++;
             if (typeof data1[key] == "object") {
                 const subData = compareDataSets(data1[key], data2[key]);
-                fields += subData[0];
+                fields += subData[0] - 1; // Subtract 1 for the key itself
                 matches += subData[1];
             }
             if (data1[key] == data2[key]) {
