@@ -1,6 +1,25 @@
 import { getHash, compareHashes } from "./tlsh";
 import { FPDataSet } from "../types/data";
 
+function compareDataSets(data1: FPDataSet, data2: FPDataSet): [number, number] {
+  let fields = 0;
+  let matches = 0;
+  for (const key in data1) {
+    if (data1[key] !== undefined && data2[key] !== undefined) {
+      fields++;
+      if (typeof data1[key] == "object") {
+        const subData = compareDataSets(data1[key] as FPDataSet, data2[key] as FPDataSet);
+        fields += subData[0];
+        matches += subData[1];
+      }
+      if (data1[key] == data2[key]) {
+        matches++;
+      }
+    }
+  }
+  return [fields, matches];
+}
+
 export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number {
   // Calculate the hash for each user data
   const hash1 = getHash(JSON.stringify(data1));
@@ -10,16 +29,7 @@ export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number 
   const differenceScore = compareHashes(hash1, hash2);
 
   // Compare how many fields are the same in both datasets
-  let fields = 0;
-  let matches = 0;
-  for (const key in data1) {
-    if (data1[key] !== undefined && data2[key] !== undefined) {
-      fields++;
-      if (data1[key] == data2[key]) {
-        matches++;
-      }
-    }
-  }
+  const [fields, matches] = compareDataSets(data1, data2);
 
   const inverseMatchScore = 1 - (matches / fields);
   const x = (differenceScore / 1.5) * inverseMatchScore
