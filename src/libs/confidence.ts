@@ -21,6 +21,13 @@ function compareDataSets(data1: FPDataSet, data2: FPDataSet): [number, number] {
 }
 
 export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number {
+  // Compare how many fields are the same in both datasets
+  const [fields, matches] = compareDataSets(data1, data2);
+
+  if (fields === 0 || matches === 0) {
+    return 0;
+  }
+
   // Calculate the hash for each user data
   const hash1 = getHash(JSON.stringify(data1));
   const hash2 = getHash(JSON.stringify(data2));
@@ -28,13 +35,11 @@ export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number 
   // Compare the hashes to get their difference
   const differenceScore = compareHashes(hash1, hash2);
 
-  // Compare how many fields are the same in both datasets
-  const [fields, matches] = compareDataSets(data1, data2);
-
   const inverseMatchScore = 1 - (matches / fields);
   const x = (differenceScore / 1.5) * inverseMatchScore
   if (inverseMatchScore === 0 || differenceScore === 0) {
     return 100;
   }
-  return 100 / (1 + Math.E ** (-4.5 + (0.25 * x)));
+  const confidenceScore = 100 / (1 + Math.E ** (-4.5 + (0.25 * x)));
+  return confidenceScore;
 }

@@ -21,18 +21,22 @@ function compareDataSets(data1, data2) {
     return [fields, matches];
 }
 function calculateConfidence(data1, data2) {
+    // Compare how many fields are the same in both datasets
+    const [fields, matches] = compareDataSets(data1, data2);
+    if (fields === 0 || matches === 0) {
+        return 0;
+    }
     // Calculate the hash for each user data
     const hash1 = (0, tlsh_1.getHash)(JSON.stringify(data1));
     const hash2 = (0, tlsh_1.getHash)(JSON.stringify(data2));
     // Compare the hashes to get their difference
     const differenceScore = (0, tlsh_1.compareHashes)(hash1, hash2);
-    // Compare how many fields are the same in both datasets
-    const [fields, matches] = compareDataSets(data1, data2);
     const inverseMatchScore = 1 - (matches / fields);
     const x = (differenceScore / 1.5) * inverseMatchScore;
     if (inverseMatchScore === 0 || differenceScore === 0) {
         return 100;
     }
-    return 100 / (1 + Math.E ** (-4.5 + (0.25 * x)));
+    const confidenceScore = 100 / (1 + Math.E ** (-4.5 + (0.25 * x)));
+    return confidenceScore;
 }
 exports.calculateConfidence = calculateConfidence;
