@@ -84,15 +84,14 @@ describe('Confidence Calculation', () => {
     const partialData: FPUserDataSet = {
       ...sampleData1,
       hardware: {
-        ...sampleData1.hardware,
-        gpu: 'Intel HD Graphics' // Different GPU
+        cpu: 'Pentium 4',
+        gpu: 'Intel HD Graphics',
+        ram: 4096
       },
-      screen: {
-        ...sampleData1.screen,
-        width: 1280, // Different screen width
-        height: 720 // Different screen height
-      },
-      timezone: 'Europe/London', // Different timezone
+      timezone: 'Europe/London',
+      ip: '178.238.11.6',
+      languages: ['en-GB', 'en'],
+      userAgent: 'Mozilla/5.0 (compatible; Konqueror/2.2.2-3; Linux)'
     };
     const confidence = calculateConfidence(sampleData1, partialData);
     console.log('Confidence for partially similar data:', confidence);
