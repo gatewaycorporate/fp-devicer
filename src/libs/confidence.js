@@ -8,7 +8,8 @@ function compareDataSets(data1, data2) {
     for (const key in data1) {
         if (data1[key] !== undefined && data2[key] !== undefined) {
             fields++;
-            if (typeof data1[key] == "object") {
+            if ((typeof data1[key] == "object" && data1[key]) &&
+                (typeof data2[key] == "object" && data2[key])) {
                 const subData = compareDataSets(data1[key], data2[key]);
                 fields += subData[0] - 1; // Subtract 1 for the key itself
                 matches += subData[1];

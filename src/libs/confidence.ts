@@ -1,14 +1,17 @@
 import { getHash, compareHashes } from "./tlsh";
 import { FPDataSet } from "../types/data";
 
-function compareDataSets(data1: FPDataSet, data2: FPDataSet): [number, number] {
+function compareDatasets(data1: FPDataSet, data2: FPDataSet): [number, number] {
   let fields = 0;
   let matches = 0;
   for (const key in data1) {
     if (data1[key] !== undefined && data2[key] !== undefined) {
       fields++;
-      if (typeof data1[key] == "object") {
-        const subData = compareDataSets(data1[key] as FPDataSet, data2[key] as FPDataSet);
+      if (
+        (typeof data1[key] == "object" && data1[key]) &&
+        (typeof data2[key] == "object" && data2[key])
+      ) {
+        const subData = compareDatasets(data1[key] as FPDataSet, data2[key] as FPDataSet);
         fields += subData[0] - 1; // Subtract 1 for the key itself
         matches += subData[1];
       }
@@ -22,7 +25,7 @@ function compareDataSets(data1: FPDataSet, data2: FPDataSet): [number, number] {
 
 export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number {
   // Compare how many fields are the same in both datasets
-  const [fields, matches] = compareDataSets(data1, data2);
+  const [fields, matches] = compareDatasets(data1, data2);
 
   if (fields === 0 || matches === 0) {
     return 0;

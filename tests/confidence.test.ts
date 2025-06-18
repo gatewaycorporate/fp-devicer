@@ -98,4 +98,15 @@ describe('Confidence Calculation', () => {
     expect(confidence).toBeGreaterThan(10);
     expect(confidence).toBeLessThan(95);
   });
+
+  it('should handle empty datasets and nonetypes gracefully', () => {
+    const incompleteData = {
+      ...sampleData1,
+      hardware: {},
+      screen: null
+    };
+    const confidence = calculateConfidence(sampleData1, incompleteData);
+    expect(confidence).toBeGreaterThan(0); // Expecting some confidence even with missing data
+    expect(confidence).toBeLessThan(100); // Not identical, so confidence should not be 100
+  });
 });
