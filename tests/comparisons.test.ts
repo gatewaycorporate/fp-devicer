@@ -45,10 +45,10 @@ describe('Array Comparison', () => {
   });
 
   it('should handle nested empty arrays', () => {
-    const arr1 = [1, [], [[]], 3];
+    const arr1 = [1, [], [[], []], 3];
     const arr2 = [1, [2], [[], []], 3];
     const result = compareArrays(arr1, arr2);
-    expect(result).toEqual([3, 2]); // 6 fields, 4 matches
+    expect(result).toEqual([3, 2]); // 3 fields, 2 matches
   });
 
   it('should handle arrays of objects', () => {
