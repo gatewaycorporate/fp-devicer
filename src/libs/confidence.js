@@ -10,26 +10,38 @@ function compareArrays(arr1, arr2, max_depth = 5) {
         throw new Error("Max depth exceeded");
     }
     // Sort arrays to ensure consistent comparison
-    const sortedArr1 = arr1.map((item) => JSON.stringify(item)).sort().map((item) => JSON.parse(item));
-    const sortedArr2 = arr2.map((item) => JSON.stringify(item)).sort().map((item) => JSON.parse(item));
-    const maxLength = Math.max(arr1.length, arr2.length);
+    const sortedArr1 = arr1.map((item) => JSON.stringify(item)).sort().map((item) => {
+        try {
+            return JSON.parse(item);
+        }
+        catch (e) {
+            return undefined;
+        }
+    });
+    const sortedArr2 = arr2.map((item) => JSON.stringify(item)).sort().map((item) => {
+        try {
+            return JSON.parse(item);
+        }
+        catch (e) {
+            return undefined;
+        }
+    });
+    const maxLength = Math.min(arr1.length, arr2.length);
     for (let i = 0; i < maxLength; i++) {
-        if (sortedArr1[i] !== undefined && sortedArr2[i] !== undefined) {
-            fields++;
-            if (Array.isArray(sortedArr1[i]) && Array.isArray(sortedArr2[i])) {
-                const subData = compareArrays(sortedArr1[i], sortedArr2[i], max_depth - 1);
-                fields += subData[0] - 1; // Subtract 1 for the index itself
-                matches += subData[1];
-            }
-            else if ((typeof sortedArr1[i] == "object" && sortedArr1[i]) &&
-                (typeof sortedArr2[i] == "object" && sortedArr2[i])) {
-                const subData = compareDatasets(sortedArr1[i], sortedArr2[i], max_depth - 1);
-                fields += subData[0] - 1; // Subtract 1 for the index itself
-                matches += subData[1];
-            }
-            if (arr1[i] === arr2[i]) {
-                matches++;
-            }
+        fields++;
+        if (Array.isArray(sortedArr1[i]) && Array.isArray(sortedArr2[i])) {
+            const subData = compareArrays(sortedArr1[i], sortedArr2[i], max_depth - 1);
+            fields += subData[0] - 1; // Subtract 1 for the index itself
+            matches += subData[1];
+        }
+        else if ((typeof sortedArr1[i] == "object" && sortedArr1[i]) &&
+            (typeof sortedArr2[i] == "object" && sortedArr2[i])) {
+            const subData = compareDatasets(sortedArr1[i], sortedArr2[i], max_depth - 1);
+            fields += subData[0] - 1; // Subtract 1 for the index itself
+            matches += subData[1];
+        }
+        if (arr1[i] === arr2[i]) {
+            matches++;
         }
     }
     return [fields, matches];
