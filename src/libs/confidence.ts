@@ -39,7 +39,7 @@ export function calculateConfidence(data1: FPDataSet, data2: FPDataSet): number 
   const differenceScore = compareHashes(hash1, hash2);
 
   const inverseMatchScore = 1 - (matches / fields);
-  const x = (differenceScore / 1.5) * inverseMatchScore
+  const x = differenceScore * inverseMatchScore
   if (inverseMatchScore === 0 || differenceScore === 0) {
     return 100;
   }

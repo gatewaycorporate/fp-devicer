@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.calculateConfidence = void 0;
 const tlsh_1 = require("./tlsh");
-function compareDataSets(data1, data2) {
+function compareDatasets(data1, data2) {
     let fields = 0;
     let matches = 0;
     for (const key in data1) {
@@ -10,7 +10,7 @@ function compareDataSets(data1, data2) {
             fields++;
             if ((typeof data1[key] == "object" && data1[key]) &&
                 (typeof data2[key] == "object" && data2[key])) {
-                const subData = compareDataSets(data1[key], data2[key]);
+                const subData = compareDatasets(data1[key], data2[key]);
                 fields += subData[0] - 1; // Subtract 1 for the key itself
                 matches += subData[1];
             }
@@ -23,7 +23,7 @@ function compareDataSets(data1, data2) {
 }
 function calculateConfidence(data1, data2) {
     // Compare how many fields are the same in both datasets
-    const [fields, matches] = compareDataSets(data1, data2);
+    const [fields, matches] = compareDatasets(data1, data2);
     if (fields === 0 || matches === 0) {
         return 0;
     }
@@ -33,7 +33,7 @@ function calculateConfidence(data1, data2) {
     // Compare the hashes to get their difference
     const differenceScore = (0, tlsh_1.compareHashes)(hash1, hash2);
     const inverseMatchScore = 1 - (matches / fields);
-    const x = (differenceScore / 1.5) * inverseMatchScore;
+    const x = differenceScore * inverseMatchScore;
     if (inverseMatchScore === 0 || differenceScore === 0) {
         return 100;
     }
