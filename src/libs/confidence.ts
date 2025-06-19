@@ -1,7 +1,7 @@
 import { getHash, compareHashes } from "./tlsh";
 import { FPDataSet } from "../types/data";
 
-function compareArrays(arr1: any[], arr2: any[], max_depth: number = 5): [number, number] {
+export function compareArrays(arr1: any[], arr2: any[], max_depth: number = 5): [number, number] {
   let fields = 0;
   let matches = 0;
 

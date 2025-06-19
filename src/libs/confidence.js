@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateConfidence = exports.compareDatasets = void 0;
+exports.calculateConfidence = exports.compareDatasets = exports.compareArrays = void 0;
 const tlsh_1 = require("./tlsh");
 function compareArrays(arr1, arr2, max_depth = 5) {
     let fields = 0;
@@ -34,6 +34,7 @@ function compareArrays(arr1, arr2, max_depth = 5) {
     }
     return [fields, matches];
 }
+exports.compareArrays = compareArrays;
 function compareDatasets(data1, data2, max_depth = 5) {
     let fields = 0;
     let matches = 0;
