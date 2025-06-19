@@ -89,9 +89,7 @@ describe('Confidence Calculation', () => {
         ram: 4096
       },
       timezone: 'Europe/London',
-      ip: '178.238.11.6',
-      languages: ['en-GB', 'en'],
-      userAgent: 'Mozilla/5.0 (compatible; Konqueror/2.2.2-3; Linux)'
+      ip: '178.238.11.6'
     };
     const confidence = calculateConfidence(sampleData1, partialData);
     console.log('Confidence for partially similar data:', confidence);

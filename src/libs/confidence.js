@@ -68,7 +68,7 @@ function compareDatasets(data1, data2, max_depth = 5) {
                 fields += subData[0] - 1; // Subtract 1 for the key itself
                 matches += subData[1];
             }
-            if (data1[key] == data2[key]) {
+            else if (data1[key] == data2[key]) {
                 matches++;
             }
         }

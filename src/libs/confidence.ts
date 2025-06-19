@@ -45,7 +45,9 @@ export function compareArrays(
       );
       fields += subData[0] - 1; // Subtract 1 for the index itself
       matches += subData[1];
-    } else if (
+    }
+    
+    else if (
       (typeof sortedArr1[i] == "object" && sortedArr1[i]) &&
       (typeof sortedArr2[i] == "object" && sortedArr2[i])
     ) {
@@ -92,13 +94,15 @@ export function compareDatasets(
         );
         fields += subData[0] - 1; // Subtract 1 for the key itself
         matches += subData[1];
-      } else if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
+      }
+      
+      else if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
         const subData = compareArrays(data1[key], data2[key], max_depth - 1);
         fields += subData[0] - 1; // Subtract 1 for the key itself
         matches += subData[1];
       }
 
-      if (data1[key] == data2[key]) {
+      else if (data1[key] == data2[key]) {
         matches++;
       }
     }
