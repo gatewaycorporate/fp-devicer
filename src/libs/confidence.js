@@ -40,7 +40,7 @@ function compareArrays(arr1, arr2, max_depth = 5) {
             fields += subData[0] - 1; // Subtract 1 for the index itself
             matches += subData[1];
         }
-        if (arr1[i] === arr2[i]) {
+        if (sortedArr1[i] === sortedArr2[i]) {
             matches++;
         }
     }
