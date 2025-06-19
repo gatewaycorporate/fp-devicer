@@ -12,14 +12,18 @@ function compareArrays(arr1: any[], arr2: any[]): [number, number] {
         const subData = compareArrays(arr1[i], arr2[i]);
         fields += subData[0] - 1; // Subtract 1 for the index itself
         matches += subData[1];
-      } else if (
+      }
+      
+      else if (
         (typeof arr1[i] == "object" && arr1[i]) &&
         (typeof arr2[i] == "object" && arr2[i])
       ) {
         const subData = compareDatasets(arr1[i] as FPDataSet, arr2[i] as FPDataSet);
         fields += subData[0] - 1; // Subtract 1 for the index itself
         matches += subData[1];
-      } else if (arr1[i] === arr2[i]) {
+      }
+      
+      if (arr1[i] === arr2[i]) {
         matches++;
       }
     }
