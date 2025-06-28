@@ -79,4 +79,20 @@ describe("Array Comparison", () => {
     const arr2 = [1, [2, [3, [4, [5, [6]]]]]];
     expect(() => compareArrays(arr1, arr2, 0)).toThrow("Max depth exceeded");
   });
+
+  it("should handle arrays with shuffled identical elements", () => {
+    const arr1 = [1, 2, 3];
+    const arr2 = [3, 1, 2];
+    const result = compareArrays(arr1, arr2);
+    console.log("Result:", result);
+    expect(result).toEqual([3, 3]); // 3 fields, 3 matches
+  });
+
+  it("should handle arrays with shuffled different elements", () => {
+    const arr1 = ["a", "b", "c"];
+    const arr2 = ["c", "d", "a"];
+    const result = compareArrays(arr1, arr2);
+    console.log("Result:", result);
+    expect(result).toEqual([3, 2]); // 3 fields, 3 matches
+  });
 });

@@ -60,7 +60,7 @@ export function compareArrays(
       matches += subData[1];
     }
 
-    if (sortedArr1[i] === sortedArr2[i]) {
+    if (sortedArr2.includes(sortedArr1[i])) {
       matches++;
     }
   }

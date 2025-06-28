@@ -26,6 +26,7 @@ function compareArrays(arr1, arr2, max_depth = 5) {
             return undefined;
         }
     });
+    console.log("Sorted Arrays:", sortedArr1, sortedArr2);
     const maxLength = Math.min(arr1.length, arr2.length);
     for (let i = 0; i < maxLength; i++) {
         fields++;
@@ -40,7 +41,8 @@ function compareArrays(arr1, arr2, max_depth = 5) {
             fields += subData[0] - 1; // Subtract 1 for the index itself
             matches += subData[1];
         }
-        if (sortedArr1[i] === sortedArr2[i]) {
+        if (sortedArr2.includes(sortedArr1[i])) {
+            console.log("Match found:", sortedArr1[i]);
             matches++;
         }
     }
