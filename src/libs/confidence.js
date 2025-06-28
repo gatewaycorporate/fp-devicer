@@ -7,7 +7,8 @@ function compareArrays(arr1, arr2, max_depth = 5) {
     let matches = 0;
     // Ensure max_depth is not exceeded
     if (max_depth <= 0) {
-        throw new Error("Max depth exceeded");
+        console.warn("Max depth exceeded in compareArrays");
+        return [0, 0]; // Return 0 fields and matches if max depth is exceeded
     }
     // Sort arrays to ensure consistent comparison
     const sortedArr1 = arr1.map((item) => JSON.stringify(item)).sort().map((item) => {
@@ -26,7 +27,6 @@ function compareArrays(arr1, arr2, max_depth = 5) {
             return undefined;
         }
     });
-    console.log("Sorted Arrays:", sortedArr1, sortedArr2);
     const maxLength = Math.min(arr1.length, arr2.length);
     for (let i = 0; i < maxLength; i++) {
         fields++;
@@ -41,8 +41,7 @@ function compareArrays(arr1, arr2, max_depth = 5) {
             fields += subData[0] - 1; // Subtract 1 for the index itself
             matches += subData[1];
         }
-        if (sortedArr2.includes(sortedArr1[i])) {
-            console.log("Match found:", sortedArr1[i]);
+        if (sortedArr2.includes(sortedArr1[i]) && sortedArr1[i]) {
             matches++;
         }
     }
@@ -54,19 +53,20 @@ function compareDatasets(data1, data2, max_depth = 5) {
     let matches = 0;
     // Ensure max_depth is not exceeded
     if (max_depth <= 0) {
-        throw new Error("Max depth exceeded");
+        console.warn("Max depth exceeded in compareDatasets");
+        return [0, 0]; // Return 0 fields and matches if max depth is exceeded
     }
     for (const key in data1) {
         if (data1[key] !== undefined && data2[key] !== undefined) {
             fields++;
-            if ((typeof data1[key] == "object" && data1[key]) &&
-                (typeof data2[key] == "object" && data2[key])) {
-                const subData = compareDatasets(data1[key], data2[key], max_depth - 1);
+            if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
+                const subData = compareArrays(data1[key], data2[key], max_depth - 1);
                 fields += subData[0] - 1; // Subtract 1 for the key itself
                 matches += subData[1];
             }
-            else if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
-                const subData = compareArrays(data1[key], data2[key], max_depth - 1);
+            else if ((typeof data1[key] == "object" && data1[key]) &&
+                (typeof data2[key] == "object" && data2[key])) {
+                const subData = compareDatasets(data1[key], data2[key], max_depth - 1);
                 fields += subData[0] - 1; // Subtract 1 for the key itself
                 matches += subData[1];
             }

@@ -11,7 +11,8 @@ export function compareArrays(
 
   // Ensure max_depth is not exceeded
   if (max_depth <= 0) {
-    throw new Error("Max depth exceeded");
+    console.warn("Max depth exceeded in compareArrays");
+    return [0, 0]; // Return 0 fields and matches if max depth is exceeded
   }
 
   // Sort arrays to ensure consistent comparison
@@ -45,9 +46,7 @@ export function compareArrays(
       );
       fields += subData[0] - 1; // Subtract 1 for the index itself
       matches += subData[1];
-    }
-    
-    else if (
+    } else if (
       (typeof sortedArr1[i] == "object" && sortedArr1[i]) &&
       (typeof sortedArr2[i] == "object" && sortedArr2[i])
     ) {
@@ -60,7 +59,7 @@ export function compareArrays(
       matches += subData[1];
     }
 
-    if (sortedArr2.includes(sortedArr1[i])) {
+    if (sortedArr2.includes(sortedArr1[i]) && sortedArr1[i]) {
       matches++;
     }
   }
@@ -77,13 +76,18 @@ export function compareDatasets(
 
   // Ensure max_depth is not exceeded
   if (max_depth <= 0) {
-    throw new Error("Max depth exceeded");
+    console.warn("Max depth exceeded in compareDatasets");
+    return [0, 0]; // Return 0 fields and matches if max depth is exceeded
   }
 
   for (const key in data1) {
     if (data1[key] !== undefined && data2[key] !== undefined) {
       fields++;
-      if (
+      if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
+        const subData = compareArrays(data1[key], data2[key], max_depth - 1);
+        fields += subData[0] - 1; // Subtract 1 for the key itself
+        matches += subData[1];
+      } else if (
         (typeof data1[key] == "object" && data1[key]) &&
         (typeof data2[key] == "object" && data2[key])
       ) {
@@ -94,15 +98,7 @@ export function compareDatasets(
         );
         fields += subData[0] - 1; // Subtract 1 for the key itself
         matches += subData[1];
-      }
-      
-      else if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
-        const subData = compareArrays(data1[key], data2[key], max_depth - 1);
-        fields += subData[0] - 1; // Subtract 1 for the key itself
-        matches += subData[1];
-      }
-
-      else if (data1[key] == data2[key]) {
+      } else if (data1[key] == data2[key]) {
         matches++;
       }
     }
