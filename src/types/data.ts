@@ -37,7 +37,16 @@ export interface FPUserDataSet {
     };
   };
   fonts: string[];
-  highEntropyValues: Record<string, string | number | boolean>;
+  highEntropyValues: {
+    architecture?: string;
+    bitness?: string;
+    brands?: { brand: string; version: string }[];
+    mobile?: boolean;
+    model?: string;
+    platform?: string;
+    platformVersion?: string;
+    uaFullVersion?: string;
+  };
 }
 
 export type FPDataSet<T extends Record<string, any> = FPUserDataSet> = T;

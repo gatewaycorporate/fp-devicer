@@ -42,10 +42,15 @@ const sampleData1: FPUserDataSet = {
 	fonts: ['Arial', 'Segoe UI', 'Times New Roman', 'Courier New'],
 	highEntropyValues: {
 		architecture: 'x86',
+		bitness: '64',
+		brands: [
+			{ brand: 'Google Chrome', version: '121.0.0.0' }
+		],
+		mobile: false,
 		model: '',
+		platform: 'Windows',
 		platformVersion: '15.0.0',
 		uaFullVersion: '121.0.0.0',
-		wow64: false,
 	},
 };
 
@@ -89,10 +94,15 @@ const sampleData2: FPUserDataSet = {
 	fonts: ['Noto Sans JP', 'Ubuntu', 'Monospace'],
 	highEntropyValues: {
 		architecture: 'arm',
+        bitness: '64',
+        brands: [
+            { brand: 'Google Chrome', version: '122.0.0.0' }
+        ],
+        mobile: false,
 		model: 'Chromebook',
+        platform: 'Linux',
 		platformVersion: '6.1.0',
 		uaFullVersion: '122.0.0.0',
-		wow64: true,
 	},
 };
 
