@@ -1,6 +1,7 @@
 {
   "name": "devicer.js",
   "version": "1.2.1",
+  "type": "module",
   "description": "Open-Source Digital Fingerprinting Middleware",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
