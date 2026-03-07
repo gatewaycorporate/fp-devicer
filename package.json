@@ -5,6 +5,16 @@
   "description": "Open-Source Digital Fingerprinting Middleware",
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js",
+      "default": "./dist/main.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "npx vitest run",
     "test:watch": "npx vitest watch",
