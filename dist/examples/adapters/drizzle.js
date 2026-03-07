@@ -15,7 +15,7 @@ const sqlite_core_1 = require("drizzle-orm/sqlite-core");
 const conditions_1 = require("drizzle-orm/sql/expressions/conditions");
 const select_1 = require("drizzle-orm/sql/expressions/select");
 const crypto_1 = require("crypto");
-const confidence_1 = require("../../src/libs/confidence");
+const confidence_1 = require("../../libs/confidence");
 const fingerprintsTable = (0, sqlite_core_1.sqliteTable)("fingerprints", {
     id: (0, sqlite_core_1.text)("id").primaryKey(),
     deviceId: (0, sqlite_core_1.text)("deviceId").notNull(),

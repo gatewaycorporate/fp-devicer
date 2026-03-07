@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.initializeDefaultRegistry = exports.clearRegistry = exports.setDefaultWeight = exports.unregisterWeight = exports.unregisterComparator = exports.registerPlugin = exports.registerWeight = exports.registerComparator = exports.createConfidenceCalculator = exports.calculateConfidence = void 0;
-const confidence_1 = require("./libs/confidence");
+exports.DeviceManager = exports.createInMemoryAdapter = exports.initializeDefaultRegistry = exports.clearRegistry = exports.setDefaultWeight = exports.unregisterWeight = exports.unregisterComparator = exports.registerPlugin = exports.registerWeight = exports.registerComparator = exports.createConfidenceCalculator = exports.calculateConfidence = void 0;
+var confidence_1 = require("./libs/confidence");
 Object.defineProperty(exports, "calculateConfidence", { enumerable: true, get: function () { return confidence_1.calculateConfidence; } });
 Object.defineProperty(exports, "createConfidenceCalculator", { enumerable: true, get: function () { return confidence_1.createConfidenceCalculator; } });
-const registry_1 = require("./libs/registry");
+var registry_1 = require("./libs/registry");
 Object.defineProperty(exports, "registerComparator", { enumerable: true, get: function () { return registry_1.registerComparator; } });
 Object.defineProperty(exports, "registerWeight", { enumerable: true, get: function () { return registry_1.registerWeight; } });
 Object.defineProperty(exports, "registerPlugin", { enumerable: true, get: function () { return registry_1.registerPlugin; } });
@@ -13,3 +13,7 @@ Object.defineProperty(exports, "unregisterWeight", { enumerable: true, get: func
 Object.defineProperty(exports, "setDefaultWeight", { enumerable: true, get: function () { return registry_1.setDefaultWeight; } });
 Object.defineProperty(exports, "clearRegistry", { enumerable: true, get: function () { return registry_1.clearRegistry; } });
 Object.defineProperty(exports, "initializeDefaultRegistry", { enumerable: true, get: function () { return registry_1.initializeDefaultRegistry; } });
+var storage_1 = require("./libs/storage");
+Object.defineProperty(exports, "createInMemoryAdapter", { enumerable: true, get: function () { return storage_1.createInMemoryAdapter; } });
+var DeviceManager_1 = require("./core/DeviceManager");
+Object.defineProperty(exports, "DeviceManager", { enumerable: true, get: function () { return DeviceManager_1.DeviceManager; } });

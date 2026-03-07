@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createRedisAdapter = createRedisAdapter;
 const ioredis_1 = __importDefault(require("ioredis"));
 const crypto_1 = require("crypto");
-const confidence_1 = require("../../src/libs/confidence");
+const confidence_1 = require("../../libs/confidence");
 function createRedisAdapter(redisUrl) {
     const redis = new ioredis_1.default(redisUrl || "redis://localhost:6379");
     return {
