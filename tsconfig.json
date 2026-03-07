@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
@@ -9,9 +10,7 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    "forceConsistentCasingInFileNames": true
   },
   "exclude": [
     "node_modules",

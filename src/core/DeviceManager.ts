@@ -1,6 +1,6 @@
-import type { StorageAdapter, DeviceMatch } from "../types/storage";
-import type { FPDataSet } from "../types/data";
-import { calculateConfidence } from "../libs/confidence";
+import type { StorageAdapter, DeviceMatch } from "../types/storage.js";
+import type { FPDataSet } from "../types/data.js";
+import { calculateConfidence } from "../libs/confidence.js";
 import { randomUUID } from "crypto";
 
 export class DeviceManager {

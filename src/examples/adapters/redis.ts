@@ -1,10 +1,10 @@
 import Redis from "ioredis";
 import { randomUUID } from "crypto";
-import type { StorageAdapter } from "../../types/storage";
-import { calculateConfidence } from "../../libs/confidence";
+import type { StorageAdapter } from "../../types/storage.js";
+import { calculateConfidence } from "../../libs/confidence.js";
 
 export function createRedisAdapter(redisUrl?: string): StorageAdapter {
-  const redis = new Redis(redisUrl || "redis://localhost:6379");
+  const redis = new (Redis as any)(redisUrl || "redis://localhost:6379");
 
   return {
     async init() { /* optional schema check */ },
@@ -21,7 +21,7 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
     async getHistory(deviceId, limit = 50) {
       const key = `fp:device:${deviceId}`;
       const raw = await redis.hvals(key);
-      return raw.slice(0, limit).map((v) => JSON.parse(v));
+      return raw.slice(0, limit).map((v: string) => JSON.parse(v));
     },
     async findCandidates(query, minConfidence, limit = 20) {// For simplicity, this example does a full scan. In production, you'd want to optimize this with indexing or a more efficient data structure.
         const allKeys = await redis.keys("fp:device:*");

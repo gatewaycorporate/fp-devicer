@@ -1,4 +1,4 @@
-import type { FPUserDataSet } from '../../src/types/data';
+import type { FPUserDataSet } from '../../types/data.js';
 export declare const fpIdentical: FPUserDataSet;
 export declare const fpVerySimilar: FPUserDataSet;
 export declare const fpDifferent: FPUserDataSet;

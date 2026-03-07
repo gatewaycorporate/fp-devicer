@@ -1,4 +1,4 @@
-import type { FPUserDataSet } from '../../types/data';
+import type { FPUserDataSet } from '../../types/data.js';
 
 export const fpIdentical: FPUserDataSet = {
 	userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',

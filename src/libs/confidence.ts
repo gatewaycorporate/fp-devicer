@@ -1,6 +1,6 @@
-import { compareHashes, getHash } from "./tlsh";
-import { getGlobalRegistry } from "./registry";
-import { FPDataSet, ComparisonOptions, Comparator } from "../types/data";
+import { compareHashes, getHash } from "./tlsh.js";
+import { getGlobalRegistry } from "./registry.js";
+import { FPDataSet, ComparisonOptions, Comparator } from "../types/data.js";
 
 const DEFAULT_WEIGHTS: Record<string, number> = {
   userAgent: 10,

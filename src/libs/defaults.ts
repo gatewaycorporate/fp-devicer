@@ -1,6 +1,6 @@
-import { registerPlugin } from "./registry";
-import type { Comparator } from "../types/data";
-import { levenshteinSimilarity } from "./comparitors";
+import { registerPlugin } from "./registry.js";
+import type { Comparator } from "../types/data.js";
+import { levenshteinSimilarity } from "./comparitors.js";
 
 const BUILT_IN_PLUGINS = [
     {

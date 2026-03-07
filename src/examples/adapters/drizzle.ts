@@ -3,8 +3,8 @@ import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { eq, lt } from "drizzle-orm/sql/expressions/conditions";
 import { desc } from "drizzle-orm/sql/expressions/select";
 import { randomUUID } from "crypto";
-import type { DeviceMatch, StorageAdapter, StoredFingerprint } from "../../types/storage";
-import { calculateConfidence } from "../../libs/confidence";
+import type { DeviceMatch, StorageAdapter, StoredFingerprint } from "../../types/storage.js";
+import { calculateConfidence } from "../../libs/confidence.js";
 
 
 const fingerprintsTable = sqliteTable("fingerprints", {

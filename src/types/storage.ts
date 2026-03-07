@@ -1,4 +1,4 @@
-import type { FPDataSet } from "./data";
+import type { FPDataSet } from "./data.js";
 
 export interface StoredFingerprint {
   id: string;                    // ulid or uuid
