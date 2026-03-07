@@ -3,14 +3,18 @@
 
 FP-Devicer is a digital fingerprinting middleware library designed for ease of use and near-universal compatibility with servers.
 
+### Usage
+
 Importing and using the library to compare fingerprints between users is as simple as collecting some user data and running the calculateConfidence function.
 ```javascript
-import { calculateConfidence, createConfidenceCalculator, registerPlugin } from "devicer.js";
-
 // 1. Simple Method (Using defaults)
+import {calculateConfidence } from "devicer.js";
+
 const score = calculateConfidence(fpData1, fpData2);
 
 // 2. Advanced Method (Custom weights & comparitors)
+import {createConfidenceCalculator, registerPlugin } from "devicer.js";
+
 registerPlugin("userAgent", {
   weight: 25,
   comparator: (a, b) => levenshteinSimilarity(String(a || "").toLowerCase(), String(b || "").toLowerCase())
@@ -25,6 +29,34 @@ const advancedCalculator = createConfidenceCalculator({
 })
 
 const advancedScore = advancedCalculator.calculateConfidence(fpData1, fpData2);
+
+// 3. Enterprise usage (DeviceManager)
+import express from 'express';
+import { DeviceManager, createInMemoryAdapter } from 'devicer.js';
+
+const manager = new DeviceManager(createInMemoryAdapter());
+const app = express();
+app.use(express.json());
+
+app.post('/identify', async (req, res) => {
+  const result = await manager.identify(req.body, { userId: (req as any).user?.id, ip: req.ip });
+  res.json(result); // → { deviceId, confidence, isNewDevice, linkedUserId }
+});
+
+app.listen(3000, () => console.log('✅ FP-Devicer server ready on :3000'));
 ```
 
 The resulting confidence will range between 0 and 100, with 100 providing the highest confidence of the users being identical.
+
+### Quickstart
+
+To run the quickstart example:
+
+```sh
+npm install express devicer.js
+npx tsx examples/server/quickstart.ts
+```
+
+### Demo
+
+There is a public demo of FP-Devicer (FP-Cicis Command and Control) available for viewing at [cicis.info](https://cicis.info/)
