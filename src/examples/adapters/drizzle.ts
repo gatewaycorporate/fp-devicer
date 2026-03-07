@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/better-sqlite3"; // or drizzle-orm/postgres-js for Postgres
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm/sql";
 import { eq, lt } from "drizzle-orm/sql/expressions/conditions";
 import { desc } from "drizzle-orm/sql/expressions/select";
 import { randomUUID } from "crypto";
@@ -20,7 +21,7 @@ export function createDrizzleAdapter(dbUrlOrClient: any): StorageAdapter {
   return {
     async init() {
         await db.run(
-            `CREATE TABLE IF NOT EXISTS fingerprints (
+            sql`CREATE TABLE IF NOT EXISTS fingerprints (
                 id TEXT PRIMARY KEY,
                 deviceId TEXT NOT NULL,
                 data JSON NOT NULL,
