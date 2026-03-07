@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.initializeDefaultRegistry = void 0;
 exports.registerComparator = registerComparator;
 exports.registerWeight = registerWeight;
 exports.registerPlugin = registerPlugin;
@@ -8,11 +9,21 @@ exports.unregisterComparator = unregisterComparator;
 exports.unregisterWeight = unregisterWeight;
 exports.clearRegistry = clearRegistry;
 exports.getGlobalRegistry = getGlobalRegistry;
+const defaults_1 = require("./defaults");
+Object.defineProperty(exports, "initializeDefaultRegistry", { enumerable: true, get: function () { return defaults_1.initializeDefaultRegistry; } });
 let registry = {
     comparators: {},
     weights: {},
     defaultWeight: 5,
 };
+let defaultsInitialized = false;
+/** Internal helper – called automatically on first use */
+function ensureDefaults() {
+    if (!defaultsInitialized) {
+        (0, defaults_1.initializeDefaultRegistry)();
+        defaultsInitialized = true;
+    }
+}
 /** Register a custom similarity comparator for a field or nested path */
 function registerComparator(path, comparator) {
     if (typeof comparator !== "function") {
@@ -52,5 +63,6 @@ function clearRegistry() {
 }
 // Internal only – used by createConfidenceCalculator
 function getGlobalRegistry() {
+    ensureDefaults();
     return Object.assign(Object.assign({}, registry), { comparators: Object.assign({}, registry.comparators), weights: Object.assign({}, registry.weights) });
 }

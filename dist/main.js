@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.clearRegistry = exports.setDefaultWeight = exports.unregisterWeight = exports.unregisterComparator = exports.registerPlugin = exports.registerWeight = exports.registerComparator = exports.createConfidenceCalculator = exports.calculateConfidence = void 0;
+exports.initializeDefaultRegistry = exports.clearRegistry = exports.setDefaultWeight = exports.unregisterWeight = exports.unregisterComparator = exports.registerPlugin = exports.registerWeight = exports.registerComparator = exports.createConfidenceCalculator = exports.calculateConfidence = void 0;
 const confidence_1 = require("./libs/confidence");
 Object.defineProperty(exports, "calculateConfidence", { enumerable: true, get: function () { return confidence_1.calculateConfidence; } });
 Object.defineProperty(exports, "createConfidenceCalculator", { enumerable: true, get: function () { return confidence_1.createConfidenceCalculator; } });
@@ -12,3 +12,4 @@ Object.defineProperty(exports, "unregisterComparator", { enumerable: true, get: 
 Object.defineProperty(exports, "unregisterWeight", { enumerable: true, get: function () { return registry_1.unregisterWeight; } });
 Object.defineProperty(exports, "setDefaultWeight", { enumerable: true, get: function () { return registry_1.setDefaultWeight; } });
 Object.defineProperty(exports, "clearRegistry", { enumerable: true, get: function () { return registry_1.clearRegistry; } });
+Object.defineProperty(exports, "initializeDefaultRegistry", { enumerable: true, get: function () { return registry_1.initializeDefaultRegistry; } });
