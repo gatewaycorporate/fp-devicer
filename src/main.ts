@@ -8,6 +8,7 @@ import {
     unregisterWeight,
     setDefaultWeight,
     clearRegistry,
+    initializeDefaultRegistry
 } from "./libs/registry";
 
 export {
@@ -21,5 +22,6 @@ export {
     unregisterComparator,
     unregisterWeight,
     setDefaultWeight,
-    clearRegistry
+    clearRegistry,
+    initializeDefaultRegistry
 };

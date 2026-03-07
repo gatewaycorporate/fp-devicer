@@ -1,4 +1,5 @@
 import type { Comparator } from "../types/data";
+import { initializeDefaultRegistry } from "./defaults";
 
 interface RegistryState {
   comparators: Record<string, Comparator>;
@@ -11,6 +12,16 @@ let registry: RegistryState = {
   weights: {},
   defaultWeight: 5,
 };
+
+let defaultsInitialized = false;
+
+/** Internal helper – called automatically on first use */
+function ensureDefaults(): void {
+  if (!defaultsInitialized) {
+    initializeDefaultRegistry();
+    defaultsInitialized = true;
+  }
+}
 
 /** Register a custom similarity comparator for a field or nested path */
 export function registerComparator(path: string, comparator: Comparator): void {
@@ -59,9 +70,12 @@ export function clearRegistry(): void {
 
 // Internal only – used by createConfidenceCalculator
 export function getGlobalRegistry(): Readonly<RegistryState> {
+  ensureDefaults();
   return {
     ...registry,
     comparators: { ...registry.comparators },
     weights: { ...registry.weights },
   };
 }
+
+export { initializeDefaultRegistry };
