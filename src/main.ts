@@ -1,7 +1,7 @@
-import { FPUserDataSet, FPDataSet } from "./types/data";
-import { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage";
-import { calculateConfidence, createConfidenceCalculator } from "./libs/confidence";
-import {
+export { FPUserDataSet, FPDataSet } from "./types/data";
+export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage";
+export { calculateConfidence, createConfidenceCalculator } from "./libs/confidence";
+export {
     registerComparator,
     registerWeight,
     registerPlugin,
@@ -11,25 +11,5 @@ import {
     clearRegistry,
     initializeDefaultRegistry
 } from "./libs/registry";
-import { createInMemoryAdapter } from "./libs/storage";
-import { DeviceManager } from "./core/DeviceManager";
-
-export {
-    type FPUserDataSet,
-    type FPDataSet,
-    type StorageAdapter,
-    type StoredFingerprint,
-    type DeviceMatch,
-    calculateConfidence,
-    createConfidenceCalculator,
-    registerComparator,
-    registerWeight,
-    registerPlugin,
-    unregisterComparator,
-    unregisterWeight,
-    setDefaultWeight,
-    clearRegistry,
-    initializeDefaultRegistry,
-    createInMemoryAdapter,
-    DeviceManager
-};
+export { createInMemoryAdapter } from "./libs/storage";
+export { DeviceManager } from "./core/DeviceManager";
