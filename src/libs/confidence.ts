@@ -1,139 +1,123 @@
 import { compareHashes, getHash } from "./tlsh";
-import { FPDataSet } from "../types/data";
+import { getGlobalRegistry } from "./registry";
+import { FPDataSet, ComparisonOptions, Comparator } from "../types/data";
 
-export function compareArrays(
-  arr1: any[],
-  arr2: any[],
-  max_depth: number = 5,
-): [number, number] {
-  let fields = 0;
-  let matches = 0;
+const DEFAULT_WEIGHTS: Record<string, number> = {
+  userAgent: 20,
+  platform: 15,
+  timezone: 10,
+  language: 10,
+  languages: 10,
+  cookieEnabled: 5,
+  doNotTrack: 5,
+  hardwareConcurrency: 5,
+  deviceMemory: 5,
+  product: 5,
+  productSub: 5,
+  vendor: 5,
+  vendorSub: 5,
+  appName: 5,
+  appVersion: 5,
+  appCodeName: 5,
+  appMinorVersion: 5,
+  buildID: 5,
+  plugins: 10,
+  mimeTypes: 10,
+  screen: 10,
+  fonts: 15
+};
 
-  // Ensure max_depth is not exceeded
-  if (max_depth <= 0) {
-    console.warn("Max depth exceeded in compareArrays");
-    return [0, 0]; // Return 0 fields and matches if max depth is exceeded
+export function createConfidenceCalculator(userOptions: ComparisonOptions = {}) {
+  const {
+    weights: localWeights = {},
+    comparators: localComparators = {},
+    defaultWeight: localDefaultWeight = 5,
+    tlshWeight = 0.30,
+    maxDepth = 5,
+    useGlobalRegistry = true,
+  } = userOptions;
+
+  // Merge global registry (if enabled) → local always wins
+  const global = useGlobalRegistry ? getGlobalRegistry() : { comparators: {}, weights: {}, defaultWeight: 5 };
+
+  const finalDefaultWeight = localDefaultWeight ?? global.defaultWeight ?? 5;
+  const mergedWeights = { ...global.weights, ...DEFAULT_WEIGHTS, ...localWeights };
+  const mergedComparators = { ...global.comparators, ...localComparators };
+
+  const defaultComparator: Comparator = (a, b) => Number(a === b);
+
+  const getComparator = (path: string): Comparator => mergedComparators[path] ?? defaultComparator;
+
+  const getWeight = (path: string): number => mergedWeights[path] ?? finalDefaultWeight;
+
+  function compareRecursive(
+    data1: any,
+    data2: any,
+    path = "",
+    depth = 0
+  ): { totalWeight: number; matchedWeight: number } {
+    if (depth > maxDepth) return { totalWeight: 0, matchedWeight: 0 };
+    if (data1 === undefined || data2 === undefined) return { totalWeight: 0, matchedWeight: 0 };
+
+    // Leaf / primitive value
+    if (typeof data1 !== "object" || data1 === null || typeof data2 !== "object" || data2 === null) {
+      const comparator = getComparator(path);
+      const similarity = Math.max(0, Math.min(1, comparator(data1, data2, path)));
+      const weight = getWeight(path);
+      return { totalWeight: weight, matchedWeight: weight * similarity };
+    }
+
+    // Array
+    if (Array.isArray(data1) && Array.isArray(data2)) {
+      let total = 0;
+      let matched = 0;
+      const len = Math.min(data1.length, data2.length);
+      for (let i = 0; i < len; i++) {
+        const res = compareRecursive(data1[i], data2[i], `${path}[${i}]`, depth + 1);
+        total += res.totalWeight;
+        matched += res.matchedWeight;
+      }
+      return { totalWeight: total, matchedWeight: matched };
+    }
+
+    // Object
+    let totalWeight = 0;
+    let matchedWeight = 0;
+    const keys = new Set([...Object.keys(data1 || {}), ...Object.keys(data2 || {})]);
+
+    for (const key of keys) {
+      const newPath = path ? `${path}.${key}` : key;
+      const res = compareRecursive(data1?.[key], data2?.[key], newPath, depth + 1);
+      totalWeight += res.totalWeight;
+      matchedWeight += res.matchedWeight;
+    }
+
+    return { totalWeight, matchedWeight };
   }
 
-  // Sort arrays to ensure consistent comparison
-  const sortedArr1 = arr1.map((item) => JSON.stringify(item)).sort().map(
-    (item) => {
+  return {
+    calculateConfidence(data1: FPDataSet, data2: FPDataSet): number {
       try {
-        return JSON.parse(item);
-      } catch (e) {
-        return undefined;
+        const { totalWeight, matchedWeight } = compareRecursive(data1, data2);
+        const structuralScore = totalWeight > 0 ? matchedWeight / totalWeight : 0;
+
+        // TLSH fuzzy component (kept exactly as before)
+        let tlshScore = 1;
+        if (tlshWeight > 0) {
+          const hash1 = getHash(JSON.stringify(data1));
+          const hash2 = getHash(JSON.stringify(data2));
+          const diff = compareHashes(hash1, hash2);
+          tlshScore = Math.max(0, (100 - diff) / 100);
+        }
+
+        const finalScore = structuralScore * (1 - tlshWeight) + tlshScore * tlshWeight;
+        return Math.round(Math.max(0, Math.min(100, finalScore * 100)));
+      } catch (error) {
+        console.error("Error calculating confidence:", error);
+        return 0;
       }
     },
-  );
-  const sortedArr2 = arr2.map((item) => JSON.stringify(item)).sort().map(
-    (item) => {
-      try {
-        return JSON.parse(item);
-      } catch (e) {
-        return undefined;
-      }
-    },
-  );
-
-  const maxLength = Math.min(arr1.length, arr2.length);
-  for (let i = 0; i < maxLength; i++) {
-    fields++;
-    if (Array.isArray(sortedArr1[i]) && Array.isArray(sortedArr2[i])) {
-      const subData = compareArrays(
-        sortedArr1[i],
-        sortedArr2[i],
-        max_depth - 1,
-      );
-      fields += subData[0] - 1; // Subtract 1 for the index itself
-      matches += subData[1];
-    } else if (
-      (typeof sortedArr1[i] == "object" && sortedArr1[i]) &&
-      (typeof sortedArr2[i] == "object" && sortedArr2[i])
-    ) {
-      const subData = compareDatasets(
-        sortedArr1[i] as FPDataSet,
-        sortedArr2[i] as FPDataSet,
-        max_depth - 1,
-      );
-      fields += subData[0] - 1; // Subtract 1 for the index itself
-      matches += subData[1];
-    }
-
-    if (sortedArr2.includes(sortedArr1[i]) && sortedArr1[i]) {
-      matches++;
-    }
-  }
-  return [fields, matches];
+  };
 }
 
-export function compareDatasets(
-  data1: FPDataSet,
-  data2: FPDataSet,
-  max_depth: number = 5,
-): [number, number] {
-  let fields = 0;
-  let matches = 0;
-
-  // Ensure max_depth is not exceeded
-  if (max_depth <= 0) {
-    console.warn("Max depth exceeded in compareDatasets");
-    return [0, 0]; // Return 0 fields and matches if max depth is exceeded
-  }
-
-  for (const key in data1) {
-    if (data1[key] !== undefined && data2[key] !== undefined) {
-      fields++;
-      if (Array.isArray(data1[key]) && Array.isArray(data2[key])) {
-        const subData = compareArrays(data1[key], data2[key], max_depth - 1);
-        fields += subData[0] - 1; // Subtract 1 for the key itself
-        matches += subData[1];
-      } else if (
-        (typeof data1[key] == "object" && data1[key]) &&
-        (typeof data2[key] == "object" && data2[key])
-      ) {
-        const subData = compareDatasets(
-          data1[key] as FPDataSet,
-          data2[key] as FPDataSet,
-          max_depth - 1,
-        );
-        fields += subData[0] - 1; // Subtract 1 for the key itself
-        matches += subData[1];
-      } else if (data1[key] == data2[key]) {
-        matches++;
-      }
-    }
-  }
-  return [fields, matches];
-}
-
-export function calculateConfidence(
-  data1: FPDataSet,
-  data2: FPDataSet,
-): number {
-  try {
-    // Compare how many fields are the same in both datasets
-    const [fields, matches] = compareDatasets(data1, data2);
-
-    if (fields === 0 || matches === 0) {
-      return 0;
-    }
-
-    // Calculate the hash for each user data
-    const hash1 = getHash(JSON.stringify(data1));
-    const hash2 = getHash(JSON.stringify(data2));
-
-    // Compare the hashes to get their difference
-    const differenceScore = compareHashes(hash1, hash2);
-
-    const inverseMatchScore = 1 - (matches / fields);
-    const x = 1.3 * differenceScore * inverseMatchScore;
-    if (inverseMatchScore === 0 || differenceScore === 0) {
-      return 100;
-    }
-    const confidenceScore = 100 / (1 + Math.E ** (-4.5 + (0.3 * x)));
-    return confidenceScore;
-  } catch (error) {
-    console.error("Error calculating confidence:", error);
-    return 0; // Return 0 if an error occurs during comparison
-  }
-}
+export const calculateConfidence = createConfidenceCalculator().calculateConfidence;

@@ -2,10 +2,11 @@
   "name": "devicer.js",
   "version": "1.1.0",
   "description": "Open-Source Digital Fingerprinting Middleware",
-  "main": "src/main.js",
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
   "scripts": {
     "test": "npx vitest",
-    "build": "tsc"
+    "build": "tsc --outDir dist"
   },
   "repository": {
     "type": "git",
@@ -24,7 +25,11 @@
   },
   "homepage": "https://github.com/gatewaycorporate/fp-devicer#readme",
   "dependencies": {
-    "tlsh": "^1.0.8",
+    "tlsh": "^1.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "typescript": "^5.0.3",
     "vitest": "^3.2.3"
   }
 }

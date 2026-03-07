@@ -1,4 +1,25 @@
 import { FPUserDataSet, FPDataSet } from "./types/data";
-import { compareArrays, compareDatasets, calculateConfidence } from "./libs/confidence";
+import { calculateConfidence, createConfidenceCalculator } from "./libs/confidence";
+import {
+    registerComparator,
+    registerWeight,
+    registerPlugin,
+    unregisterComparator,
+    unregisterWeight,
+    setDefaultWeight,
+    clearRegistry,
+} from "./libs/registry";
 
-export { type FPUserDataSet, type FPDataSet, compareArrays, compareDatasets, calculateConfidence };
+export {
+    type FPUserDataSet,
+    type FPDataSet,
+    calculateConfidence,
+    createConfidenceCalculator,
+    registerComparator,
+    registerWeight,
+    registerPlugin,
+    unregisterComparator,
+    unregisterWeight,
+    setDefaultWeight,
+    clearRegistry
+};
