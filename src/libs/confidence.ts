@@ -3,11 +3,11 @@ import { getGlobalRegistry } from "./registry";
 import { FPDataSet, ComparisonOptions, Comparator } from "../types/data";
 
 const DEFAULT_WEIGHTS: Record<string, number> = {
-  userAgent: 20,
-  platform: 15,
+  userAgent: 10,
+  platform: 20,
   timezone: 10,
-  language: 10,
-  languages: 10,
+  language: 15,
+  languages: 20,
   cookieEnabled: 5,
   doNotTrack: 5,
   hardwareConcurrency: 5,
@@ -21,10 +21,11 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
   appCodeName: 5,
   appMinorVersion: 5,
   buildID: 5,
-  plugins: 10,
-  mimeTypes: 10,
+  plugins: 15,
+  mimeTypes: 15,
   screen: 10,
-  fonts: 15
+  fonts: 15,
+  highEntropyValues: 20
 };
 
 export function createConfidenceCalculator(userOptions: ComparisonOptions = {}) {
