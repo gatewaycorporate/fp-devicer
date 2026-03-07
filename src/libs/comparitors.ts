@@ -9,3 +9,14 @@ export function levenshteinSimilarity(a: string, b: string): number {
   }
   return Math.max(0, 1 - distance / maxLen);
 }
+
+export function jaccardSimilarity(a: unknown, b: unknown): number {
+  const setA = new Set<unknown>(Array.isArray(a) ? a : []);
+  const setB = new Set<unknown>(Array.isArray(b) ? b : []);
+  if (setA.size === 0 && setB.size === 0) return 1;
+  let intersection = 0;
+  for (const item of setA) {
+    if (setB.has(item)) intersection++;
+  }
+  return intersection / (setA.size + setB.size - intersection);
+}
