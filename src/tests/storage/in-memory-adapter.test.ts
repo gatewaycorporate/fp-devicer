@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createInMemoryAdapter } from '../libs/storage';
-import type { StoredFingerprint } from '../types/storage';
+import { createInMemoryAdapter } from '../../libs/storage';
+import type { StoredFingerprint } from '../../types/storage';
 import { randomUUID } from 'crypto';
-import { fpIdentical, fpVerySimilar } from './fixtures/fingerprints';
+import { fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
 
 describe('InMemoryAdapter', () => {
   let adapter: ReturnType<typeof createInMemoryAdapter>;

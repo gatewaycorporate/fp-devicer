@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DeviceManager, createInMemoryAdapter } from '../main';
-import { fpIdentical, fpVerySimilar, fpDifferent } from './fixtures/fingerprints';
+import { DeviceManager, createInMemoryAdapter } from '../../main';
+import { fpIdentical, fpVerySimilar, fpDifferent } from '../fixtures/fingerprints';
 
 describe('DeviceManager', () => {
   let manager: DeviceManager;
