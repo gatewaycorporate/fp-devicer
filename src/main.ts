@@ -1,6 +1,7 @@
-export { FPUserDataSet, FPDataSet } from "./types/data";
-export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage";
-export { calculateConfidence, createConfidenceCalculator } from "./libs/confidence";
+export { FPUserDataSet, FPDataSet } from "./types/data.ts";
+export { getHash, compareHashes } from "./libs/tlsh.ts";
+export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage.ts";
+export { calculateConfidence, createConfidenceCalculator } from "./libs/confidence.ts";
 export {
     registerComparator,
     registerWeight,
@@ -10,6 +11,6 @@ export {
     setDefaultWeight,
     clearRegistry,
     initializeDefaultRegistry
-} from "./libs/registry";
-export { createInMemoryAdapter } from "./libs/storage";
-export { DeviceManager } from "./core/DeviceManager";
+} from "./libs/registry.ts";
+export { createInMemoryAdapter } from "./libs/storage.ts";
+export { DeviceManager } from "./core/DeviceManager.ts";
