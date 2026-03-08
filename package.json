@@ -21,7 +21,7 @@
     "test:coverage": "npx vitest run --coverage",
     "bench": "npx vitest bench --run",
     "bench:watch": "npx vitest bench",
-    "bench:ci": "npx vitest bench --run --reporter=html --outputFile=bench-results.json",
+    "bench:ci": "npx vitest bench --run",
     "build": "tsc --outDir dist",
 		"docs": "typedoc --out docs src/main.ts",
 		"docs:watch": "typedoc --out docs src/main.ts --watch"

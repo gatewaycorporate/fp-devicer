@@ -27,71 +27,45 @@ describe('Performance', () => {
     calculateConfidence(base, mutated);
   });
 
-  // ── In-Memory (creation moved inside for debug) ──
-  bench('DeviceManager.identify (In-Memory)', async () => {
-    try {
-      inMemoryAdapter.deleteOldSnapshots(0); // Clear all entries before bench
-
-			// Warmup
-      for (let i = 0; i < 10; i++) {
+  // ── In-Memory ──
+  describe('DeviceManager.identify (In-Memory)', () => {
+    beforeAll(async () => {
+      await inMemoryAdapter.deleteOldSnapshots(0);
+      for (let i = 0; i < 5; i++) {
         await inMemoryManager.identify(base, { userId: 'warmup' });
       }
+    });
 
-			// Bench
-      for (let i = 0; i < 20; i++) {
-        await inMemoryManager.identify(base, { userId: `bench-${i}` });
-      }
-    } catch (err: any) {
-      console.error('❌ In-Memory FAILED:', err.message || err);
-      console.error(err.stack);
-      throw err;
-    }
-  }, { time: 6000, iterations: 50 });
+    bench('DeviceManager.identify (In-Memory)', async () => {
+      await inMemoryManager.identify(base, { userId: 'bench' });
+    }, { time: 6000, iterations: 50 });
+  });
 
   // ── SQLite in-memory ──
-  bench('DeviceManager.identify (SQLite in-memory)', async () => {
-    try {
-			sqliteInMemoryAdapter.deleteOldSnapshots(0); // Clear all entries before bench
-
-      // Call init if your adapter has it
-      if (typeof (sqliteInMemoryAdapter as any).init === 'function') {
-        await (sqliteInMemoryAdapter as any).init();
-      }
-
-      // Warmup
-      for (let i = 0; i < 10; i++) {
+  describe('DeviceManager.identify (SQLite in-memory)', () => {
+    beforeAll(async () => {
+      await sqliteInMemoryAdapter.deleteOldSnapshots(0);
+      for (let i = 0; i < 5; i++) {
         await sqliteInMemoryManager.identify(base, { userId: 'warmup' });
       }
+    });
 
-			// Bench
-      for (let i = 0; i < 20; i++) {
-        await sqliteInMemoryManager.identify(base, { userId: `bench-${i}` });
+    bench('DeviceManager.identify (SQLite in-memory)', async () => {
+      await sqliteInMemoryManager.identify(base, { userId: 'bench' });
+    }, { time: 6000, iterations: 50 });
+  });
+
+  // ── SQLite file-based (realistic) ──
+  describe('DeviceManager.identify (SQLite file-based)', () => {
+    beforeAll(async () => {
+      await sqliteFileAdapter.deleteOldSnapshots(0);
+      for (let i = 0; i < 5; i++) {
+        await sqliteFileManager.identify(base, { userId: 'warmup' });
       }
-    } catch (err: any) {
-      console.error('❌ SQLite FAILED:', err.message || err);
-      console.error(err.stack);
-      throw err;
-    }
-  }, { time: 6000, iterations: 50 });
+    });
 
-	// ── SQLite file-based (realistic) ──
-	bench('DeviceManager.identify (SQLite file-based)', async () => {
-		try {
-			sqliteFileAdapter.deleteOldSnapshots(0); // Clear all entries before bench
-
-			// Warmup
-			for (let i = 0; i < 10; i++) {
-				await sqliteFileManager.identify(base, { userId: 'warmup' });
-			}
-			
-			// Bench
-			for (let i = 0; i < 20; i++) {
-				await sqliteFileManager.identify(base, { userId: `bench-${i}` });
-			}
-		} catch (err: any) {
-			console.error('❌ SQLite FAILED:', err.message || err);
-			console.error(err.stack);
-			throw err;
-		}
-	}, { time: 6000, iterations: 50 });
+    bench('DeviceManager.identify (SQLite file-based)', async () => {
+      await sqliteFileManager.identify(base, { userId: 'bench' });
+    }, { time: 6000, iterations: 50 });
+  });
 });
