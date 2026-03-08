@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createInMemoryAdapter } from '../../libs/storage';
+import { createInMemoryAdapter } from '../../libs/adapters/inmemory';
 import type { StoredFingerprint } from '../../types/storage';
 import { randomUUID } from 'crypto';
 import { fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
