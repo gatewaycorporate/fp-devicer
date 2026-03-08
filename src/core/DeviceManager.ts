@@ -90,7 +90,7 @@ export class DeviceManager {
       ? bestMatch.deviceId
       : `dev_${randomUUID()}`;
 
-    const isNewDevice = !bestMatch;
+    const isNewDevice = !(bestMatch && bestMatch.confidence > this.context.matchThreshold!);
     const finalConfidence = bestMatch?.confidence ?? 0;
     const durationMs = performance.now() - start;
 

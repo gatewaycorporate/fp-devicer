@@ -43,9 +43,6 @@
   },
   "homepage": "https://github.com/gatewaycorporate/fp-devicer#readme",
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
-    "drizzle-orm": "^0.45.1",
-    "postgres": "^3.4.8",
     "tlsh": "^1.0.8"
   },
   "devDependencies": {
@@ -61,6 +58,9 @@
   "peerDependencies": {
     "express": "^4.22.1",
     "ioredis": "^5.10.0",
-    "prom-client": "^14.2.0"
+    "prom-client": "^14.2.0",
+    "better-sqlite3": "^12.6.2",
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8"
   }
 }
