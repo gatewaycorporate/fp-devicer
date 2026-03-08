@@ -1,13 +1,6 @@
 name: Deploy TypeDoc to GitHub Pages
 
-on:
-  push:
-    branches: ["main"]
-    paths:
-      - "src/**"
-      - "typedoc.json"
-      - "package.json"
-      - "tsconfig.json"
+on: [push]
 
 permissions:
   contents: read
