@@ -1,6 +1,30 @@
 import Redis from "ioredis";
 import { randomUUID } from "crypto";
 import { calculateConfidence } from "../confidence.js";
+/**
+ * Create a {@link StorageAdapter} backed by Redis via `ioredis`.
+ *
+ * **Key schema**
+ * - `fp:device:<deviceId>` — Hash mapping snapshot IDs to serialised
+ *   {@link StoredFingerprint} JSON. Keys expire after 90 days.
+ * - `fp:latest:<deviceId>` — Stores the most-recent fingerprint JSON for
+ *   fast candidate retrieval.
+ * - `idx:platform:<value>`, `idx:deviceMemory:<value>`,
+ *   `idx:hardwareConcurrency:<value>` — Secondary index sets used for
+ *   O(1) candidate pre-filtering via `SINTER`.
+ *
+ * `deleteOldSnapshots` is a no-op; TTL-based expiry handles retention.
+ *
+ * @param redisUrl - Optional Redis connection URL.
+ *   Defaults to `"redis://localhost:6379"`.
+ * @returns A `StorageAdapter` instance. Call `init()` before any other method.
+ *
+ * @example
+ * ```ts
+ * const adapter = createRedisAdapter('redis://localhost:6379');
+ * await adapter.init();
+ * ```
+ */
 export function createRedisAdapter(redisUrl) {
     const redis = new Redis(redisUrl || "redis://localhost:6379");
     return {
@@ -84,6 +108,26 @@ export function createRedisAdapter(redisUrl) {
         async deleteOldSnapshots(olderThanDays) {
             // This is a no-op since we set TTL on keys, but you could also implement a scan + delete here if needed
             return 0;
+        },
+        async getAllFingerprints() {
+            const stream = redis.scanStream({ match: 'fp:device:*', count: 100 });
+            const allFingerprints = [];
+            return new Promise((resolve, reject) => {
+                stream.on('data', async (keys) => {
+                    if (keys.length) {
+                        const pipeline = redis.pipeline();
+                        keys.forEach(key => pipeline.hvals(key));
+                        const results = await pipeline.exec();
+                        results.forEach(([err, raw]) => {
+                            if (err)
+                                return; // skip errors
+                            raw.forEach((v) => allFingerprints.push(JSON.parse(v)));
+                        });
+                    }
+                });
+                stream.on('end', () => resolve(allFingerprints));
+                stream.on('error', (err) => reject(err));
+            });
         },
         async close() { await redis.quit(); }
     };

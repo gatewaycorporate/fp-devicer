@@ -11,6 +11,24 @@ const fingerprintsTable = pgTable("fingerprints", {
     data: json("data").$type(),
     timestamp: text("timestamp"),
 });
+/**
+ * Create a {@link StorageAdapter} backed by a PostgreSQL database via
+ * Drizzle ORM (`drizzle-orm/postgres-js`).
+ *
+ * The adapter creates the `fingerprints` table automatically on the first
+ * call to `init()`. Candidate pre-filtering executes a JSON-operator
+ * `WHERE` clause before running full in-process confidence scoring.
+ *
+ * @param dbUrlOrClient - PostgreSQL connection string,
+ *   e.g. `"postgresql://user:pass@localhost:5432/mydb"`.
+ * @returns A `StorageAdapter` instance. Call `init()` before any other method.
+ *
+ * @example
+ * ```ts
+ * const adapter = createPostgresAdapter('postgresql://localhost/mydb');
+ * await adapter.init();
+ * ```
+ */
 export function createPostgresAdapter(dbUrlOrClient) {
     const db = drizzle(dbUrlOrClient); // works for both SQLite & Postgres
     return {
@@ -75,5 +93,14 @@ export function createPostgresAdapter(dbUrlOrClient) {
             const result = await db.delete(fingerprintsTable).where(lt(fingerprintsTable.timestamp, cutoff)).returning();
             return result.length;
         },
+        async getAllFingerprints() {
+            const results = await db.select().from(fingerprintsTable);
+            return results.filter(row => row.data !== null).map(row => ({
+                id: row.id,
+                deviceId: row.deviceId,
+                fingerprint: row.data,
+                timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+            }));
+        }
     };
 }

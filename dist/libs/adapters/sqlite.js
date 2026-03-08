@@ -11,6 +11,23 @@ const fingerprintsTable = sqliteTable("fingerprints", {
     data: text("data", { mode: "json" }).$type(),
     timestamp: text("timestamp"),
 });
+/**
+ * Create a {@link StorageAdapter} backed by a SQLite database file via
+ * Drizzle ORM (`drizzle-orm/better-sqlite3`).
+ *
+ * The adapter creates the `fingerprints` table automatically on the first
+ * call to `init()`. Candidate pre-filtering uses a lightweight SQL `WHERE`
+ * clause on JSON fields before running full in-process confidence scoring.
+ *
+ * @param dbUrlOrClient - Path to the SQLite database file, e.g. `"./fp.db"`.
+ * @returns A `StorageAdapter` instance. Call `init()` before any other method.
+ *
+ * @example
+ * ```ts
+ * const adapter = createSqliteAdapter('./fingerprints.db');
+ * await adapter.init();
+ * ```
+ */
 export function createSqliteAdapter(dbUrlOrClient) {
     const db = drizzle(dbUrlOrClient); // works for both SQLite & Postgres
     return {
@@ -73,5 +90,14 @@ export function createSqliteAdapter(dbUrlOrClient) {
             const result = await db.delete(fingerprintsTable).where(lt(fingerprintsTable.timestamp, cutoff));
             return result.changes || 0; // number of deleted rows
         },
+        async getAllFingerprints() {
+            const results = await db.select().from(fingerprintsTable);
+            return results.filter(row => row.data !== null).map(row => ({
+                id: row.id,
+                deviceId: row.deviceId,
+                fingerprint: row.data,
+                timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+            }));
+        }
     };
 }

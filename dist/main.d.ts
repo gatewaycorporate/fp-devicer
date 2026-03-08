@@ -8,4 +8,7 @@ export { createSqliteAdapter } from "./libs/adapters/sqlite.js";
 export { createPostgresAdapter } from "./libs/adapters/postgres.js";
 export { createRedisAdapter } from "./libs/adapters/redis.js";
 export { DeviceManager } from "./core/DeviceManager.js";
+export { AdapterFactory, AdapterFactoryOptions } from "./core/AdapterFactory.js";
+export { Logger, Metrics, ObservabilityOptions } from "./types/observability.js";
+export { defaultLogger, defaultMetrics } from "./libs/default-observability.js";
 //# sourceMappingURL=main.d.ts.map

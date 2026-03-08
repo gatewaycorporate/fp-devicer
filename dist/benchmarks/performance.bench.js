@@ -1,51 +1,59 @@
-import { bench, describe, beforeAll, afterAll } from 'vitest';
+import { bench, describe, beforeAll } from 'vitest';
 import { calculateConfidence } from '../libs/confidence.js';
 import { DeviceManager } from '../core/DeviceManager.js';
 import { createInMemoryAdapter } from '../libs/adapters/inmemory.js';
 import { createSqliteAdapter } from '../libs/adapters/sqlite.js';
 import { generateDataset } from './data-generator.js';
-const dataset = generateDataset(100); // small set for fast benchmarks
+const dataset = generateDataset(50);
 const base = dataset[0].data;
-const mutated = dataset[5].data; // same device, low mutation
+const mutated = dataset[5].data;
+const inMemoryAdapter = createInMemoryAdapter();
+const sqliteInMemoryAdapter = createSqliteAdapter(':memory:');
+const sqliteFileAdapter = createSqliteAdapter('./src/benchmarks/benchmark-sqlite.db');
+const inMemoryManager = new DeviceManager(inMemoryAdapter);
+const sqliteInMemoryManager = new DeviceManager(sqliteInMemoryAdapter);
+const sqliteFileManager = new DeviceManager(sqliteFileAdapter);
+await sqliteInMemoryAdapter.init();
+await sqliteFileAdapter.init();
 describe('Performance', () => {
-    // ── Pure scoring baseline (always runs fine) ──
+    // ── Pure scorer (always works) ──
     bench('calculateConfidence (hybrid scorer)', () => {
         calculateConfidence(base, mutated);
     });
-    // ── In-Memory (for reference) ──
-    let memoryManager;
-    beforeAll(() => {
-        memoryManager = new DeviceManager(createInMemoryAdapter());
+    // ── In-Memory ──
+    describe('DeviceManager.identify (In-Memory)', () => {
+        beforeAll(async () => {
+            await inMemoryAdapter.deleteOldSnapshots(0);
+            for (let i = 0; i < 5; i++) {
+                await inMemoryManager.identify(base, { userId: 'warmup' });
+            }
+        });
+        bench('DeviceManager.identify (In-Memory)', async () => {
+            await inMemoryManager.identify(base, { userId: 'bench' });
+        }, { time: 6000, iterations: 50 });
     });
-    bench('DeviceManager.identify (In-Memory)', async () => {
-        await memoryManager.identify(base);
+    // ── SQLite in-memory ──
+    describe('DeviceManager.identify (SQLite in-memory)', () => {
+        beforeAll(async () => {
+            await sqliteInMemoryAdapter.deleteOldSnapshots(0);
+            for (let i = 0; i < 5; i++) {
+                await sqliteInMemoryManager.identify(base, { userId: 'warmup' });
+            }
+        });
+        bench('DeviceManager.identify (SQLite in-memory)', async () => {
+            await sqliteInMemoryManager.identify(base, { userId: 'bench' });
+        }, { time: 6000, iterations: 50 });
     });
-    // ── SQLite (the one that was failing) ──
-    let sqliteManager;
-    beforeAll(async () => {
-        // Use :memory: for benchmarks (fast & isolated)
-        const adapter = createSqliteAdapter('./src/benchmarks/benchmark-sqlite.db');
-        // If your adapter has an init() method to create tables, call it here
-        if (typeof adapter.init === 'function') {
-            await adapter.init();
-        }
-        sqliteManager = new DeviceManager(adapter);
-        // Warmup (critical to avoid cold-start NaN / skewed numbers)
-        for (let i = 0; i < 10; i++) {
-            await sqliteManager.identify(base, { userId: 'warmup' });
-        }
-        console.log('✅ SQLite warmup completed');
-    });
-    bench('DeviceManager.identify (SQLite)', async () => {
-        try {
-            await sqliteManager.identify(base);
-        }
-        catch (err) {
-            console.error('❌ SQLite identify failed inside benchmark:', err);
-            throw err; // let Vitest see the real error
-        }
-    });
-    afterAll(async () => {
-        // Optional: close connections if your adapter needs it
+    // ── SQLite file-based (realistic) ──
+    describe('DeviceManager.identify (SQLite file-based)', () => {
+        beforeAll(async () => {
+            await sqliteFileAdapter.deleteOldSnapshots(0);
+            for (let i = 0; i < 5; i++) {
+                await sqliteFileManager.identify(base, { userId: 'warmup' });
+            }
+        });
+        bench('DeviceManager.identify (SQLite file-based)', async () => {
+            await sqliteFileManager.identify(base, { userId: 'bench' });
+        }, { time: 6000, iterations: 50 });
     });
 });

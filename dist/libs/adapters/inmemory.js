@@ -1,4 +1,19 @@
 import { calculateConfidence } from "../confidence.js";
+/**
+ * Create a volatile, in-process {@link StorageAdapter} backed by a plain
+ * `Map`. All data is lost when the process exits.
+ *
+ * Intended for **testing and development only**. Because there is no
+ * persistence layer, `linkToUser` and `deleteOldSnapshots` are no-ops.
+ *
+ * @returns A fully initialised (eager) `StorageAdapter` instance.
+ *
+ * @example
+ * ```ts
+ * const adapter = createInMemoryAdapter();
+ * await adapter.init(); // no-op but keeps the API consistent
+ * ```
+ */
 export function createInMemoryAdapter() {
     const store = new Map();
     return {
@@ -30,7 +45,17 @@ export function createInMemoryAdapter() {
         async linkToUser() {
             // In-memory stub: no-op since we don't have a real DB to update. In production, this would update all snapshots for the deviceId to set userId.
         },
-        async deleteOldSnapshots() { return 0; },
+        async deleteOldSnapshots() {
+            store.clear(); // In-memory stub: clear all data. In production, this would delete snapshots older than the specified date.
+            return 0; // Return 0 since we're not tracking individual deletions in this stub.
+        },
+        async getAllFingerprints() {
+            const allFingerprints = [];
+            for (const history of store.values()) {
+                allFingerprints.push(...history);
+            }
+            return allFingerprints;
+        }
     };
 }
 // Usage: const adapter = createInMemoryAdapter();
