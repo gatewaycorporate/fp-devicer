@@ -1,3 +1,15 @@
+/**
+ * Compute a character-level similarity score between two strings using a
+ * simplified Levenshtein-inspired distance.
+ *
+ * The distance counts differing prefix characters and the absolute length
+ * difference, then normalises over the longer string's length.
+ *
+ * @param a - First string.
+ * @param b - Second string.
+ * @returns Similarity in `[0, 1]`. Returns `1` for identical strings and
+ *   `0` when either string is empty (but not both).
+ */
 export function levenshteinSimilarity(a: string, b: string): number {
   if (a === b) return 1;
   if (!a || !b) return 0;
@@ -10,6 +22,16 @@ export function levenshteinSimilarity(a: string, b: string): number {
   return Math.max(0, 1 - distance / maxLen);
 }
 
+/**
+ * Compute the Jaccard similarity coefficient between two arrays.
+ *
+ * Both inputs are coerced into sets. Empty arrays on both sides yield `1`
+ * (identical empty sets). If only one side is empty the result is `0`.
+ *
+ * @param a - First array (non-array values are treated as an empty array).
+ * @param b - Second array.
+ * @returns Jaccard index in `[0, 1]`: `|A ∩ B| / |A ∪ B|`.
+ */
 export function jaccardSimilarity(a: unknown, b: unknown): number {
   const setA = new Set<unknown>(Array.isArray(a) ? a : []);
   const setB = new Set<unknown>(Array.isArray(b) ? b : []);
@@ -21,11 +43,31 @@ export function jaccardSimilarity(a: unknown, b: unknown): number {
   return intersection / (setA.size + setB.size - intersection);
 }
 
+/**
+ * Return `1` for strictly equal values, `0` for unequal values.
+ * When either operand is `undefined` a neutral score of `0.5` is returned
+ * to avoid penalising missing fields.
+ *
+ * @param a - First value.
+ * @param b - Second value.
+ * @returns `1`, `0.5`, or `0`.
+ */
 function exactMatch(a: unknown, b: unknown): number {
 	if (a === undefined || b === undefined) return 0.5;
 	return a === b ? 1 : 0;
 }
 
+/**
+ * Compute a proximity score between two numeric values.
+ *
+ * The score is normalised by the larger magnitude so that small differences
+ * on large numbers still receive a high score. Non-numeric types fall back
+ * to exact-match semantics. Missing (`undefined`) operands yield `0.5`.
+ *
+ * @param a - First value.
+ * @param b - Second value.
+ * @returns Proximity score in `[0, 1]`.
+ */
 export function numericProximity(a: unknown, b: unknown): number {
 	if (a === undefined || b === undefined) return 0.5;
 	if (typeof a !== "number" || typeof b !== "number") return a === b ? 1 : 0;
@@ -34,6 +76,17 @@ export function numericProximity(a: unknown, b: unknown): number {
 	return Math.max(0, 1 - Math.abs(a - b) / range);
 }
 
+/**
+ * Aggregate similarity score for two screen descriptor objects.
+ *
+ * Combines numeric proximity on `width`, `height`, `colorDepth`, and
+ * `pixelDepth` with an exact-match check on `orientation.type`. Each of
+ * the five components contributes equally (weight `0.2`).
+ *
+ * @param screen1 - First screen descriptor (e.g. `FPUserDataSet["screen"]`).
+ * @param screen2 - Second screen descriptor.
+ * @returns Similarity in `[0, 1]`. Returns `0.5` when either argument is falsy.
+ */
 export function screenSimilarity(screen1: any, screen2: any): number {
 	if (!screen1 || !screen2) return 0.5;
 	const widthSim = numericProximity(screen1.width, screen2.width);

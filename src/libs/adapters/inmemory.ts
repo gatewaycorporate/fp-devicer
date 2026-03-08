@@ -1,6 +1,21 @@
 import type { StorageAdapter, StoredFingerprint, DeviceMatch } from "../../types/storage.js";
 import { calculateConfidence } from "../confidence.js";
 
+/**
+ * Create a volatile, in-process {@link StorageAdapter} backed by a plain
+ * `Map`. All data is lost when the process exits.
+ *
+ * Intended for **testing and development only**. Because there is no
+ * persistence layer, `linkToUser` and `deleteOldSnapshots` are no-ops.
+ *
+ * @returns A fully initialised (eager) `StorageAdapter` instance.
+ *
+ * @example
+ * ```ts
+ * const adapter = createInMemoryAdapter();
+ * await adapter.init(); // no-op but keeps the API consistent
+ * ```
+ */
 export function createInMemoryAdapter(): StorageAdapter {
   const store = new Map<string, StoredFingerprint[]>();
 

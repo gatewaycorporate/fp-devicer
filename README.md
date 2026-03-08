@@ -1,11 +1,16 @@
 # FP-Devicer
+
 ## Developed by Gateway Corporate Solutions LLC
 
-FP-Devicer is a digital fingerprinting middleware library designed for ease of use and near-universal compatibility with servers.
+FP-Devicer is a digital fingerprinting middleware library designed for ease of
+use and near-universal compatibility with servers.
 
 ### Usage
 
-Importing and using the library to compare fingerprints between users is as simple as collecting some user data and running the calculateConfidence function.
+Importing and using the library to compare fingerprints between users is as
+simple as collecting some user data and running the calculateConfidence
+function.
+
 ```javascript
 // 1. Simple Method (Using defaults)
 import {calculateConfidence } from "devicer.js";
@@ -46,7 +51,8 @@ app.post('/identify', async (req, res) => {
 app.listen(3000, () => console.log('✅ FP-Devicer server ready on :3000'));
 ```
 
-The resulting confidence will range between 0 and 100, with 100 providing the highest confidence of the users being identical.
+The resulting confidence will range between 0 and 100, with 100 providing the
+highest confidence of the users being identical.
 
 ### Quickstart
 
@@ -54,9 +60,10 @@ To run the quickstart example:
 
 ```sh
 npm install express devicer.js
-npx tsx examples/server/quickstart.ts
+npx tsx examples/quickstart.ts
 ```
 
 ### Demo
 
-There is a public demo of FP-Devicer (FP-Cicis Command and Control) available for viewing at [cicis.info](https://cicis.info/)
+There is a public demo of FP-Devicer (FP-Cicis Command and Control) available
+for viewing at [cicis.info](https://cicis.info/)
