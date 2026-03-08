@@ -4,45 +4,45 @@
  * font enumeration, and high-entropy client hints.
  */
 export interface FPUserDataSet {
-  userAgent: string;
-  platform: string;
-  timezone: string;
-  language: string;
-  languages: string[];
-  cookieEnabled: boolean;
-  doNotTrack: string | boolean;
-  hardwareConcurrency: number;
-  deviceMemory: number | string;
-  product: string;
-  productSub: string;
-  vendor: string;
-  vendorSub: string;
-  appName: string;
-  appVersion: string;
-  appCodeName: string;
-  appMinorVersion: string;
-  buildID: string;
-  plugins: {
+  userAgent?: string;
+  platform?: string;
+  timezone?: string;
+  language?: string;
+  languages?: string[];
+  cookieEnabled?: boolean;
+  doNotTrack?: string | boolean;
+  hardwareConcurrency?: number;
+  deviceMemory?: number | string;
+  product?: string;
+  productSub?: string;
+  vendor?: string;
+  vendorSub?: string;
+  appName?: string;
+  appVersion?: string;
+  appCodeName?: string;
+  appMinorVersion?: string;
+  buildID?: string;
+  plugins?: {
     name: string;
     description: string;
   }[];
-  mimeTypes: {
+  mimeTypes?: {
     type: string;
     suffixes: string;
     description: string;
   }[];
-  screen: {
+  screen?: {
     width: number;
     height: number;
-    colorDepth: number;
-    pixelDepth: number;
-    orientation: {
+    colorDepth?: number;
+    pixelDepth?: number;
+    orientation?: {
       type: string;
       angle: number;
     };
   };
-  fonts: string[];
-  highEntropyValues: {
+  fonts?: string[];
+  highEntropyValues?: {
     architecture?: string;
     bitness?: string;
     brands?: { brand: string; version: string }[];

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>FP-Devicer Quickstart Example</title>
+</head>
+<body>
+	<h1>FP-Devicer Quickstart Example</h1>
+	<p>This example demonstrates how to set up a simple Express server that uses FP-Devicer to identify devices based on incoming requests.</p>
+	<p>Open the browser console to see the identification results.</p>
+	<script>
+		fetch('/identify', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				userAgent: navigator.userAgent,
+				platform: navigator.platform,
+				language: navigator.language || navigator.userLanguage,
+				languages: navigator.languages,
+				screen: {
+					width: window.screen.width,
+					height: window.screen.height,
+					colorDepth: window.screen.colorDepth,
+					pixelDepth: window.screen.pixelDepth,
+					orientation: window.screen.orientation ? window.screen.orientation.type : undefined
+				},
+				timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+				plugins: Array.from(navigator.plugins).map(plugin => ({
+					name: plugin.name,
+					description: plugin.description
+				}))
+				// Add more properties as needed for better identification
+			})
+		})
+		.then(response => response.json())
+		.then(data => {
+			console.log('Device identification result:', data);
+		})
+		.catch(error => {
+			console.error('Error identifying device:', error);
+		});
+	</script>
+</body>
+</html>
