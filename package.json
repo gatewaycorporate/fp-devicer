@@ -19,9 +19,9 @@
     "test": "npx vitest run",
     "test:watch": "npx vitest watch",
     "test:coverage": "npx vitest run --coverage",
-		"bench": "npx vitest bench --run",
-		"bench:watch": "npx vitest bench",
-		"bench:ci": "npx vitest bench --run --reporter=html --outputFile=bench-results.json",
+    "bench": "npx vitest bench --run",
+    "bench:watch": "npx vitest bench",
+    "bench:ci": "npx vitest bench --run --reporter=html --outputFile=bench-results.json",
     "build": "tsc --outDir dist"
   },
   "repository": {
@@ -58,6 +58,7 @@
   },
   "peerDependencies": {
     "express": "^4.22.1",
-    "ioredis": "^5.10.0"
+    "ioredis": "^5.10.0",
+    "prom-client": "^14.2.0"
   }
 }
