@@ -60,7 +60,7 @@ To run the quickstart example:
 
 ```sh
 npm install express devicer.js
-npx tsx examples/quickstart.ts
+npx tsx src/examples/quickstart.ts
 ```
 
 ### Demo
