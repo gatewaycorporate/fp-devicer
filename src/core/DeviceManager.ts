@@ -22,7 +22,7 @@ import { defaultLogger, defaultMetrics } from "../libs/default-observability.js"
  *
  * @example
  * ```ts
- * const manager = new DeviceManager(adapter, { matchThreshold: 85 });
+ * const manager = new DeviceManager(adapter, { matchThreshold: 50 });
  * const result = await manager.identify(fingerprintData, { userId: 'u_123' });
  * console.log(result.deviceId, result.confidence);
  * ```
@@ -35,9 +35,9 @@ export class DeviceManager {
    * @param adapter - Storage backend used for all persistence operations.
    * @param context - Optional tuning parameters and observability overrides.
    * @param context.matchThreshold - Minimum confidence score (0–100) required
-   *   to consider two fingerprints the same device. Defaults to `80`.
+   *   to consider two fingerprints the same device. Defaults to `50`.
    * @param context.candidateMinScore - Minimum score (0–100) passed to the
-   *   adapter's pre-filter step. Defaults to `50`.
+   *   adapter's pre-filter step. Defaults to `30`.
    * @param context.logger - Custom logger; falls back to {@link defaultLogger}.
    * @param context.metrics - Custom metrics sink; falls back to {@link defaultMetrics}.
    */
@@ -45,8 +45,8 @@ export class DeviceManager {
     matchThreshold?: number; // confidence threshold for matching devices
     candidateMinScore?: number; // minimum score for pre-filtering candidates
   } & ObservabilityOptions = {}) {
-    this.context.matchThreshold ??= 80; // default threshold
-    this.context.candidateMinScore ??= 50; // default minimum score for pre-filtering candidates
+    this.context.matchThreshold ??= 50; // default threshold
+    this.context.candidateMinScore ??= 30; // default minimum score for pre-filtering candidates
     this.logger = this.context.logger ?? defaultLogger;
     this.metrics = this.context.metrics ?? defaultMetrics;
   }

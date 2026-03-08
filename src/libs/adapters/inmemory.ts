@@ -45,7 +45,10 @@ export function createInMemoryAdapter(): StorageAdapter {
     async linkToUser() {
       // In-memory stub: no-op since we don't have a real DB to update. In production, this would update all snapshots for the deviceId to set userId.
     },
-    async deleteOldSnapshots() { return 0; },
+    async deleteOldSnapshots() {
+			store.clear(); // In-memory stub: clear all data. In production, this would delete snapshots older than the specified date.
+			return 0; // Return 0 since we're not tracking individual deletions in this stub.
+		},
   };
 }
 

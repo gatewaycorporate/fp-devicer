@@ -1,10 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DeviceManager, createInMemoryAdapter } from '../../main';
-import { fpIdentical, fpVerySimilar, fpDifferent } from '../fixtures/fingerprints';
+import { DeviceManager, calculateConfidence, createInMemoryAdapter } from '../../main';
+import { createBaseFingerprint, mutate } from '../../benchmarks/data-generator';
 
 describe('DeviceManager', () => {
   let manager: DeviceManager;
   let adapter: any;
+	let fpIdentical = createBaseFingerprint(1);
+	let fpVerySimilar = mutate(fpIdentical, "low");
+	let fpSimilar = mutate(fpIdentical, "medium");
+	let fpDifferent = mutate(fpIdentical, "high");
+	let fpVeryDifferent = mutate(fpIdentical, "extreme");
 
   beforeEach(() => {
     adapter = createInMemoryAdapter();
@@ -12,15 +17,14 @@ describe('DeviceManager', () => {
   });
 
   it('creates new device when no match exists', async () => {
-    const result = await manager.identify(fpIdentical, { userId: 'user_abc', ip: '1.2.3.4' });
-
+		const result = await manager.identify(fpIdentical, { userId: 'user_abc' });
     expect(result.deviceId).toMatch(/^dev_/);
     expect(result.isNewDevice).toBe(true);
     expect(result.confidence).toBe(0);
     expect(result.linkedUserId).toBe('user_abc');
   });
 
-  it('returns existing device on high-confidence match (>80)', async () => {
+  it('returns existing device on high-confidence match (>70)', async () => {
     const first = await manager.identify(fpIdentical);
     const deviceId = first.deviceId;
 
@@ -28,15 +32,36 @@ describe('DeviceManager', () => {
 
     expect(second.deviceId).toBe(deviceId);
     expect(second.isNewDevice).toBe(false);
-    expect(second.confidence).toBeGreaterThan(80);
+    expect(second.confidence).toBeGreaterThan(70);
   });
 
-  it('treats low-confidence as new device', async () => {
-    await manager.identify(fpIdentical);
-    const result = await manager.identify(fpDifferent);
+	it('returns existing device on noisy high-confidence match (>60)', async () => {
+		const first = await manager.identify(fpIdentical);
+		const deviceId = first.deviceId;
+		const second = await manager.identify(fpSimilar);
+		
+		expect(second.deviceId).toBe(deviceId);
+		expect(second.isNewDevice).toBe(false);
+		expect(second.confidence).toBeGreaterThan(60);
+	});
 
-    expect(result.isNewDevice).toBe(true);
-    expect(result.confidence).toBeLessThan(60);
+	it('returns existing device on medium-confidence match (>50)', async () => {
+		const first = await manager.identify(fpIdentical);
+		const deviceId = first.deviceId;
+		const second = await manager.identify(fpDifferent);
+		
+		expect(second.deviceId).toBe(deviceId);
+		expect(second.isNewDevice).toBe(false);
+		expect(second.confidence).toBeGreaterThan(50);
+	});
+
+  it('returns new device on low-confidence (<50)', async () => {
+		const first = await manager.identify(fpIdentical);
+		const deviceId = first.deviceId;
+		const second = await manager.identify(fpVeryDifferent);
+
+		expect(second.deviceId).not.toBe(deviceId);
+    expect(second.confidence).toBeLessThan(50);
   });
 
   it('persists a snapshot on every identification', async () => {

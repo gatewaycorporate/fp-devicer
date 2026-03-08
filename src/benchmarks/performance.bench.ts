@@ -18,6 +18,9 @@ const inMemoryManager = new DeviceManager(inMemoryAdapter);
 const sqliteInMemoryManager = new DeviceManager(sqliteInMemoryAdapter);
 const sqliteFileManager = new DeviceManager(sqliteFileAdapter);
 
+await (sqliteInMemoryAdapter as any).init();
+await (sqliteFileAdapter as any).init();
+
 describe('Performance', () => {
   // ── Pure scorer (always works) ──
   bench('calculateConfidence (hybrid scorer)', () => {
@@ -75,11 +78,6 @@ describe('Performance', () => {
 	bench('DeviceManager.identify (SQLite file-based)', async () => {
 		try {
 			sqliteFileAdapter.deleteOldSnapshots(0); // Clear all entries before bench
-			
-			// Call init if your adapter has it
-			if (typeof (sqliteFileAdapter as any).init === 'function') {
-				await (sqliteFileAdapter as any).init();
-			}
 
 			// Warmup
 			for (let i = 0; i < 10; i++) {

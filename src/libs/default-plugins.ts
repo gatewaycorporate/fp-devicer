@@ -14,37 +14,52 @@ const BUILT_IN_PLUGINS = [
 	{
 		path: "userAgent",
 		weight: 20,
-		comparator: (a: any, b: any) => levenshteinSimilarity(String(a || "").toLowerCase(), String(b || "").toLowerCase())
+		comparator: (a: string, b: string) => levenshteinSimilarity(String(a || "").toLowerCase(), String(b || "").toLowerCase())
 	},
 	{
 		path: "platform",
 		weight: 15,
-		comparator: (a: any, b: any) => levenshteinSimilarity(String(a || "").toLowerCase(), String(b || "").toLowerCase())
+		comparator: (a: string, b: string) => levenshteinSimilarity(String(a || "").toLowerCase(), String(b || "").toLowerCase())
 	},
 	{
 		path: "fonts",
 		weight: 15,
-		comparator: (a: any, b: any) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
+		comparator: (a: Array<any>, b: Array<any>) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
 	},
 	{
 		path: "languages",
 		weight: 20,
-		comparator: (a: any, b: any) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
+		comparator: (a: Array<any>, b: Array<any>) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
 	},
 	{
 		path: "plugins",
 		weight: 15,
-		comparator: (a: any, b: any) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
+		comparator: (a: Array<any>, b: Array<any>) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
 	},
 	{
 		path: "mimeTypes",
 		weight: 15,
-		comparator: (a: any, b: any) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
+		comparator: (a: Array<any>, b: Array<any>) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
 	},
 	{
 		path: "screen",
 		weight: 10,
 		comparator: (a: any, b: any) => screenSimilarity(a, b)
+	},
+	{
+		path: "canvas",
+		weight: 30,
+		comparator: (a: string, b: string) => String(a || "") === String(b || "") ? 1 : 0
+	},
+	{
+		path: "webgl",
+		weight: 25,
+		comparator: (a: string, b: string) => String(a || "") === String(b || "") ? 1 : 0
+	},
+	{
+		path: "audio",
+		weight: 25,
+		comparator: (a: string, b: string) => String(a || "") === String(b || "") ? 1 : 0
 	}
 ]
 

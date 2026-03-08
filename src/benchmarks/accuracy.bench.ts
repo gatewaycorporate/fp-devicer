@@ -4,23 +4,45 @@ import { calculateConfidence } from '../libs/confidence.js';
 import { generateDataset } from './data-generator.js';
 import { calculateMetrics } from './metrics.js';
 
-describe('Accuracy & Robustness', () => {
-  // ←←← PUT THE bench() FUNCTION HERE ←←←
-  bench('full accuracy evaluation (2000 devices, 5000 pairs)', () => {
-    // This is the exact spot — everything heavy goes inside this bench callback
-    const dataset: LabeledFingerprint[] = generateDataset(2000, 5);
+// Generated once at module load — outside every bench iteration
+const dataset: LabeledFingerprint[] = generateDataset(2000, 5);
 
-    // Pre-compute scored pairs (this is what we want Vitest to time)
+const groups = new Map<string, LabeledFingerprint[]>();
+for (const item of dataset) {
+  if (!groups.has(item.deviceLabel)) groups.set(item.deviceLabel, []);
+  groups.get(item.deviceLabel)!.push(item);
+}
+
+const devices = Array.from(groups.keys());
+
+describe('Accuracy & Robustness', () => {
+  bench('full accuracy evaluation (2000 devices, 5000 pairs)', () => {
     const scoredPairs: { score: number; sameDevice: boolean }[] = [];
-    for (let i = 0; i < 5000; i++) {
-      const a = dataset[i % dataset.length];
-      const b = dataset[(i + 500) % dataset.length];
-      const score = calculateConfidence(a.data, b.data);
-      scoredPairs.push({
-        score,
-        sameDevice: a.deviceLabel === b.deviceLabel,
-      });
-    }
+
+		// 1. Generate balanced genuine + impostor pairs
+		for (let i = 0; i < 2500; i++) {  // 2500 genuine + 2500 impostor
+			// Genuine pair: two different samples from SAME device
+			const dev = devices[i % devices.length];
+			const samples = groups.get(dev)!;
+			if (samples.length < 2) continue; // skip if device has only 1 sample
+			const idx1 = i % samples.length;
+			const idx2 = (idx1 + 1 + i) % samples.length; // different sample
+			const a = samples[idx1];
+			const b = samples[idx2];
+			scoredPairs.push({
+				score: calculateConfidence(a.data, b.data),
+				sameDevice: true
+			});
+
+			// Impostor pair: samples from two different devices
+			const dev2 = devices[(i + 1) % devices.length];
+			const c = groups.get(dev2)![i % groups.get(dev2)!.length];
+			const d = groups.get(dev)![(idx1 + 3) % samples.length]; // different from a
+			scoredPairs.push({
+				score: calculateConfidence(c.data, d.data),
+				sameDevice: false
+			});
+		}
 
     const results = calculateMetrics(scoredPairs);
 

@@ -42,6 +42,9 @@ export interface FPUserDataSet {
     };
   };
   fonts?: string[];
+	canvas?: string;
+	webgl?: string;
+	audio?: string;
   highEntropyValues?: {
     architecture?: string;
     bitness?: string;

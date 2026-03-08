@@ -32,6 +32,9 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
   mimeTypes: 15,
   screen: 10,
   fonts: 15,
+	canvas: 30,
+	webgl: 25,
+	audio: 25,
   highEntropyValues: 20
 };
 
