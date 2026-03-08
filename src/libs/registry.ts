@@ -1,5 +1,5 @@
 import type { Comparator } from "../types/data.js";
-import { initializeDefaultRegistry } from "./defaults.js";
+import { initializeDefaultRegistry } from "./default-plugins.js";
 
 interface RegistryState {
   comparators: Record<string, Comparator>;
