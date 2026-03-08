@@ -1,4 +1,4 @@
-name: GitHub Actions Workflow
+name: Default Workflow - Build, Test, Benchmark
 on: [push]
 
 jobs:
@@ -19,5 +19,3 @@ jobs:
         run: npm run build
       - name: Benchmark project
         run: npm run bench
-      - name: Generate documentation
-        run: npm run docs

@@ -67,3 +67,8 @@ npx tsx src/examples/quickstart.ts
 
 There is a public demo of FP-Devicer (FP-Cicis Command and Control) available
 for viewing at [cicis.info](https://cicis.info/)
+
+### Documentation
+
+This project uses typedoc and autodeploys via GitHub Pages. You can view the
+generated documentation [here](https://gatewaycorporate.github.io/fp-devicer/)
