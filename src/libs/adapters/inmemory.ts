@@ -45,8 +45,16 @@ export function createInMemoryAdapter(): StorageAdapter {
     async linkToUser() {
       // In-memory stub: no-op since we don't have a real DB to update. In production, this would update all snapshots for the deviceId to set userId.
     },
-    async deleteOldSnapshots() {
-			store.clear(); // In-memory stub: clear all data. In production, this would delete snapshots older than the specified date.
+    async deleteOldSnapshots(olderThanDays: number) {
+			store.forEach((history, deviceId) => {
+				const cutoff = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+				const filtered = history.filter(s => s.timestamp.getTime() >= cutoff);
+				if (filtered.length === 0) {
+					store.delete(deviceId);
+				} else {
+					store.set(deviceId, filtered);
+				}
+			});
 			return 0; // Return 0 since we're not tracking individual deletions in this stub.
 		},
 		async getAllFingerprints() {

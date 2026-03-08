@@ -5,9 +5,10 @@ import { getGlobalRegistry } from "./registry.js";
  * override provides a weight for a given path. Higher numbers cause a field
  * to have a larger influence on the final confidence score.
  *
- * @internal
+ * Exported so consumers (e.g. `DeviceManager`) can derive adaptive per-device
+ * weights by scaling these defaults against observed per-field signal stability.
  */
-const DEFAULT_WEIGHTS = {
+export const DEFAULT_WEIGHTS = {
     userAgent: 10,
     platform: 20,
     timezone: 10,

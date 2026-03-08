@@ -16,6 +16,7 @@ export function calculateMetrics(scoredPairs, thresholds = Array.from({ length: 
         const recall = tp + fn ? tp / (tp + fn) : 0;
         const far = fp / (fp + tn) || 0;
         const frr = fn / (tp + fn) || 0;
-        return { threshold: t, precision, recall, f1: 2 * precision * recall / (precision + recall) || 0, far, frr, eer: Math.min(far, frr) };
+        const eer = Math.abs(far - frr);
+        return { threshold: t, precision, recall, f1: 2 * precision * recall / (precision + recall) || 0, far, frr, eer };
     });
 }

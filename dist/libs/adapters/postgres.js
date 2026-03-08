@@ -68,9 +68,11 @@ export function createPostgresAdapter(dbUrlOrClient) {
         async findCandidates(query, minConfidence, limit = 20) {
             // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.
             // This is a simplified example. In production, you'd want to optimize this with proper indexing and maybe a more efficient search strategy.
-            const prelim = await db.select().from(fingerprintsTable).where(sql `${fingerprintsTable.data} ->> 'deviceMemory' = ${query.deviceMemory} OR 
+            const prelim = await db.select().from(fingerprintsTable).where(sql `(${fingerprintsTable.data} ->> 'deviceMemory' = ${query.deviceMemory} OR 
             ${fingerprintsTable.data} ->> 'hardwareConcurrency' = ${query.hardwareConcurrency} OR 
-            ${fingerprintsTable.data} ->> 'platform' = ${query.platform}`);
+            ${fingerprintsTable.data} ->> 'platform' = ${query.platform}) AND
+						(${fingerprintsTable.data} ->> 'canvasFingerprint' = ${query.canvas} OR
+						${fingerprintsTable.data} ->> 'webglFingerprint' = ${query.webgl})`);
             const candidates = [];
             for (const row of prelim) {
                 const confidence = calculateConfidence(query, row.data);

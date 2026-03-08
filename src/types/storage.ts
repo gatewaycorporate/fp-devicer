@@ -13,6 +13,12 @@ export interface StoredFingerprint {
   ip?: string;
   signalsHash?: string;          // optional quick-lookup hash
   metadata?: Record<string, any>;
+  /**
+   * The confidence score at which this snapshot was matched to an existing
+   * device, or `0` if this snapshot created a new device. Useful for
+   * detecting devices whose fingerprints are gradually drifting.
+   */
+  matchConfidence?: number;
 }
 
 /**

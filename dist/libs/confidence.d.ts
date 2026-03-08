@@ -1,5 +1,14 @@
 import { FPDataSet, ComparisonOptions } from "../types/data.js";
 /**
+ * Baseline field weights used when neither the global registry nor a local
+ * override provides a weight for a given path. Higher numbers cause a field
+ * to have a larger influence on the final confidence score.
+ *
+ * Exported so consumers (e.g. `DeviceManager`) can derive adaptive per-device
+ * weights by scaling these defaults against observed per-field signal stability.
+ */
+export declare const DEFAULT_WEIGHTS: Record<string, number>;
+/**
  * Factory that creates a stateless fingerprint confidence calculator.
  *
  * The returned object exposes a single `calculateConfidence(data1, data2)`

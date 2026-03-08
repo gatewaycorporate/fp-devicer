@@ -46,5 +46,5 @@ describe('Accuracy & Robustness', () => {
         }
         // Nice output in terminal + JSON reporter
         console.table(results);
-    });
+    }, { iterations: 1 });
 });

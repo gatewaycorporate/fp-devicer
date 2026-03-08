@@ -13,7 +13,7 @@ describe('DeviceManager', () => {
 
   beforeEach(() => {
     adapter = createInMemoryAdapter();
-    manager = new DeviceManager(adapter);
+    manager = new DeviceManager(adapter, { dedupWindowMs: 0 }); // disable dedup by default so tests are independent
   });
 
   it('creates new device when no match exists', async () => {
@@ -78,5 +78,76 @@ describe('DeviceManager', () => {
 
     const history = await adapter.getHistory(result.deviceId);
     expect(history[0].userId).toBe('user_link_test');
+  });
+
+  it('returns matchConfidence in identify result', async () => {
+    const first = await manager.identify(fpIdentical);
+    expect(first.matchConfidence).toBe(0); // new device — no prior match
+
+    const second = await manager.identify(fpVerySimilar);
+    expect(second.matchConfidence).toBeGreaterThan(70);
+    expect(second.matchConfidence).toBe(second.confidence); // should always match
+  });
+
+  it('persists matchConfidence on saved snapshot', async () => {
+    const first = await manager.identify(fpIdentical);
+    const second = await manager.identify(fpVerySimilar);
+
+    const history = await adapter.getHistory(second.deviceId);
+    // Most recent snapshot (last pushed in inmemory adapter) has matchConfidence
+    const latest = history[history.length - 1];
+    expect(latest.matchConfidence).toBe(second.confidence);
+  });
+
+  it('new device snapshot has matchConfidence of 0', async () => {
+    const result = await manager.identify(fpIdentical);
+    const history = await adapter.getHistory(result.deviceId);
+    expect(history[0].matchConfidence).toBe(0);
+  });
+
+  it('dedup cache prevents duplicate DB writes within window', async () => {
+    const dedupManager = new DeviceManager(adapter, { dedupWindowMs: 5000 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+
+    // First call — should write to DB
+    const first = await dedupManager.identify(fpIdentical);
+    // Second call with identical fingerprint within window — should return cached result
+    const second = await dedupManager.identify(fpIdentical);
+
+    expect(saveSpy).toHaveBeenCalledTimes(1); // only one DB write
+    expect(second.deviceId).toBe(first.deviceId);
+    expect(second.confidence).toBe(first.confidence);
+  });
+
+  it('dedup cache returns fresh result after clearDedupCache()', async () => {
+    const dedupManager = new DeviceManager(adapter, { dedupWindowMs: 5000 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+
+    await dedupManager.identify(fpIdentical);
+    dedupManager.clearDedupCache();
+    await dedupManager.identify(fpIdentical);
+
+    expect(saveSpy).toHaveBeenCalledTimes(2); // cache was cleared, so two writes
+  });
+
+  it('dedup cache is bypassed when dedupWindowMs is 0', async () => {
+    const noDedupManager = new DeviceManager(adapter, { dedupWindowMs: 0 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+
+    await noDedupManager.identify(fpIdentical);
+    await noDedupManager.identify(fpIdentical);
+
+    expect(saveSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('adaptive weights: stable device history does not degrade confidence', async () => {
+    // Seed device with several consistent sessions
+    for (let i = 0; i < 4; i++) {
+      await manager.identify(fpIdentical);
+    }
+    // A slightly-mutated fingerprint should still match with high confidence
+    const result = await manager.identify(fpVerySimilar);
+    expect(result.isNewDevice).toBe(false);
+    expect(result.confidence).toBeGreaterThan(70);
   });
 });

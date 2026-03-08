@@ -65,13 +65,21 @@ export function createSqliteAdapter(dbUrlOrClient) {
             }));
         },
         async findCandidates(query, minConfidence, limit = 20) {
-            // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.
-            // This is a simplified example. In production, you'd want to optimize this with proper indexing and maybe a more efficient search strategy.
-            const prelim = await db.select().from(fingerprintsTable).where(sql `${fingerprintsTable.data} ->> 'deviceMemory' = ${query.deviceMemory} OR 
-            ${fingerprintsTable.data} ->> 'hardwareConcurrency' = ${query.hardwareConcurrency} OR 
-            ${fingerprintsTable.data} ->> 'platform' = ${query.platform}`);
+            // Pre-filter by hardware signals in SQL
+            const prelim = await db.select().from(fingerprintsTable).where(sql `(json_extract(data, '$.deviceMemory') = ${query.deviceMemory}
+					OR json_extract(data, '$.hardwareConcurrency') = ${query.hardwareConcurrency}
+					OR json_extract(data, '$.platform') = ${query.platform})`);
+            // Further narrow to rows where canvas OR webgl also matches (in-process)
+            const filtered = prelim.filter(row => {
+                const fp = row.data;
+                return (query.canvas && fp?.canvas === query.canvas) ||
+                    (query.webgl && fp?.webgl === query.webgl);
+            });
+            // Fall back to full prelim set if no biometric signals matched
+            // (e.g. first session where canvas/webgl are not yet known)
+            const pool = filtered.length > 0 ? filtered : prelim;
             const candidates = [];
-            for (const row of prelim) {
+            for (const row of pool) {
                 const confidence = calculateConfidence(query, row.data);
                 if (confidence >= minConfidence) {
                     candidates.push({
