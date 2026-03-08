@@ -12,7 +12,7 @@ export {
     clearRegistry,
     initializeDefaultRegistry
 } from "./libs/registry.js";
-export { createInMemoryAdapter } from "./libs/storage.js";
+export { createInMemoryAdapter } from "./libs/adapters/inmemory.js";
 export { createSqliteAdapter } from "./libs/adapters/sqlite.js";
 export { createPostgresAdapter } from "./libs/adapters/postgres.js";
 export { createRedisAdapter } from "./libs/adapters/redis.js";

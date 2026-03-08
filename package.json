@@ -19,6 +19,9 @@
     "test": "npx vitest run",
     "test:watch": "npx vitest watch",
     "test:coverage": "npx vitest run --coverage",
+		"bench": "npx vitest bench --run",
+		"bench:watch": "npx vitest bench",
+		"bench:ci": "npx vitest bench --run --reporter=html --outputFile=bench-results.json",
     "build": "tsc --outDir dist"
   },
   "repository": {

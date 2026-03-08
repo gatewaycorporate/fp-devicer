@@ -51,6 +51,19 @@ describe('SqliteAdapter', () => {
     }
   });
 
+  it('findCandidates uses quick pre-filtering', async () => {
+    const devA = 'dev_a';
+    const devB = 'dev_b';
+    
+    await adapter.save({ id: randomUUID(), deviceId: devA, timestamp: new Date(), fingerprint: fpIdentical });
+    await adapter.save({ id: randomUUID(), deviceId: devB, timestamp: new Date(), fingerprint: { ...fpIdentical, deviceMemory: 4, hardwareConcurrency: 2, platform: 'Linux x86_64' } });
+
+    const candidates = await adapter.findCandidates(fpIdentical, 70, 5);
+    
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].deviceId).toBe(devA); // devB should be filtered out by pre-filter
+  });
+
   it('deleteOldSnapshots removes old entries', async () => {
     const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000); // 31 days ago
     await adapter.save({ id: randomUUID(), deviceId: 'old_dev', timestamp: oldDate, fingerprint: fpIdentical });

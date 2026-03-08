@@ -1,5 +1,5 @@
 import { registerPlugin } from "./registry.js";
-import { jaccardSimilarity, levenshteinSimilarity } from "./comparitors.js";
+import { jaccardSimilarity, levenshteinSimilarity, screenSimilarity } from "./comparitors.js";
 const BUILT_IN_PLUGINS = [
     {
         path: "userAgent",
@@ -30,6 +30,11 @@ const BUILT_IN_PLUGINS = [
         path: "mimeTypes",
         weight: 15,
         comparator: (a, b) => jaccardSimilarity(Array.isArray(a) ? a : [], Array.isArray(b) ? b : [])
+    },
+    {
+        path: "screen",
+        weight: 10,
+        comparator: (a, b) => screenSimilarity(a, b)
     }
 ];
 export function initializeDefaultRegistry() {

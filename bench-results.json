@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "filepath": "/home/sam/Documents/Code/TypeScript/FP-Devicer-Suite/fp-devicer/src/benchmarks/accuracy.bench.ts",
+      "groups": [
+        {
+          "fullName": "src/benchmarks/accuracy.bench.ts > Accuracy & Robustness",
+          "benchmarks": [
+            {
+              "id": "-556698140_0_0",
+              "name": "full accuracy evaluation (2000 devices, 5000 pairs)",
+              "rank": 1,
+              "rme": 0.9029354102320996,
+              "samples": [],
+              "totalTime": 37601.736019,
+              "min": 3712.506432000002,
+              "max": 3882.7492500000008,
+              "hz": 0.26594516792913603,
+              "period": 3760.1736019000004,
+              "mean": 3760.1736019000004,
+              "variance": 2252.91061413113,
+              "sd": 47.46483555360884,
+              "sem": 15.009698911474306,
+              "df": 9,
+              "critical": 2.262,
+              "moe": 33.95193893775488,
+              "p75": 3764.844169,
+              "p99": 3882.7492500000008,
+              "p995": 3882.7492500000008,
+              "p999": 3882.7492500000008,
+              "sampleCount": 10,
+              "median": 3759.0737794999986
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

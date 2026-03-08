@@ -16,11 +16,11 @@ export function createPostgresAdapter(dbUrlOrClient) {
     return {
         async init() {
             await db.execute(sql `CREATE TABLE IF NOT EXISTS fingerprints (
-                id TEXT PRIMARY KEY,
-                deviceId TEXT NOT NULL,
-                data JSON NOT NULL,
-                timestamp TEXT NOT NULL
-            )`);
+          id TEXT PRIMARY KEY,
+          deviceId TEXT NOT NULL,
+          data JSON NOT NULL,
+          timestamp TEXT NOT NULL
+				)`);
         },
         async save(snapshot) {
             const id = randomUUID();
@@ -48,10 +48,13 @@ export function createPostgresAdapter(dbUrlOrClient) {
             }));
         },
         async findCandidates(query, minConfidence, limit = 20) {
+            // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.
             // This is a simplified example. In production, you'd want to optimize this with proper indexing and maybe a more efficient search strategy.
-            const all = await db.select().from(fingerprintsTable);
+            const prelim = await db.select().from(fingerprintsTable).where(sql `${fingerprintsTable.data} ->> 'deviceMemory' = ${query.deviceMemory} OR 
+            ${fingerprintsTable.data} ->> 'hardwareConcurrency' = ${query.hardwareConcurrency} OR 
+            ${fingerprintsTable.data} ->> 'platform' = ${query.platform}`);
             const candidates = [];
-            for (const row of all) {
+            for (const row of prelim) {
                 const confidence = calculateConfidence(query, row.data);
                 if (confidence >= minConfidence) {
                     candidates.push({

@@ -1,5 +1,5 @@
-import type { StorageAdapter, StoredFingerprint, DeviceMatch } from "../types/storage.js";
-import { calculateConfidence } from "./confidence.js";
+import type { StorageAdapter, StoredFingerprint, DeviceMatch } from "../../types/storage.js";
+import { calculateConfidence } from "../confidence.js";
 
 export function createInMemoryAdapter(): StorageAdapter {
   const store = new Map<string, StoredFingerprint[]>();
