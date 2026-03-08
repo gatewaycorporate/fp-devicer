@@ -96,8 +96,4 @@ describe('Performance', () => {
 			throw err;
 		}
 	}, { time: 6000, iterations: 50 });
-
-	inMemoryManager.getMetricsSummary && console.log('In-Memory Metrics:', inMemoryManager.getMetricsSummary());
-	sqliteInMemoryManager.getMetricsSummary && console.log('SQLite In-Memory Metrics:', sqliteInMemoryManager.getMetricsSummary());
-	sqliteFileManager.getMetricsSummary && console.log('SQLite File-based Metrics:', sqliteFileManager.getMetricsSummary());
 });
