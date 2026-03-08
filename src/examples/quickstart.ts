@@ -1,5 +1,5 @@
 import express from 'express';
-import { DeviceManager, createInMemoryAdapter } from '../main.js';
+import { DeviceManager, createInMemoryAdapter } from 'devicer.js';
 
 const manager = new DeviceManager(createInMemoryAdapter());
 const app = express();
