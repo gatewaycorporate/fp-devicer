@@ -70,6 +70,12 @@ export interface StorageAdapter {
    * @returns The number of records deleted.
    */
   deleteOldSnapshots(olderThanDays: number): Promise<number>;
+	/**
+	 * Retrieve all stored fingerprints.
+	 * Useful for batch processing, clustering, or analytics. Use with caution on large datasets.
+	 * @returns An array of all stored fingerprint records.
+	 */
+	getAllFingerprints(): Promise<StoredFingerprint[]>;
   /** Gracefully close any open connections or file handles. Optional. */
   close?(): Promise<void>;
 }

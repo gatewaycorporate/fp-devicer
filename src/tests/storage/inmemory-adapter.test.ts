@@ -49,4 +49,23 @@ describe('InMemoryAdapter', () => {
     const count = await adapter.deleteOldSnapshots(30);
     expect(count).toBe(0); // in-memory fallback returns 0
   });
+
+	it('getAllFingerprints returns all stored fingerprints', async () => {
+		const devA = 'dev_a';
+		const devB = 'dev_b';
+		const snapshotA: StoredFingerprint = { id: randomUUID(), deviceId: devA, timestamp: new Date(), fingerprint: fpIdentical };
+		const snapshotB: StoredFingerprint = { id: randomUUID(), deviceId: devB, timestamp: new Date(), fingerprint: fpVerySimilar };
+		
+		await adapter.save(snapshotA);
+		await adapter.save(snapshotB);
+		const allFingerprints = await adapter.getAllFingerprints();
+		
+		expect(allFingerprints).toHaveLength(2);
+		expect(allFingerprints).toEqual(expect.arrayContaining([
+			expect.objectContaining({ deviceId: devA, fingerprint: fpIdentical }),
+			expect.objectContaining({ deviceId: devB, fingerprint: fpVerySimilar }),
+			// We can also check that the returned objects have the expected structure
+			expect.objectContaining({ id: expect.any(String), timestamp: expect.any(Date) }),
+		]));
+	});
 });

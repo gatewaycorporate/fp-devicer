@@ -1,6 +1,6 @@
 import Redis from "ioredis";
 import { randomUUID } from "crypto";
-import type { StorageAdapter, DeviceMatch } from "../../types/storage.js";
+import type { StorageAdapter, DeviceMatch, StoredFingerprint } from "../../types/storage.js";
 import { calculateConfidence } from "../confidence.js";
 import { FPUserDataSet } from "../../types/data.js";
 
@@ -120,6 +120,26 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
       // This is a no-op since we set TTL on keys, but you could also implement a scan + delete here if needed
       return 0;
     },
+		async getAllFingerprints() {
+			const stream = redis.scanStream({ match: 'fp:device:*', count: 100 });
+			const allFingerprints: StoredFingerprint[] = [];
+			
+			return new Promise((resolve, reject) => {
+				stream.on('data', async (keys: string[]) => {
+					if (keys.length) {
+						const pipeline = redis.pipeline();
+						keys.forEach(key => pipeline.hvals(key));
+						const results = await pipeline.exec();
+						results.forEach(([err, raw]: [Error | null, any]) => {
+							if (err) return; // skip errors
+							raw.forEach((v: string) => allFingerprints.push(JSON.parse(v)));
+						});
+					}
+				});
+				stream.on('end', () => resolve(allFingerprints));
+				stream.on('error', (err: any) => reject(err));
+			});
+		},
     async close() { await redis.quit(); }
   };
 }

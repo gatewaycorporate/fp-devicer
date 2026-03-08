@@ -102,5 +102,14 @@ export function createPostgresAdapter(dbUrlOrClient: string): StorageAdapter {
 			const result = await db.delete(fingerprintsTable).where(lt(fingerprintsTable.timestamp, cutoff)).returning();
 			return result.length;
 		},
+		async getAllFingerprints() {
+			const results = await db.select().from(fingerprintsTable);
+			return results.filter(row => row.data !== null).map(row => ({
+				id: row.id,
+				deviceId: row.deviceId,
+				fingerprint: row.data!,
+				timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+			}));
+		}
 	};
 }

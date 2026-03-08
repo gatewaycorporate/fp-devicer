@@ -99,5 +99,14 @@ export function createSqliteAdapter(dbUrlOrClient: string): StorageAdapter {
 			const result = await db.delete(fingerprintsTable).where(lt(fingerprintsTable.timestamp, cutoff));
 			return result.changes || 0; // number of deleted rows
 		},
+		async getAllFingerprints() {
+			const results = await db.select().from(fingerprintsTable);
+			return results.filter(row => row.data !== null).map(row => ({
+				id: row.id,
+				deviceId: row.deviceId,
+				fingerprint: row.data!,
+				timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+			}));
+		}
 	};
 }

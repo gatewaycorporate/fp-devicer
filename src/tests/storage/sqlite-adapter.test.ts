@@ -74,4 +74,15 @@ describe('SqliteAdapter', () => {
     const history = await adapter.getHistory('old_dev');
     expect(history).toHaveLength(0); // no history should remain
   });
+
+	it('getAllFingerprints retrieves all stored entries', async () => {
+		const deviceId1 = 'dev_1';
+		const deviceId2 = 'dev_2';
+		await adapter.save({ id: randomUUID(), deviceId: deviceId1, timestamp: new Date(), fingerprint: fpIdentical });
+		await adapter.save({ id: randomUUID(), deviceId: deviceId2, timestamp: new Date(), fingerprint: fpVerySimilar });
+		
+		const allFingerprints = await adapter.getAllFingerprints();
+		expect(allFingerprints).toHaveLength(2);
+		expect(allFingerprints.map(fp => fp.deviceId)).toEqual(expect.arrayContaining([deviceId1, deviceId2]));
+	});
 });

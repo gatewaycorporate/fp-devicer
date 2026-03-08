@@ -49,6 +49,13 @@ export function createInMemoryAdapter(): StorageAdapter {
 			store.clear(); // In-memory stub: clear all data. In production, this would delete snapshots older than the specified date.
 			return 0; // Return 0 since we're not tracking individual deletions in this stub.
 		},
+		async getAllFingerprints() {
+			const allFingerprints: StoredFingerprint[] = [];
+			for (const history of store.values()) {
+				allFingerprints.push(...history);
+			}
+			return allFingerprints;
+		}
   };
 }
 
