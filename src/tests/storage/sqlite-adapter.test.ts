@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createDrizzleAdapter } from '../../examples/adapters/drizzle';
+import { createSqliteAdapter } from '../../libs/adapters/sqlite';
 import type { StoredFingerprint } from '../../types/storage';
 import { randomUUID } from 'crypto';
 import { fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
 
-describe('DrizzleAdapter', () => {
-  let adapter: ReturnType<typeof createDrizzleAdapter>;
+describe('SqliteAdapter', () => {
+  let adapter: ReturnType<typeof createSqliteAdapter>;
 
   beforeEach(async () => {
-    adapter = createDrizzleAdapter("./src/tests/storage/test-db.sqlite");
+    adapter = createSqliteAdapter("./src/tests/storage/test-db.sqlite");
     await adapter.init();
     adapter.deleteOldSnapshots(0); // Clear all entries before each test
   });
@@ -51,8 +51,14 @@ describe('DrizzleAdapter', () => {
     }
   });
 
-  it('deleteOldSnapshots removes old entries (in-memory stub)', async () => {
+  it('deleteOldSnapshots removes old entries', async () => {
+    const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000); // 31 days ago
+    await adapter.save({ id: randomUUID(), deviceId: 'old_dev', timestamp: oldDate, fingerprint: fpIdentical });
+
     const count = await adapter.deleteOldSnapshots(30);
-    expect(count).toBe(0); // in-memory fallback returns 0
+    expect(count).toBe(1); // should delete the old entry
+    
+    const history = await adapter.getHistory('old_dev');
+    expect(history).toHaveLength(0); // no history should remain
   });
 });

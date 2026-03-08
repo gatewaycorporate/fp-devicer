@@ -2,12 +2,16 @@ import { calculateConfidence } from "../libs/confidence.js";
 import { randomUUID } from "crypto";
 export class DeviceManager {
     adapter;
-    constructor(adapter) {
+    context;
+    constructor(adapter, context = {}) {
         this.adapter = adapter;
+        this.context = context;
+        this.context.matchThreshold ??= 80; // default threshold
+        this.context.candidateMinScore ??= 50; // default minimum score for pre-filtering candidates
     }
     async identify(incoming, context) {
         // 1. Quick pre-filter (screen, hardwareConcurrency, etc.) → candidates
-        const candidates = await this.adapter.findCandidates(incoming, 60, 50);
+        const candidates = await this.adapter.findCandidates(incoming, this.context.candidateMinScore, this.context.matchThreshold);
         // 2. Full scoring
         let bestMatch = null;
         for (const cand of candidates) {
@@ -19,7 +23,7 @@ export class DeviceManager {
                 bestMatch = { ...cand, confidence: score };
             }
         }
-        const deviceId = bestMatch && bestMatch.confidence > 80
+        const deviceId = bestMatch && bestMatch.confidence > this.context.matchThreshold
             ? bestMatch.deviceId
             : `dev_${randomUUID()}`;
         // 3. Save new snapshot

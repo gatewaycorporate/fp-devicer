@@ -5,7 +5,7 @@ import { eq, lt } from "drizzle-orm/sql/expressions/conditions";
 import { desc } from "drizzle-orm/sql/expressions/select";
 import { randomUUID } from "crypto";
 import type { DeviceMatch, StorageAdapter, StoredFingerprint } from "../../types/storage.js";
-import { calculateConfidence } from "../../libs/confidence.js";
+import { calculateConfidence } from "../confidence.js";
 
 
 const fingerprintsTable = sqliteTable("fingerprints", {
@@ -15,7 +15,7 @@ const fingerprintsTable = sqliteTable("fingerprints", {
   timestamp: text("timestamp"),
 });
 
-export function createDrizzleAdapter(dbUrlOrClient: any): StorageAdapter {
+export function createSqliteAdapter(dbUrlOrClient: any): StorageAdapter {
   const db = drizzle(dbUrlOrClient); // works for both SQLite & Postgres
 
   return {

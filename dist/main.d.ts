@@ -4,5 +4,8 @@ export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage.
 export { calculateConfidence, createConfidenceCalculator } from "./libs/confidence.js";
 export { registerComparator, registerWeight, registerPlugin, unregisterComparator, unregisterWeight, setDefaultWeight, clearRegistry, initializeDefaultRegistry } from "./libs/registry.js";
 export { createInMemoryAdapter } from "./libs/storage.js";
+export { createSqliteAdapter } from "./libs/adapters/sqlite.js";
+export { createPostgresAdapter } from "./libs/adapters/postgres.js";
+export { createRedisAdapter } from "./libs/adapters/redis.js";
 export { DeviceManager } from "./core/DeviceManager.js";
 //# sourceMappingURL=main.d.ts.map

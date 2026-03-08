@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 import { randomUUID } from "crypto";
 import type { StorageAdapter } from "../../types/storage.js";
-import { calculateConfidence } from "../../libs/confidence.js";
+import { calculateConfidence } from "../confidence.js";
 
 export function createRedisAdapter(redisUrl?: string): StorageAdapter {
   const redis = new (Redis as any)(redisUrl || "redis://localhost:6379");

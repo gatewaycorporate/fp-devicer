@@ -1,4 +1,4 @@
-import { compareHashes, getHash } from "./tlsh.js";
+import { compareHashes, getHash, canonicalizedStringify } from "./tlsh.js";
 import { getGlobalRegistry } from "./registry.js";
 import { FPDataSet, ComparisonOptions, Comparator } from "../types/data.js";
 
@@ -105,8 +105,8 @@ export function createConfidenceCalculator(userOptions: ComparisonOptions = {}) 
         // TLSH fuzzy component (kept exactly as before)
         let tlshScore = 1;
         if (tlshWeight > 0) {
-          const hash1 = getHash(JSON.stringify(data1));
-          const hash2 = getHash(JSON.stringify(data2));
+          const hash1 = getHash(canonicalizedStringify(data1));
+          const hash2 = getHash(canonicalizedStringify(data2));
           const diff = compareHashes(hash1, hash2);
           tlshScore = Math.max(0, (100 - diff) / 100);
         }

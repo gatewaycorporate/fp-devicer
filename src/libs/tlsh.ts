@@ -1,9 +1,17 @@
 import hash from 'tlsh';
 import DigestHashBuilder from 'tlsh/lib/digests/digest-hash-builder.js';
 
+export function canonicalizedStringify(obj: any): string {
+  if (obj === null || obj === undefined) return '';
+  if (typeof obj !== 'object') return String(obj);
+  if (Array.isArray(obj)) return `[${obj.map(canonicalizedStringify).join(',')}]`;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map(key => `${key}:${canonicalizedStringify(obj[key])}`).join(',')}}`;
+}
+
 export function getHash(data: string): string {
   // Convert the input data to a string if it's not already
-  const inputString = typeof data === 'string' ? data : JSON.stringify(data);
+  const inputString = typeof data === 'string' ? data : canonicalizedStringify(data);
   
   // Generate the TLSH hash
   const tlshHash = hash(inputString);

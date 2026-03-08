@@ -2,7 +2,11 @@ import type { StorageAdapter } from "../types/storage.js";
 import type { FPDataSet } from "../types/data.js";
 export declare class DeviceManager {
     private adapter;
-    constructor(adapter: StorageAdapter);
+    private context;
+    constructor(adapter: StorageAdapter, context?: {
+        matchThreshold?: number;
+        candidateMinScore?: number;
+    });
     identify(incoming: FPDataSet, context?: {
         userId?: string;
         ip?: string;
