@@ -14,4 +14,4 @@ app.post('/identify', async (req, res) => {
   res.json(result); // → { deviceId, confidence, isNewDevice, linkedUserId }
 });
 
-app.listen(3000, () => console.log('✅ FP-Devicer server ready on :3000'));
+app.listen(3000, () => console.log('✅ FP-Devicer server ready at http://localhost:3000'));
