@@ -43,6 +43,10 @@ const manager = new DeviceManager(createInMemoryAdapter());
 const app = express();
 app.use(express.json());
 
+app.get('/', (req, res) => {
+	res.sendFile('public/index.html', { root: process.cwd() });
+});
+
 app.post('/identify', async (req, res) => {
   const result = await manager.identify(req.body, { userId: (req as any).user?.id, ip: req.ip });
   res.json(result); // → { deviceId, confidence, isNewDevice, linkedUserId }
