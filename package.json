@@ -23,8 +23,8 @@
     "bench:watch": "npx vitest bench",
     "bench:ci": "npx vitest bench --run",
     "build": "tsc --outDir dist",
-		"docs": "typedoc --out docs src/main.ts",
-		"docs:watch": "typedoc --out docs src/main.ts --watch"
+    "docs": "typedoc --out docs src/main.ts",
+    "docs:watch": "typedoc --out docs src/main.ts --watch"
   },
   "repository": {
     "type": "git",
@@ -50,17 +50,17 @@
     "@types/express": "^5.0.6",
     "@types/node": "^18.15.11",
     "@vitest/ui": "^3.2.4",
-    "drizzle-kit": "^0.31.9",
+    "drizzle-kit": "^0.18.1",
     "happy-dom": "^20.8.3",
     "typedoc": "^0.28.17",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "express": "^4.22.1",
-    "ioredis": "^5.10.0",
-    "prom-client": "^14.2.0",
     "better-sqlite3": "^12.6.2",
     "drizzle-orm": "^0.45.1",
-    "postgres": "^3.4.8"
+    "express": "^4.22.1",
+    "ioredis": "^5.10.0",
+    "postgres": "^3.4.8",
+    "prom-client": "^14.2.0"
   }
 }
