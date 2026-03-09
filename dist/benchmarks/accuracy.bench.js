@@ -86,7 +86,7 @@ generatePairs();
             largestCluster: dbscan.clusters.reduce((max, c) => Math.max(max, c.length), 0),
         },
     ];
-    const outPath = new URL('./benchmark.out', import.meta.url).pathname;
+    const outPath = new URL('./accuracy.bench.out', import.meta.url).pathname;
     const output = [
         `--- Accuracy Metrics (${new Date().toISOString()}) ---`,
         formatTable(results),

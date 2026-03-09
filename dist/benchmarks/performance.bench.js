@@ -4,6 +4,7 @@ import { DeviceManager } from '../core/DeviceManager.js';
 import { createInMemoryAdapter } from '../libs/adapters/inmemory.js';
 import { createSqliteAdapter } from '../libs/adapters/sqlite.js';
 import { generateDataset } from './data-generator.js';
+import { writeFileSync } from 'fs';
 const dataset = generateDataset(50);
 const base = dataset[0].data;
 const mutated = dataset[5].data;
@@ -15,6 +16,38 @@ const sqliteInMemoryManager = new DeviceManager(sqliteInMemoryAdapter);
 const sqliteFileManager = new DeviceManager(sqliteFileAdapter);
 await sqliteInMemoryAdapter.init();
 await sqliteFileAdapter.init();
+async function measureBatchConfidence(iterations) {
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        calculateConfidence(base, mutated);
+    }
+    const end = performance.now();
+    return (end - start) / iterations;
+}
+async function measureBatchIdentify(manager, data, iterations) {
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        await manager.identify(data, { userId: `benchmark_${i}` });
+    }
+    const end = performance.now();
+    return (end - start) / iterations;
+}
+// Compute metrics and write file once at module load - outside the bench hot loop
+{
+    const confidenceTime = await measureBatchConfidence(1000);
+    const outPath = new URL('./performance.bench.out', import.meta.url).pathname;
+    const inMemoryTime = await measureBatchIdentify(inMemoryManager, base, 50);
+    const sqliteInMemoryTime = await measureBatchIdentify(sqliteInMemoryManager, base, 50);
+    const sqliteFileTime = await measureBatchIdentify(sqliteFileManager, base, 50);
+    const output = [
+        `--- Performance Metrics (${new Date().toISOString()}) ---`,
+        `calculateConfidence (hybrid scorer): ${confidenceTime.toFixed(2)} ms (per call)`,
+        `DeviceManager.identify (In-Memory): ${inMemoryTime.toFixed(2)} ms (${(inMemoryTime / confidenceTime).toFixed(2)}x longer than confidence)`,
+        `DeviceManager.identify (SQLite in-memory): ${sqliteInMemoryTime.toFixed(2)} ms (${(sqliteInMemoryTime / confidenceTime).toFixed(2)}x longer than confidence)`,
+        `DeviceManager.identify (SQLite file-based): ${sqliteFileTime.toFixed(2)} ms (${(sqliteFileTime / confidenceTime).toFixed(2)}x longer than confidence)`,
+    ].join('\n');
+    writeFileSync(outPath, output);
+}
 describe('Performance', () => {
     // ── Pure scorer (always works) ──
     bench('calculateConfidence (hybrid scorer)', () => {
