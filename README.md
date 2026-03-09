@@ -79,7 +79,7 @@ generated documentation [here](https://gatewaycorporate.github.io/fp-devicer/)
 
 ### Benchmarks
 
-When calibrated correctly, FP-Devicer is over 98% accurate and gets more
+When calibrated correctly, FP-Devicer is over 99% accurate and gets more
 accurate as it analyzes fingerprints. The average time to calculate the
 difference between two fingerprints is less than 1ms. To view/run the benchmarks
 on your machine:
@@ -87,3 +87,9 @@ on your machine:
 ```sh
 npm run bench
 ```
+
+### Whitepaper
+
+The whitepaper covers the theory, architecture, and design decisions behind
+FP-Devicer. You can read it
+[here](https://gatewaycorporate.org/papers/FP-Devicer.pdf).
