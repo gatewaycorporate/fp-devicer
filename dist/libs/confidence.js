@@ -141,13 +141,16 @@ export function createConfidenceCalculator(userOptions = {}) {
             try {
                 const { totalWeight, matchedWeight } = compareRecursive(data1, data2);
                 const structuralScore = totalWeight > 0 ? matchedWeight / totalWeight : 0;
-                // TLSH fuzzy component (kept exactly as before)
+                // TLSH fuzzy component — TLSH distance is 0 for identical hashes and
+                // can reach 300-400+ for very dissimilar inputs, so we normalize
+                // against a practical ceiling.
+                const TLSH_MAX_DISTANCE = 300;
                 let tlshScore = 1;
                 if (tlshWeight > 0) {
                     const hash1 = getHash(canonicalizedStringify(data1));
                     const hash2 = getHash(canonicalizedStringify(data2));
                     const diff = compareHashes(hash1, hash2);
-                    tlshScore = Math.max(0, (100 - diff) / 100);
+                    tlshScore = Math.max(0, (TLSH_MAX_DISTANCE - diff) / TLSH_MAX_DISTANCE);
                 }
                 const finalScore = structuralScore * (1 - tlshWeight) + tlshScore * tlshWeight;
                 return Math.round(Math.max(0, Math.min(100, finalScore * 100)));
