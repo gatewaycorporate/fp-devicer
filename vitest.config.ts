@@ -5,7 +5,7 @@ export default defineConfig({
 	include: ['**/*.{test,spec}.ts'],
 		benchmark: {
 			include: ['**/*.bench.ts'],
-			outputJson: 'bench-results.json'
+			outputJson: 'src/benchmarks/bench-results.json'
 		},
 	environment: 'node',
   },

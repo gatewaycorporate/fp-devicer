@@ -5,6 +5,7 @@ export interface LabeledFingerprint {
   id: string;
   data: FPDataSet;
   deviceLabel: string; // same device = same label
+	isAttractor: boolean;	// whether this fingerprint belongs to an "attractor" device (one of the most common profiles)
 }
 
 // ---------------------------------------------------------------------------
@@ -38,17 +39,313 @@ function makePrng(seed: number) {
 }
 
 // ---------------------------------------------------------------------------
+// djb2 hash – mirrors snatch.js simpleHash exactly
+// ---------------------------------------------------------------------------
+function simpleHash(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
+ * Produce a deterministic hex/base64-like string mimicking a canvas toDataURL
+ * fingerprint hash. The first ~60 characters are stable for the given seed
+ * (representing the GPU/driver baseline) and the last ~20 characters vary on
+ * each call (rendering jitter).
+ *
+ * @param seed - Device seed for the stable portion
+ * @param rng  - Seeded PRNG instance for the jitter portion
+ */
+export function generateCanvasBlob(seed: number, rng: ReturnType<typeof makePrng>): string {
+	// Simulate the raw pixel data string a canvas toDataURL would produce.
+  // Stable portion represents GPU/driver baseline; jitter represents
+  // per-render floating-point noise.
+  const stableRng = makePrng(seed ^ 0xdeadbeef);
+
+  // Stable: ~200 chars of base-64-like pixel data (same GPU = same pixels)
+  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let rawStable = '';
+  for (let i = 0; i < 200; i++) {
+    rawStable += CHARS[stableRng.int(0, CHARS.length - 1)];
+  }
+
+  // Jitter: ~10 chars of noise that varies per render call
+  let rawJitter = '';
+  for (let i = 0; i < 10; i++) {
+    rawJitter += CHARS[rng.int(0, CHARS.length - 1)];
+  }
+
+  // Hash the combined raw string exactly as snatch does
+  return simpleHash(rawStable + rawJitter);
+}
+
+/**
+ * Generate a deterministic WebGL fingerprint string containing a renderer
+ * string and a short extension list. Total length ~150 characters.
+ *
+ * @param seed - Device seed for the stable renderer portion
+ * @param rng  - Seeded PRNG instance for variation
+ */
+export function generateWebGLBlob(seed: number, rng: ReturnType<typeof makePrng>): string {
+	const RENDERERS = [
+    'ANGLE (NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0)',
+    'ANGLE (AMD Radeon RX 6700 XT Direct3D11 vs_5_0 ps_5_0)',
+    'ANGLE (Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)',
+    'ANGLE (Apple M1 GPU, Metal)',
+    'ANGLE (Apple M2 GPU, Metal)',
+    'Mesa/X.org (llvmpipe LLVM 15.0.7 256 bits)',
+    'Adreno (TM) 650',
+    'Mali-G78 MP14',
+  ];
+  const EXTENSIONS = [
+    'EXT_color_buffer_float', 'EXT_float_blend', 'EXT_texture_compression_bptc',
+    'EXT_texture_compression_rgtc', 'EXT_texture_filter_anisotropic',
+    'OES_texture_float_linear', 'WEBGL_compressed_texture_s3tc',
+    'WEBGL_debug_renderer_info', 'WEBGL_lose_context', 'WEBGL_multi_draw',
+  ];
+
+  const stableRng = makePrng(seed ^ 0xcafe1234);
+  const renderer = RENDERERS[stableRng.int(0, RENDERERS.length - 1)];
+
+  // Extension list varies slightly per session (driver updates add/remove exts)
+  const extCount = rng.int(4, 7);
+  const shuffled = [...EXTENSIONS].sort(() => rng.next() - 0.5);
+  const exts = shuffled.slice(0, extCount).join(',');
+
+  // snatch concatenates renderer + extension list before hashing
+  return simpleHash(`${renderer}~~${exts}`);
+}
+
+/**
+ * Generate a deterministic audio fingerprint string mimicking a
+ * float-precision oscillator/analyser output hash. Total length ~40 chars.
+ *
+ * @param seed - Device seed for the stable portion
+ * @param rng  - Seeded PRNG instance for per-call noise
+ */
+export function generateAudioBlob(seed: number, rng: ReturnType<typeof makePrng>): string {
+	const stableRng = makePrng(seed ^ 0xabcdef01);
+
+  // Simulate AnalyserNode buffer output: a float sum string like "124.12345678"
+  const intPart    = stableRng.int(100, 999);
+  const fracStable = String(stableRng.int(10000000, 99999999)); // 8 stable digits
+  const fracJitter = String(rng.int(1000, 9999));               // 4 varying digits
+
+  const rawFloat = `${intPart}.${fracStable}${fracJitter}`;
+  return simpleHash(rawFloat);
+}
+
+// ---------------------------------------------------------------------------
 // Static pools – realistic real-world values
 // ---------------------------------------------------------------------------
 const PLATFORMS = [
-  { os: 'Windows NT 10.0; Win64; x64', platform: 'Win32',         appOs: 'Windows' },
-  { os: 'Windows NT 11.0; Win64; x64', platform: 'Win32',         appOs: 'Windows' },
-  { os: 'Macintosh; Intel Mac OS X 10_15_7', platform: 'MacIntel', appOs: 'Macintosh' },
-  { os: 'Macintosh; Intel Mac OS X 13_6',    platform: 'MacIntel', appOs: 'Macintosh' },
-  { os: 'Macintosh; ARM Mac OS X 14_0',      platform: 'MacIntel', appOs: 'Macintosh' },
-  { os: 'X11; Linux x86_64',  platform: 'Linux x86_64', appOs: 'X11' },
-  { os: 'X11; Ubuntu; Linux x86_64', platform: 'Linux x86_64', appOs: 'X11' },
+	{ os: 'Windows NT 10.0; Win64; x64', platform: 'Win32',         appOs: 'Windows', mobile: false },
+	{ os: 'Windows NT 11.0; Win64; x64', platform: 'Win32',         appOs: 'Windows', mobile: false },
+	{ os: 'Macintosh; Intel Mac OS X 10_15_7', platform: 'MacIntel', appOs: 'Macintosh', mobile: false },
+	{ os: 'Macintosh; Intel Mac OS X 13_6',    platform: 'MacIntel', appOs: 'Macintosh', mobile: false },
+	{ os: 'Macintosh; ARM Mac OS X 14_0',      platform: 'MacIntel', appOs: 'Macintosh', mobile: false },
+	{ os: 'X11; Linux x86_64',  platform: 'Linux x86_64', appOs: 'X11', mobile: false },
+	{ os: 'X11; Ubuntu; Linux x86_64', platform: 'Linux x86_64', appOs: 'X11', mobile: false },
+	{ os: 'Linux; Android 13', platform: 'Linux armv8l', appOs: 'Android', mobile: true },
+	{ os: 'Linux; Android 14', platform: 'Linux armv8l', appOs: 'Android', mobile: true },
+	{ os: 'iPhone OS 17_0 like Mac OS X', platform: 'iPhone', appOs: 'iPhone', mobile: true },
+	{ os: 'iPhone OS 16_0 like Mac OS X', platform: 'iPhone', appOs: 'iPhone', mobile: true },
 ];
+
+const BROWSER_PROFILES = [
+  // Chrome – Windows
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36`,
+    vendor: 'Google Inc.',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20100101',
+  },
+  // Chrome – Mac
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36`,
+    vendor: 'Google Inc.',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20100101',
+  },
+  // Firefox – Windows
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}; rv:${ver}.0) Gecko/20100101 Firefox/${ver}.0`,
+    vendor: '',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20100101',
+  },
+  // Firefox – Mac
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}; rv:${ver}.0) Gecko/20100101 Firefox/${ver}.0`,
+    vendor: '',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20100101',
+  },
+  // Safari – Mac
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/${ver}.0 Safari/605.1.15`,
+    vendor: 'Apple Computer, Inc.',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20030107',
+  },
+  // Safari – iPhone
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/${ver}.0 Mobile/15E148 Safari/604.1`,
+    vendor: 'Apple Computer, Inc.',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20030107',
+  },
+  // Edge – Windows
+  {
+    uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+      `Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36 Edg/${ver}.0.0.0`,
+    vendor: 'Google Inc.',
+    appName: 'Netscape',
+    product: 'Gecko',
+    productSub: '20100101',
+  },
+	// Chrome – Android
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Mobile Safari/537.36`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Chrome – iPhone
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/${ver}.0.0.0 Mobile/15E148 Safari/604.1`,
+		vendor: 'Apple Computer, Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20030107',
+	},
+	// Firefox – Android
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (Android 13; Mobile; rv:${ver}.0) Gecko/${ver}.0 Firefox/${ver}.0`,
+		vendor: '',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Firefox – iPhone
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/${ver}.0 Mobile/15E148 Safari/604.1`,
+		vendor: '',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Edge – Android
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Mobile Safari/537.36 EdgA/${ver}.0.0.0`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Edge – iPhone
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/${ver}.0 EdgiOS/${ver}.0.0.0 Mobile/15E148 Safari/604.1`,
+		vendor: 'Apple Computer, Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20030107',
+	},
+	// Opera – Windows
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36 OPR/${ver}.0.0.0`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Opera – Mac
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36 OPR/${ver}.0.0.0`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Opera – Android
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Mobile Safari/537.36 OPR/${ver}.0.0.0`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Samsung Internet – Android
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (Linux; Android 13; SAMSUNG SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/${ver}.0 Chrome/${ver}.0.0.0 Mobile Safari/537.36`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Brave – Windows
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Brave – Mac
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Chrome – Linux
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36`,
+		vendor: 'Google Inc.',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+	// Firefox – Linux
+	{
+		uaTemplate: (plat: typeof PLATFORMS[number], ver: number) =>
+			`Mozilla/5.0 (${plat.os}; rv:${ver}.0) Gecko/20100101 Firefox/${ver}.0`,
+		vendor: '',
+		appName: 'Netscape',
+		product: 'Gecko',
+		productSub: '20100101',
+	},
+]
 
 const CHROME_VERSIONS = [120, 121, 122, 123, 124, 125, 126];
 
@@ -113,26 +410,39 @@ const HEV_BRANDS = [
  * Generate a deterministic but realistically diverse base fingerprint from
  * an integer seed. The resulting profile draws from large static pools so
  * that different seeds produce genuinely different device configurations.
+ * 
+ * @returns A {@link FPDataSet} with realistic, internally consistent field values
+ * 				derived from the input `seed`. The same seed will always produce
+ *        the same fingerprint, while different seeds will yield diverse profiles.
+ * @param seed - Integer seed used to derive all field values. Different seeds
+ *               produce different but internally consistent fingerprints. The seed
+ *               is processed through a simple PRNG to ensure that similar seeds
+ *               yield very different outputs, avoiding near-duplicates.
+ *
+ * @see {@link createAttractorFingerprint} for a less diverse alternative that
+ *      simulates the common "attractor" device profile.
+ * @see {@link generateCanvasBlob}, {@link generateWebGLBlob},
+ *      {@link generateAudioBlob} for the blob generation helpers used
+ *      internally.
  */
 export function createBaseFingerprint(seed: number): FPDataSet {
-  const rng = makePrng(seed * 2654435761); // avalanche seed before use
+  const rng = makePrng(seed * 2654435761);
 
   const plat         = rng.pick(PLATFORMS);
+  const profile      = rng.pick(BROWSER_PROFILES);
   const chromeVer    = rng.pick(CHROME_VERSIONS);
   const timezone     = rng.pick(TIMEZONES);
   const langKey      = rng.pick(Object.keys(LANGUAGES_MAP));
   const languages    = LANGUAGES_MAP[langKey];
-  const [sw, sh]     = rng.pick(SCREEN_RESOLUTIONS);
+  const [sw, sh]     = plat.mobile ? [rng.int(320, 480), rng.int(480, 800)] : rng.pick(SCREEN_RESOLUTIONS);
   const colorDepth   = rng.pick([24, 30, 32]);
-  const concurrency  = rng.pick(HARDWARE_CONCURRENCY);
+  const concurrency  = plat.mobile ? rng.pick([4, 8]) : rng.pick(HARDWARE_CONCURRENCY);
   const memory       = rng.pick(DEVICE_MEMORY);
   const dnt          = rng.bool(0.15) ? '1' : false as any;
 
-  // Fonts: each device installs a reproducible but varied subset
   const baseFontCount = rng.int(6, 18);
   const fonts = rng.shuffle(FONT_POOL).slice(0, baseFontCount);
 
-  // Plugins: 0–2 plugins
   const pluginCount = rng.int(0, 2);
   const plugins = rng.shuffle(PLUGIN_POOL).slice(0, pluginCount);
 
@@ -140,34 +450,34 @@ export function createBaseFingerprint(seed: number): FPDataSet {
     ? [{ type: 'application/pdf', description: 'Portable Document Format', suffixes: 'pdf' }]
     : [];
 
-  // Canvas / webGL / audio: stable per device but unique
-  const canvasFp = `cv_${seed}_${rng.int(100000, 999999)}`;
-  const webglFp  = `wg_${seed}_${rng.int(100000, 999999)}`;
-  const audioFp  = `au_${seed}_${rng.int(100000, 999999)}`;
+  // Replace the old cv_/wg_/au_ strings with the simpleHash-based blob helpers
+  const canvasFp = generateCanvasBlob(seed, rng);
+  const webglFp  = generateWebGLBlob(seed, rng);
+  const audioFp  = generateAudioBlob(seed, rng);
 
   const hev = {
     architecture: rng.pick(['x86', 'x64', 'arm']),
     bitness: rng.pick(['32', '64']),
     brands: rng.pick(HEV_BRANDS),
-    mobile: rng.bool(0.12),
+    mobile: plat.mobile,
     platform: plat.appOs,
     platformVersion: `${rng.int(10, 15)}.${rng.int(0, 9)}.${rng.int(0, 9)}`,
     uaFullVersion: `${chromeVer}.0.${rng.int(5000, 6999)}.${rng.int(100, 200)}`,
   };
 
   return {
-    userAgent: `Mozilla/5.0 (${plat.os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer}.0.0.0 Safari/537.36`,
+    userAgent: profile.uaTemplate(plat, chromeVer),
     platform: plat.platform,
     timezone,
     language: langKey,
     languages,
     cookieEnabled: rng.bool(0.97),
     doNotTrack: dnt,
-    product: 'Gecko',
-    productSub: '20100101',
-    vendor: 'Google Inc.',
+    product: profile.product,
+    productSub: profile.productSub,
+    vendor: profile.vendor,           // was hardcoded 'Google Inc.'
     vendorSub: '',
-    appName: 'Netscape',
+    appName: profile.appName,
     appVersion: `5.0 (${plat.appOs}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer}.0.0.0 Safari/537.36`,
     appCodeName: 'Mozilla',
     appMinorVersion: '0',
@@ -179,7 +489,7 @@ export function createBaseFingerprint(seed: number): FPDataSet {
       height: sh,
       colorDepth,
       pixelDepth: colorDepth,
-      orientation: { type: rng.bool(0.85) ? 'landscape-primary' : 'portrait-primary', angle: 0 },
+      orientation: { type: plat.mobile ? 'portrait-primary' : 'landscape-primary', angle: 0 },
     },
     fonts,
     plugins,
@@ -189,6 +499,119 @@ export function createBaseFingerprint(seed: number): FPDataSet {
     audio: audioFp,
     highEntropyValues: hev,
   };
+}
+
+/**
+ * Create a deterministic "attractor" fingerprint that represents the most
+ * common real-world device profile: a Windows 10 desktop running Chrome 124
+ * in the `America/New_York` timezone with `en-US` locale and a 1920×1080
+ * display.
+ *
+ * Unlike {@link createBaseFingerprint}, this function fixes all
+ * platform/browser/environment parameters to their most prevalent values and
+ * uses the seed only to vary the font list, plugin set, and the canvas/WebGL/
+ * audio blobs. This makes it suitable for generating a cluster of
+ * near-identical fingerprints that stress-test a fingerprinter's ability to
+ * distinguish devices that share almost every static signal.
+ *
+ * @param seed - Integer seed used to deterministically vary the font/plugin
+ *               subset and the canvas, WebGL, and audio fingerprint blobs.
+ *               Different seeds produce structurally identical profiles that
+ *               differ only in those high-entropy fields.
+ *
+ * @returns A {@link FPDataSet} whose static fields are pinned to the Windows
+ *          10 / Chrome 124 attractor profile and whose dynamic fields
+ *          (canvas, webgl, audio, fonts, plugins) are derived from `seed`.
+ *
+ * @see {@link createBaseFingerprint} for a randomly diverse alternative.
+ * @see {@link generateCanvasBlob}, {@link generateWebGLBlob},
+ *      {@link generateAudioBlob} for the blob generation helpers used
+ *      internally.
+ *
+ * @example
+ * ```ts
+ * // Generate two attractor fingerprints that share platform/browser signals
+ * // but differ in canvas/audio/font details
+ * const fp1 = createAttractorFingerprint(1);
+ * const fp2 = createAttractorFingerprint(2);
+ *
+ * console.log(fp1.platform);  // 'Win32'
+ * console.log(fp1.canvas === fp2.canvas); // false – seed-derived blobs differ
+ * ```
+ */
+export function createAttractorFingerprint(seed: number): FPDataSet {
+	const rng = makePrng(seed * 2654435761);
+
+	const plat = PLATFORMS.find(p => p.platform === 'Win32' && p.os.includes('10.0'))!;
+	const profile = BROWSER_PROFILES[0]; // Chrome/Windows profile
+	const chromeVer = 124;
+	const timezone = 'America/New_York';
+	const langKey = 'en-US';
+	const languages = LANGUAGES_MAP[langKey];
+	const [sw, sh] = [1920, 1080];
+	const colorDepth = 24;
+	const concurrency = 8;
+	const memory = 8;
+	const dnt = false as any;
+
+	const baseFontCount = rng.int(8, 14);
+	const fonts = rng.shuffle(FONT_POOL).slice(0, baseFontCount);
+
+	const pluginCount = rng.int(0, 1);
+	const plugins = rng.shuffle(PLUGIN_POOL).slice(0, pluginCount);
+
+	const mimeTypes = plugins.length > 0
+		? [{ type: 'application/pdf', description: 'Portable Document Format', suffixes: 'pdf' }]
+		: [];
+
+	const canvasFp = generateCanvasBlob(seed, rng);
+	const webglFp  = generateWebGLBlob(seed, rng);
+	const audioFp  = generateAudioBlob(seed, rng);
+
+	const hev = {
+		architecture: 'x64',
+		bitness: '64',
+		brands: HEV_BRANDS[0],
+		mobile: false,
+		platform: 'Windows',
+		platformVersion: `10.0.${rng.int(19041, 22631)}`,
+		uaFullVersion: `124.0.${rng.int(5000, 6999)}.${rng.int(100, 200)}`,
+	};
+
+	return {
+		userAgent: profile.uaTemplate(plat, chromeVer),
+		platform: plat.platform,
+		timezone,
+		language: langKey,
+		languages,
+		cookieEnabled: true,
+		doNotTrack: dnt,
+		product: 'Gecko',
+		productSub: '20100101',
+		vendor: 'Google Inc.',
+		vendorSub: '',
+		appName: 'Netscape',
+		appVersion: `5.0 (${plat.appOs}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer}.0.0.0 Safari/537.36`,
+		appCodeName: 'Mozilla',
+		appMinorVersion: '0',
+		buildID: '20240101',
+		hardwareConcurrency: concurrency,
+		deviceMemory: memory,
+		screen: {
+			width: sw,
+			height: sh,
+			colorDepth,
+			pixelDepth: colorDepth,
+			orientation: { type: 'landscape-primary', angle: 0 },
+		},
+		fonts,
+		plugins,
+		mimeTypes,
+		canvas: canvasFp,
+		webgl: webglFp,
+		audio: audioFp,
+		highEntropyValues: hev,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +628,19 @@ export function createBaseFingerprint(seed: number): FPDataSet {
  *              browser version, privacy settings toggled)
  * - `extreme`— fundamentally different profile; treated as a different device
  *              in accuracy scoring
+ * 
+ * @param fp - The base fingerprint to mutate. This object is not modified; a mutated clone is returned.
+ * @param mutationLevel - The intensity of mutations to apply, simulating
+ *                        different levels of real-world variability for the
+ *                        same device.
+ * @return A new {@link FPDataSet} object with mutations applied according to the specified level. The original `fp` remains unchanged.
+ * 
+ * @remarks
+ * The mutations applied at each level are designed to reflect realistic changes
+ * that might occur for the same physical device over time, such as minor browser
+ * updates, font installations, or environmental changes. The `extreme` level
+ * simulates a scenario where the profile has changed so much that it would be
+ * considered a different device for fingerprinting purposes.
  */
 export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' | 'high' | 'extreme'): FPDataSet {
   const mutated = structuredClone(fp);
@@ -217,7 +653,10 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
       // Sub-pixel / DPI rounding differences: ±1–2px width
       mutated.screen!.width! += Math.round((Math.random() - 0.5) * 4);
       // Canvas hash may differ by a few bits due to GPU driver micro-differences
-      mutated.canvas = mutated.canvas!.replace(/\d+$/, String(parseInt(mutated.canvas!.match(/\d+$/)![0], 10) + Math.floor(Math.random() * 3)));
+      const canvasMatch = mutated.canvas!.match(/\d+$/);
+      if (canvasMatch) {
+        mutated.canvas = mutated.canvas!.replace(/\d+$/, String(parseInt(canvasMatch[0], 10) + Math.floor(Math.random() * 3)));
+      }
       // Occasional font list reorder (different enumeration order)
       if (Math.random() < 0.4) {
         mutated.fonts = [...mutated.fonts!].sort(() => Math.random() - 0.5);
@@ -246,8 +685,13 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
       if (Math.random() < 0.2) {
         mutated.timezone = TIMEZONES[Math.floor(Math.random() * TIMEZONES.length)];
       }
-      // Audio hash drift
-      mutated.audio = mutated.audio!.replace(/\d+$/, String(parseInt(mutated.audio!.match(/\d+$/)![0], 10) + Math.floor(Math.random() * 50)));
+			// Canvas: re-hash with fresh jitter to simulate GPU micro-differences.
+      // The stable seed is derived from the existing hash so the same device
+      // stays recognisable; only the jitter suffix changes.
+      const jitterRng = makePrng(Date.now() ^ Math.floor(Math.random() * 0xffffffff));
+      mutated.canvas = simpleHash(mutated.canvas! + jitterRng.int(0, 99999).toString());
+      // Audio: small float drift
+      mutated.audio = simpleHash(mutated.audio! + String(Math.floor(Math.random() * 50)));
       break;
     }
 
@@ -274,8 +718,12 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
       } else {
         mutated.fonts = mutated.fonts!.slice(0, Math.max(4, mutated.fonts!.length - Math.floor(Math.random() * 3) - 1));
       }
-      // webGL hash may differ (driver update)
-      mutated.webgl = mutated.webgl!.replace(/\d+$/, String(parseInt(mutated.webgl!.match(/\d+$/)![0], 10) + Math.floor(Math.random() * 500)));
+			// Canvas: larger drift (driver update changes pixel output)
+      const jitterRng = makePrng(Date.now() ^ Math.floor(Math.random() * 0xffffffff));
+      mutated.canvas = simpleHash(mutated.canvas! + jitterRng.int(0, 9999999).toString());
+      // WebGL: renderer string may change after driver update
+      const webglJitter = makePrng(Date.now() ^ Math.floor(Math.random() * 0xffffffff));
+      mutated.webgl = simpleHash(mutated.webgl! + webglJitter.int(0, 9999999).toString());
       break;
     }
 
@@ -304,6 +752,11 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
  *
  * @param numDevices        Number of distinct simulated devices.
  * @param sessionsPerDevice Number of fingerprint snapshots per device.
+ * 
+ * @returns An array of `LabeledFingerprint` objects, where each device has multiple sessions with varying mutation levels. The `deviceLabel` field is the same for all sessions of a given device, allowing for accuracy testing of the fingerprinter's ability to link sessions from the same device despite mutations.
+ *
+ * @remarks
+ * This function creates a dataset that simulates real-world conditions where the same physical device may produce slightly different fingerprints across sessions due to various factors (browser updates, font changes, environmental differences). By including multiple sessions per device with controlled mutation levels, this dataset allows for robust benchmarking of fingerprinting algorithms' ability to correctly identify and link sessions from the same device while distinguishing between different devices.
  */
 export function generateDataset(numDevices = 1000, sessionsPerDevice = 5): LabeledFingerprint[] {
   const dataset: LabeledFingerprint[] = [];
@@ -313,16 +766,20 @@ export function generateDataset(numDevices = 1000, sessionsPerDevice = 5): Label
     const deviceId = `dev_${randomUUID()}`;
     const base = createBaseFingerprint(d);
 
+		// ~10–15% chance this device is an attractor-zone device
+		const isAttractor = Math.random() < 0.125;
+		const baseFp = isAttractor ? createAttractorFingerprint(d) : base;
+
     for (let s = 0; s < sessionsPerDevice; s++) {
       const level = mutationCycle[s % mutationCycle.length];
       // Layer a secondary low-jitter pass on ~40% of non-none sessions to
       // ensure genuine pairs are never perfectly identical
-      let data = mutate(base, level);
+      let data = mutate(baseFp, level);
       if (level !== 'none' && Math.random() < 0.4) {
         data = mutate(data, 'low');
       }
 
-      dataset.push({ id: deviceId, data, deviceLabel: deviceId });
+      dataset.push({ id: deviceId, data, deviceLabel: deviceId, isAttractor });
     }
   }
   return dataset;

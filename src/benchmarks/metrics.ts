@@ -6,10 +6,16 @@ export interface BenchmarkResult {
   far: number;   // False Accept Rate
   frr: number;   // False Reject Rate
   eer: number;   // Equal Error Rate (interpolated)
+	attr: number;   // Far Attractor Rate (proportion of impostor pairs above threshold)
+}
+
+export interface DBSCANResult {
+	clusters: number[][];
+	noise: number[];
 }
 
 export function calculateMetrics(
-  scoredPairs: { score: number; sameDevice: boolean }[],
+  scoredPairs: { score: number; sameDevice: boolean, isAttractor: boolean }[],
   thresholds: number[] = Array.from({ length: 21 }, (_, i) => i * 5)
 ): BenchmarkResult[] {
   return thresholds.map(t => {
@@ -26,6 +32,62 @@ export function calculateMetrics(
     const far = fp / (fp + tn) || 0;
     const frr = fn / (tp + fn) || 0;
 		const eer = Math.abs(far - frr);
-		return { threshold: t, precision, recall, f1: 2 * precision * recall / (precision + recall) || 0, far, frr, eer };
+
+		// attr: FAR computed exclusively over attractor-zone impostor pairs
+    const attractorImpostors = scoredPairs.filter(p => !p.sameDevice && p.isAttractor === true);
+    const attr = attractorImpostors.length > 0
+      ? attractorImpostors.filter(p => p.score >= t).length / attractorImpostors.length
+      : 0;
+
+		return { threshold: t, precision, recall, f1: 2 * precision * recall / (precision + recall) || 0, far, frr, eer, attr };
   });
+}
+
+export function dbscanMetrics(
+	pairs: { score: number; sameDevice: boolean, isAttractor: boolean }[],
+	eps: number,
+	minPts: number
+): DBSCANResult{
+	// Simple DBSCAN implementation for clustering scores
+	const clusters: number[][] = [];
+	const visited = new Set<number>();
+	const noise: number[] = [];
+	function regionQuery(index: number): number[] {
+		const neighbors: number[] = [];
+		for (let i = 0; i < pairs.length; i++) {
+			if (i !== index && Math.abs(pairs[i].score - pairs[index].score) <= eps) {
+				neighbors.push(i);
+			}
+		}
+		return neighbors;
+	}
+	function expandCluster(index: number, neighbors: number[], clusterId: number) {
+		clusters[clusterId].push(index);
+		for (let i = 0; i < neighbors.length; i++) {
+			const nIndex = neighbors[i];
+			if (!visited.has(nIndex)) {
+				visited.add(nIndex);
+				const nNeighbors = regionQuery(nIndex);
+				if (nNeighbors.length >= minPts) {
+					neighbors.push(...nNeighbors);
+				}
+			}
+			if (!clusters.some(c => c.includes(nIndex))) {
+				clusters[clusterId].push(nIndex);
+			}
+		}
+	}
+	for (let i = 0; i < pairs.length; i++) {
+		if (!visited.has(i)) {
+			visited.add(i);
+			const neighbors = regionQuery(i);
+			if (neighbors.length >= minPts) {
+				clusters.push([]);
+				expandCluster(i, neighbors, clusters.length - 1);
+			} else {
+				noise.push(i);
+			}
+		}
+	}
+	return { clusters, noise };
 }
