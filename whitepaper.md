@@ -1,6 +1,6 @@
 ---
 title: "FP-Devicer: Open-Source Digital Fingerprinting Middleware"
-subtitle: "Technical Whitepaper — Version 1.5.5+"
+subtitle: "Technical Whitepaper — Version 1.5.8+"
 author: "Gateway Corporate Solutions LLC"
 date: "March 2026"
 lang: en
@@ -758,6 +758,273 @@ npm run bench
 
 Results are written to `src/benchmarks/bench-results.json` (raw Vitest output)
 and `src/benchmarks/benchmark.out` (formatted accuracy tables).
+
+---
+
+# Testing
+
+FP-Devicer ships with a comprehensive, multi-layered test suite located under
+`src/tests/`. All tests run under [Vitest](https://vitest.dev/) and are
+organized into four distinct categories: **unit tests**, **integration tests**,
+**storage contract tests**, and **fixture-driven regression tests**. Together
+they cover every public API surface, internal library function, storage adapter
+implementation, and cross-cutting resilience concern.
+
+## Test Organization
+
+```
+src/tests/
+├── data-generator.test.ts        # Synthetic data generator validation
+├── fixtures/
+│   └── fingerprints.ts           # Shared deterministic fingerprint fixtures
+├── core/
+│   ├── adapter-factory.test.ts   # AdapterFactory configuration-driven creation
+│   └── device-manager.test.ts    # DeviceManager pipeline & decision logic
+├── libs/
+│   ├── comparitors.test.ts       # Built-in comparator functions
+│   ├── confidence.test.ts        # Scoring engine & blending logic
+│   ├── registry.test.ts          # Plugin registry CRUD and precedence
+│   └── tlsh.test.ts              # TLSH hashing & distance normalization
+├── storage/
+│   ├── adapter-contract.test.ts  # Shared behavioural contract for all adapters
+│   ├── inmemory-adapter.test.ts  # In-memory adapter specifics
+│   ├── postgres-adapter.test.ts  # PostgreSQL adapter specifics
+│   ├── redis-adapter.test.ts     # Redis adapter specifics
+│   └── sqlite-adapter.test.ts    # SQLite adapter specifics
+└── integration/
+    ├── api-surface.test.ts       # Public API contract & ergonomics
+    └── resilience.test.ts        # Fault tolerance & edge-case handling
+```
+
+## Fixtures
+
+`fixtures/fingerprints.ts` provides a set of deterministic, hand-authored
+`FPUserDataSet` objects shared across all unit and integration tests. Using
+static fixtures ensures that any regression in scoring output is immediately
+visible — a field change in a fixture produces a reproducible, diff-able failure
+rather than a flaky random result. Fixtures cover:
+
+- A canonical **baseline** fingerprint representing a typical desktop Chrome
+  visit.
+- **Similar variant** fingerprints with minor mutations (screen rounding, font
+  reorder, canvas micro-jitter) to verify that genuine-pair scores remain high.
+- **Dissimilar** fingerprints drawn from completely different OS/browser
+  profiles to verify that impostor-pair scores remain low.
+- **Partial / sparse** fingerprints with large numbers of `undefined` fields to
+  verify graceful degradation.
+- **Edge-case** fingerprints containing empty arrays, null-like values, and
+  maximum-entropy hash strings.
+
+## Unit Tests
+
+### Comparator Functions (`libs/comparitors.test.ts`)
+
+Tests every built-in comparator exported from `src/libs/comparitors.ts` in
+isolation:
+
+- **Jaccard similarity** — verifies set intersection / union ratios for font and
+  plugin arrays, including empty-set handling (expected result: `0`) and
+  identical-set handling (expected result: `1`).
+- **Exact match** — verifies `1.0` for identical strings and `0.0` for any
+  difference, including case sensitivity.
+- **Screen similarity** — verifies tolerance for small pixel-rounding
+  differences (±1–2 px) while producing low scores for resolution changes, and
+  correct handling of missing `orientation` fields.
+- **Numeric proximity** — verifies that values within a configured step return
+  near-`1` scores and that out-of-range values degrade gracefully.
+
+Each comparator is exercised with boundary inputs (both values `undefined`, one
+value `undefined`, empty string, zero) to confirm the absence of thrown
+exceptions.
+
+### TLSH Hashing (`libs/tlsh.test.ts`)
+
+Tests the `getHash` and `compareHashes` functions from `src/libs/tlsh.ts`:
+
+- Verifies that two calls to `getHash` with identical inputs produce identical
+  hash strings (determinism).
+- Verifies that `compareHashes` returns `1.0` when both hashes are identical and
+  a value strictly less than `1.0` for different hashes.
+- Verifies that the normalized distance is always in `[0, 1]` regardless of
+  input content or length.
+- Verifies that `getHash` applied to a canonical JSON serialization produces the
+  same result as applying it to an equivalent object serialized independently,
+  confirming key-order independence.
+
+### Plugin Registry (`libs/registry.test.ts`)
+
+Tests the global registry singleton via its full public API:
+
+- `registerPlugin`, `registerWeight`, `registerComparator` — verifies that
+  registered values are immediately retrievable via `getWeight` and
+  `getComparator`.
+- `unregisterWeight`, `unregisterComparator` — verifies that removal causes the
+  affected path to fall back to the default weight / comparator.
+- `setDefaultWeight` — verifies that unregistered paths return the updated
+  default.
+- **Isolation** — each test resets the registry to a clean state before running
+  to prevent inter-test pollution.
+- **Precedence** — verifies the documented resolution order: caller
+  `userOptions` override registry entries, which override built-in defaults.
+
+### Confidence Scoring (`libs/confidence.test.ts`)
+
+Tests `calculateConfidence` and `createConfidenceCalculator` against the shared
+fixtures:
+
+- **Identical inputs** produce a score of `100`.
+- **Completely unrelated inputs** produce a score at or near `0`.
+- **Similar variants** (minor mutations) produce scores above the recommended
+  operating threshold of `60`.
+- **Custom weight overrides** shift scores in the expected direction (increasing
+  the weight of a mutated field lowers the score; decreasing it raises the
+  score).
+- **`tlshWeight: 0`** disables TLSH blending and produces a score driven
+  entirely by structural comparison, verified by comparing against a manually
+  computed expected value.
+- **`tlshWeight: 1`** produces a score driven entirely by TLSH, verified
+  similarly.
+- **`maxDepth`** is respected — recursion is capped and does not throw for
+  deeply nested objects.
+- **`useGlobalRegistry: false`** causes registry entries to be ignored, verified
+  by registering a custom comparator that would otherwise affect the score.
+
+### Synthetic Data Generator (`data-generator.test.ts`)
+
+Tests `generateFingerprint`, `mutate`, and `createAttractorFingerprint` from
+`src/benchmarks/data-generator.ts`:
+
+- Verifies that two calls with the same seed produce bit-for-bit identical
+  fingerprints (LCG determinism).
+- Verifies that two calls with different seeds produce different fingerprints.
+- Verifies that `mutate` at level `none` returns a fingerprint equal to the
+  base.
+- Verifies that `mutate` at levels `low` through `high` returns a fingerprint
+  that differs from the base in at least one field but shares enough structure
+  to score above `60` when compared against it.
+- Verifies that `createAttractorFingerprint` sets the `isAttractor` flag and
+  produces a fingerprint within the expected common-hardware value pools.
+
+## Storage Tests
+
+### Shared Adapter Contract (`storage/adapter-contract.test.ts`)
+
+A single parameterized test suite is executed against every adapter
+implementation. This approach ensures that all adapters exhibit identical
+observable behaviour regardless of their underlying persistence mechanism. The
+contract tests cover:
+
+- **`init()`** — adapter can be initialized without errors; calling `init()`
+  twice is idempotent.
+- **`save()` + `getAllFingerprints()`** — a saved snapshot is retrievable and
+  its fields match what was passed to `save`.
+- **`findCandidates()`** — a saved fingerprint is returned as a candidate when
+  queried with a sufficiently similar fingerprint; an entirely dissimilar
+  fingerprint is not returned.
+- **`getHistory()`** — multiple saves for the same `deviceId` are all returned
+  by `getHistory`, ordered with the most recent first, and the result is limited
+  to the requested count.
+- **`linkToUser()`** — after linking, `getHistory` returns snapshots that carry
+  the associated `userId`.
+- **`deleteOldSnapshots()`** — snapshots older than the supplied retention
+  window are removed; newer snapshots are retained.
+- **`close()`** — completes without throwing when the adapter has been
+  initialized and when it has not.
+
+### Per-Adapter Specialization Tests
+
+Each adapter's dedicated test file extends the shared contract with
+backend-specific concerns:
+
+**In-Memory** (`inmemory-adapter.test.ts`) : Verifies that the `Map`-backed
+store is empty on construction, that data does not persist after the adapter
+object is garbage-collected, and that concurrent `save` calls do not corrupt the
+internal state.
+
+**SQLite** (`sqlite-adapter.test.ts`) : Verifies schema creation on first
+`init()`, that the `fingerprints` table uses the expected column layout, that
+the candidate pre-filter `WHERE` clause correctly limits returned rows, and that
+the `:memory:` path and a real file path both work correctly.
+
+**PostgreSQL** (`postgres-adapter.test.ts`) : Verifies that the Drizzle ORM
+schema migration runs cleanly, that JSON-operator candidate queries return
+results consistent with the contract expectations, and that the connection is
+properly released on `close()`. These tests require a live PostgreSQL instance
+and are skipped automatically when the `TEST_POSTGRES_URL` environment variable
+is absent.
+
+**Redis** (`redis-adapter.test.ts`) : Verifies that snapshots are serialized to
+and deserialized from Redis hashes without data loss, that TTL-based expiry is
+configured correctly, and that `close()` disconnects the client. These tests
+require a live Redis instance and are skipped automatically when
+`TEST_REDIS_URL` is absent.
+
+## Integration Tests
+
+### API Surface (`integration/api-surface.test.ts`)
+
+Exercises the full public API as a consumer would use it, without mocking any
+internal modules:
+
+- `calculateConfidence` is importable and callable with no configuration.
+- `createConfidenceCalculator` returns a stateful calculator that produces
+  consistent results across multiple calls.
+- `DeviceManager` constructed with an in-memory adapter completes a full
+  `identify` round-trip and returns a well-formed `IdentifyResult`.
+- A device re-identified with the same fingerprint within `dedupWindowMs`
+  returns a cached result with `isNewDevice: false` and the same `deviceId`.
+- A fingerprint that does not match any stored candidate returns
+  `isNewDevice: true` and mints a new UUID.
+- `AdapterFactory.create` resolves the correct adapter class for each supported
+  type string (`"inmemory"`, `"sqlite"`, `"postgres"`, `"redis"`).
+- All exported types (`FPUserDataSet`, `StorageAdapter`, `IdentifyResult`,
+  `ComparisonOptions`, etc.) are present on the module namespace.
+
+### Resilience (`integration/resilience.test.ts`)
+
+Verifies fault-tolerance and edge-case handling throughout the pipeline:
+
+- **Empty fingerprint objects** (`{}`) do not throw; they return a score of `0`
+  from `calculateConfidence` and are assigned a new device ID by
+  `DeviceManager`.
+- **`null` / `undefined` field values** within an otherwise valid fingerprint do
+  not throw and are treated as absent fields.
+- **Adapter `findCandidates` returning an empty array** causes `DeviceManager`
+  to mint a new device ID rather than throwing.
+- **Adapter `save` throwing** is caught and surfaced as a structured error log
+  entry via the injected `Logger` rather than an unhandled rejection.
+- **Deeply nested objects** beyond `maxDepth` are truncated rather than
+  triggering a stack overflow.
+- **Very large fingerprints** (hundreds of fields) complete in under the
+  sub-millisecond latency budget verified by the performance benchmarks.
+- **Concurrent `identify` calls** for the same fingerprint hash within the dedup
+  window all return the same `deviceId` without race conditions.
+- **Registry state isolation** — modifications made to the global registry
+  during one test do not leak into subsequent tests.
+
+## Running the Test Suite
+
+```bash
+# Run all tests once
+npm test
+
+# Run in watch mode during development
+npm run test:watch
+
+# Run with coverage report
+npm run test:coverage
+```
+
+Storage adapter tests that require external services use environment variables
+to configure connection strings. When the variables are absent the tests are
+skipped cleanly rather than failing:
+
+```bash
+# Run with PostgreSQL and Redis adapters included
+TEST_POSTGRES_URL=postgresql://localhost/fp_test \
+TEST_REDIS_URL=redis://localhost:6379 \
+npm test
+```
 
 ---
 
