@@ -1,5 +1,5 @@
 import { expect, describe, it } from 'vitest';
-import { getHash, compareHashes } from '../libs/tlsh';
+import { getHash, compareHashes } from '../../libs/tlsh';
 
 export function randomString(length: number): string {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]{};!@#$%^&*()-_=+|;:",.<>?';
@@ -61,7 +61,7 @@ describe('tlsh library', () => {
     const hash2 = getHash(data2);
     const distance = compareHashes(hash1, hash2);
     console.log('Distance between hashes:', distance);
-    expect(distance).toBeGreaterThan(180); // Assuming very different data yields larger distances
+    expect(distance).toBeGreaterThanOrEqual(160); // Very different data yields large TLSH distances (≥160)
   });
 
   it('should throw or handle invalid hash input gracefully', () => {

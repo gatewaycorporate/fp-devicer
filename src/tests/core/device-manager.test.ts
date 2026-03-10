@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DeviceManager, createInMemoryAdapter } from '../../main';
+import { DefaultMetrics } from '../../libs/default-observability';
+import type { Logger } from '../../types/observability';
 import { fpIdentical, fpVerySimilar, fpSimilar, fpDifferent, fpVeryDifferent } from '../fixtures/fingerprints';
 
 describe('DeviceManager', () => {
@@ -144,5 +146,142 @@ describe('DeviceManager', () => {
     const result = await manager.identify(fpVerySimilar);
     expect(result.isNewDevice).toBe(false);
     expect(result.confidence).toBeGreaterThan(70);
+  });
+});
+
+describe('DeviceManager – Observability', () => {
+  let adapter: ReturnType<typeof createInMemoryAdapter>;
+
+  beforeEach(() => {
+    adapter = createInMemoryAdapter();
+  });
+
+  it('custom logger.info is called after each identify', async () => {
+    const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, logger });
+
+    await manager.identify(fpIdentical);
+
+    expect(logger.info).toHaveBeenCalled();
+    const [msg] = (logger.info as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(typeof msg).toBe('string');
+  });
+
+  it('custom logger.debug is called at the start of identify', async () => {
+    const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, logger });
+
+    await manager.identify(fpIdentical);
+
+    expect(logger.debug).toHaveBeenCalled();
+  });
+
+  it('custom metrics.recordIdentify is called once per identify', async () => {
+    const metrics = new DefaultMetrics();
+    const spy = vi.spyOn(metrics, 'recordIdentify');
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, metrics });
+
+    await manager.identify(fpIdentical);
+    await manager.identify(fpVerySimilar);
+
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('getMetricsSummary returns counters with identify_total', async () => {
+    const metrics = new DefaultMetrics();
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, metrics });
+
+    await manager.identify(fpIdentical);
+    await manager.identify(fpVerySimilar);
+
+    const summary = manager.getMetricsSummary();
+    expect(summary).not.toBeNull();
+    expect(summary!.counters.identify_total).toBe(2);
+  });
+
+  it('getMetricsSummary returns null when metrics has no getSummary method', async () => {
+    const minimalMetrics = {
+      incrementCounter: vi.fn(),
+      recordHistogram: vi.fn(),
+      recordGauge: vi.fn(),
+      recordIdentify: vi.fn(),
+    };
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, metrics: minimalMetrics });
+    expect(manager.getMetricsSummary()).toBeNull();
+  });
+});
+
+describe('DeviceManager – Dedup cache edge cases', () => {
+  let adapter: ReturnType<typeof createInMemoryAdapter>;
+
+  beforeEach(() => {
+    adapter = createInMemoryAdapter();
+  });
+
+  it('cache entry expires after dedupWindowMs — second call writes to adapter', async () => {
+    vi.useFakeTimers();
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 100 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+
+    await manager.identify(fpIdentical);
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+
+    // Advance time past the dedup window
+    vi.advanceTimersByTime(200);
+
+    await manager.identify(fpIdentical);
+    expect(saveSpy).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it('dedupWindowMs: 0 — rapid repeated calls each hit the adapter independently', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+
+    await manager.identify(fpIdentical);
+    await manager.identify(fpIdentical);
+    await manager.identify(fpIdentical);
+
+    expect(saveSpy).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('DeviceManager – Boundary and regression', () => {
+  let adapter: ReturnType<typeof createInMemoryAdapter>;
+
+  beforeEach(() => {
+    adapter = createInMemoryAdapter();
+  });
+
+  it('multiple candidates above threshold — returns the highest-confidence one', async () => {
+    // Create two different devices
+    const managerSetup = new DeviceManager(adapter, { dedupWindowMs: 0, matchThreshold: 50 });
+    const firstResult = await managerSetup.identify(fpIdentical);
+    const secondResult = await managerSetup.identify(fpVeryDifferent);
+
+    // Now identify with fpVerySimilar — it is much closer to fpIdentical
+    const matchResult = await managerSetup.identify(fpVerySimilar);
+    expect(matchResult.deviceId).toBe(firstResult.deviceId);
+  });
+
+  it('candidate history is empty for a just-created device — no crash on adaptive weighting', async () => {
+    // Seed one device
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, stabilityWindowSize: 5 });
+    const first = await manager.identify(fpIdentical);
+
+    // Immediately identify again — history has only 1 snapshot (no stability pairs)
+    const second = await manager.identify(fpVerySimilar);
+    expect(second.isNewDevice).toBe(false);
+    expect(second.confidence).toBeGreaterThan(0);
+  });
+
+  it('new device snapshot has matchConfidence of 0', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0 });
+    const result = await manager.identify(fpIdentical);
+    expect(result.matchConfidence).toBe(0);
+
+    const history = await adapter.getHistory(result.deviceId);
+    expect(history[0].matchConfidence).toBe(0);
   });
 });
