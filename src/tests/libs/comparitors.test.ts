@@ -4,7 +4,7 @@ import {
   jaccardSimilarity,
   numericProximity,
   screenSimilarity,
-} from '../../libs/comparitors';
+} from '../../libs/comparators';
 
 describe('levenshteinSimilarity', () => {
   it('returns 1 for identical strings', () => {

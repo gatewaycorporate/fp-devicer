@@ -238,6 +238,15 @@ export class DeviceManager {
 
     return result;
   }
+	
+	async identifyMany(incomingList: FPDataSet[], context?: { userId?: string; ip?: string }): Promise<IdentifyResult[]> {
+		const results: IdentifyResult[] = [];
+		for (const incoming of incomingList) {
+			const result = await this.identify(incoming, context);
+			results.push(result);
+		}
+		return results;
+	}
 
   /**
    * Clear the deduplication cache immediately.

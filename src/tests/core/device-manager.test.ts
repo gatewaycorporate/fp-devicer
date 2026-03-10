@@ -285,3 +285,81 @@ describe('DeviceManager – Boundary and regression', () => {
     expect(history[0].matchConfidence).toBe(0);
   });
 });
+
+describe('DeviceManager – identifyMany', () => {
+  let adapter: ReturnType<typeof createInMemoryAdapter>;
+
+  beforeEach(() => {
+    adapter = createInMemoryAdapter();
+  });
+
+  it('returns one identify result per incoming fingerprint in the same order', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0 });
+    const identifyMany = (manager as any).identifyMany.bind(manager) as (
+      incomingList: unknown[],
+      context?: { userId?: string; ip?: string }
+    ) => Promise<any[]>;
+
+    const incomingList = [fpIdentical, fpVerySimilar, fpVeryDifferent];
+    const results = await identifyMany(incomingList);
+
+    expect(results).toHaveLength(incomingList.length);
+    expect(results[0].isNewDevice).toBe(true);
+    expect(results[1].isNewDevice).toBe(false);
+    expect(results[1].deviceId).toBe(results[0].deviceId);
+    expect(results[2].deviceId).not.toBe(results[0].deviceId);
+  });
+
+  it('applies the same context to every identify call in the batch', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0 });
+    const identifyMany = (manager as any).identifyMany.bind(manager) as (
+      incomingList: unknown[],
+      context?: { userId?: string; ip?: string }
+    ) => Promise<any[]>;
+
+    const results = await identifyMany([fpIdentical, fpVerySimilar], {
+      userId: 'batch_user',
+      ip: '127.0.0.1',
+    });
+
+    expect(results[0].linkedUserId).toBe('batch_user');
+    expect(results[1].linkedUserId).toBe('batch_user');
+
+    const history = await adapter.getHistory(results[0].deviceId);
+    expect(history).toHaveLength(2);
+    expect(history[0].userId).toBe('batch_user');
+    expect(history[1].userId).toBe('batch_user');
+    expect(history[0].ip).toBe('127.0.0.1');
+    expect(history[1].ip).toBe('127.0.0.1');
+  });
+
+  it('respects dedup behavior across repeated fingerprints in the same batch', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 5000 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+    const identifyMany = (manager as any).identifyMany.bind(manager) as (
+      incomingList: unknown[],
+      context?: { userId?: string; ip?: string }
+    ) => Promise<any[]>;
+
+    const results = await identifyMany([fpIdentical, fpIdentical, fpIdentical]);
+
+    expect(results).toHaveLength(3);
+    expect(results[1].deviceId).toBe(results[0].deviceId);
+    expect(results[2].deviceId).toBe(results[0].deviceId);
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an empty array and performs no writes for an empty batch', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+    const identifyMany = (manager as any).identifyMany.bind(manager) as (
+      incomingList: unknown[],
+      context?: { userId?: string; ip?: string }
+    ) => Promise<any[]>;
+
+    const results = await identifyMany([]);
+
+    expect(results).toEqual([]);
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+});

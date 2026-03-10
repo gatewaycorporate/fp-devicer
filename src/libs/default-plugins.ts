@@ -1,6 +1,6 @@
 import { registerPlugin } from "./registry.js";
 import type { Comparator } from "../types/data.js";
-import { jaccardSimilarity, levenshteinSimilarity, screenSimilarity } from "./comparitors.js";
+import { jaccardSimilarity, levenshteinSimilarity, screenSimilarity } from "./comparators.js";
 
 /**
  * Built-in field plugin definitions that are registered automatically
