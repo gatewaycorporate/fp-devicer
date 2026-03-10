@@ -1,5 +1,5 @@
 import { registerPlugin } from "./registry.js";
-import { jaccardSimilarity, levenshteinSimilarity, screenSimilarity } from "./comparitors.js";
+import { jaccardSimilarity, levenshteinSimilarity, screenSimilarity } from "./comparators.js";
 /**
  * Built-in field plugin definitions that are registered automatically
  * the first time the global registry is read.

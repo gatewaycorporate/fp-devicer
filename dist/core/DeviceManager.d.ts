@@ -107,6 +107,17 @@ export declare class DeviceManager {
         ip?: string;
     }): Promise<IdentifyResult>;
     /**
+     * Identify multiple devices in a batch.
+     *
+     * @param incomingList - An array of fingerprint data sets to identify.
+     * @param context - Optional context including userId and IP address.
+     * @returns A promise that resolves to an array of identification results.
+     */
+    identifyMany(incomingList: FPDataSet[], context?: {
+        userId?: string;
+        ip?: string;
+    }): Promise<IdentifyResult[]>;
+    /**
      * Clear the deduplication cache immediately.
      * Useful in tests or after a forced re-identification.
      */

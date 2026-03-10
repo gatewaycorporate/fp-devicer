@@ -231,14 +231,20 @@ export class DeviceManager {
       linkedUserId: context?.userId,
     };
 
-    // --- #8 Populate dedup cache ---
     if (dedupWindowMs > 0 && cacheKey) {
       this.dedupCache.set(cacheKey, { result, expiresAt: Date.now() + dedupWindowMs });
     }
 
     return result;
   }
-	
+
+	/**
+	 * Identify multiple devices in a batch.
+	 *
+	 * @param incomingList - An array of fingerprint data sets to identify.
+	 * @param context - Optional context including userId and IP address.
+	 * @returns A promise that resolves to an array of identification results.
+	 */
 	async identifyMany(incomingList: FPDataSet[], context?: { userId?: string; ip?: string }): Promise<IdentifyResult[]> {
 		const results: IdentifyResult[] = [];
 		for (const incoming of incomingList) {

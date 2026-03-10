@@ -192,11 +192,25 @@ export class DeviceManager {
             matchConfidence: finalConfidence,
             linkedUserId: context?.userId,
         };
-        // --- #8 Populate dedup cache ---
         if (dedupWindowMs > 0 && cacheKey) {
             this.dedupCache.set(cacheKey, { result, expiresAt: Date.now() + dedupWindowMs });
         }
         return result;
+    }
+    /**
+     * Identify multiple devices in a batch.
+     *
+     * @param incomingList - An array of fingerprint data sets to identify.
+     * @param context - Optional context including userId and IP address.
+     * @returns A promise that resolves to an array of identification results.
+     */
+    async identifyMany(incomingList, context) {
+        const results = [];
+        for (const incoming of incomingList) {
+            const result = await this.identify(incoming, context);
+            results.push(result);
+        }
+        return results;
     }
     /**
      * Clear the deduplication cache immediately.
