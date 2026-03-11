@@ -13,12 +13,12 @@ function.
 
 ```javascript
 // 1. Simple Method (Using defaults)
-import {calculateConfidence } from "devicer.js";
+import { calculateConfidence } from "devicer.js";
 
 const score = calculateConfidence(fpData1, fpData2);
 
 // 2. Advanced Method (Custom weights & comparitors)
-import {createConfidenceCalculator, registerPlugin } from "devicer.js";
+import { createConfidenceCalculator, registerPlugin } from "devicer.js";
 
 registerPlugin("userAgent", {
   weight: 25,
