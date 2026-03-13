@@ -293,4 +293,4 @@ beyond reasonable control.
 
 Gateway Corporate Solutions LLC
 
-Legal and compliance inquiries: <legal@gatewaycorporate.com>
+Legal and compliance inquiries: <office@gatewaycorporate.org>
