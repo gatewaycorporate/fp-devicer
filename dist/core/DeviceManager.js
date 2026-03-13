@@ -30,6 +30,7 @@ export class DeviceManager {
     context;
     logger;
     metrics;
+    identifyPostProcessors = [];
     /**
      * Cache entry for the deduplication window (feature #8).
      * Keyed by the TLSH hash of the incoming fingerprint.
@@ -60,6 +61,67 @@ export class DeviceManager {
         this.context.dedupWindowMs ??= 5000;
         this.logger = this.context.logger ?? defaultLogger;
         this.metrics = this.context.metrics ?? defaultMetrics;
+    }
+    createEmptyEnrichmentInfo() {
+        return {
+            plugins: [],
+            details: {},
+            failures: [],
+        };
+    }
+    cloneResultForRequest(baseResult, context) {
+        return {
+            ...baseResult,
+            linkedUserId: context?.userId,
+            enrichmentInfo: this.createEmptyEnrichmentInfo(),
+        };
+    }
+    async applyIdentifyPostProcessors(baseResult, incoming, context, execution) {
+        let result = this.cloneResultForRequest(baseResult, context);
+        const logMeta = {};
+        for (const { name, processor } of this.identifyPostProcessors) {
+            try {
+                const processed = await processor({
+                    incoming,
+                    context,
+                    result,
+                    baseResult: this.cloneResultForRequest(baseResult, context),
+                    cacheHit: execution.cacheHit,
+                    candidatesCount: execution.candidatesCount,
+                    matched: execution.matched,
+                    durationMs: execution.durationMs,
+                });
+                if (!processed) {
+                    continue;
+                }
+                result = {
+                    ...result,
+                    ...(processed.result ?? {}),
+                    enrichmentInfo: result.enrichmentInfo,
+                };
+                if (!result.enrichmentInfo.plugins.includes(name)) {
+                    result.enrichmentInfo.plugins.push(name);
+                }
+                if (processed.enrichmentInfo) {
+                    result.enrichmentInfo.details[name] = processed.enrichmentInfo;
+                }
+                if (processed.logMeta) {
+                    logMeta[name] = processed.logMeta;
+                }
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                result.enrichmentInfo.failures.push({ plugin: name, message });
+                this.logger.warn("Identify post-processor failed", { plugin: name, message });
+            }
+        }
+        return { result, logMeta };
+    }
+    registerIdentifyPostProcessor(name, processor) {
+        this.identifyPostProcessors.push({ name, processor });
+        return () => {
+            this.identifyPostProcessors = this.identifyPostProcessors.filter((registered) => registered.name !== name || registered.processor !== processor);
+        };
     }
     /**
      * Compute per-field stability scores across a window of historical snapshots.
@@ -124,77 +186,93 @@ export class DeviceManager {
         // --- #8 Dedup cache check ---
         const dedupWindowMs = this.context.dedupWindowMs;
         let cacheKey = null;
+        let baseResult = null;
+        let cacheHit = false;
+        let candidatesCount = 0;
         if (dedupWindowMs > 0) {
             cacheKey = getHash(canonicalizedStringify(incoming));
             const cached = this.dedupCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
                 this.logger.debug("Dedup cache hit — skipping DB write", { cacheKey });
-                return cached.result;
+                baseResult = cached.result;
+                cacheHit = true;
             }
         }
         this.logger.debug("Device identification started", { userId: context?.userId, ip: context?.ip });
-        // 1. Quick pre-filter (screen, hardwareConcurrency, etc.) → candidates
-        const candidates = await this.adapter.findCandidates(incoming, this.context.candidateMinScore, 100);
-        // 2. Full scoring with optional adaptive weights
-        const windowSize = this.context.stabilityWindowSize;
-        let bestMatch = null;
-        for (const cand of candidates) {
-            const rawHistory = await this.adapter.getHistory(cand.deviceId, windowSize);
-            if (!rawHistory.length)
-                continue;
-            // Normalise to newest-first so history[0] is always the most recent
-            // snapshot regardless of adapter ordering (SQLite = DESC, inmemory = ASC).
-            const history = [...rawHistory].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-            // Build a per-device confidence scorer that down-weights unstable fields
-            let scorer = calculateConfidence;
-            if (history.length >= 2) {
-                const stabilities = this.computeFieldStabilities(history);
-                const adaptedWeights = {};
-                for (const [field, baseWeight] of Object.entries(DEFAULT_WEIGHTS)) {
-                    adaptedWeights[field] = baseWeight * (stabilities[field] ?? 1);
+        if (!baseResult) {
+            // 1. Quick pre-filter (screen, hardwareConcurrency, etc.) → candidates
+            const candidates = await this.adapter.findCandidates(incoming, this.context.candidateMinScore, 100);
+            candidatesCount = candidates.length;
+            // 2. Full scoring with optional adaptive weights
+            const windowSize = this.context.stabilityWindowSize;
+            let bestMatch = null;
+            for (const cand of candidates) {
+                const rawHistory = await this.adapter.getHistory(cand.deviceId, windowSize);
+                if (!rawHistory.length)
+                    continue;
+                // Normalise to newest-first so history[0] is always the most recent
+                // snapshot regardless of adapter ordering (SQLite = DESC, inmemory = ASC).
+                const history = [...rawHistory].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+                // Build a per-device confidence scorer that down-weights unstable fields
+                let scorer = calculateConfidence;
+                if (history.length >= 2) {
+                    const stabilities = this.computeFieldStabilities(history);
+                    const adaptedWeights = {};
+                    for (const [field, baseWeight] of Object.entries(DEFAULT_WEIGHTS)) {
+                        adaptedWeights[field] = baseWeight * (stabilities[field] ?? 1);
+                    }
+                    scorer = createConfidenceCalculator({ weights: adaptedWeights }).calculateConfidence;
                 }
-                scorer = createConfidenceCalculator({ weights: adaptedWeights }).calculateConfidence;
+                // Score against the most-recent snapshot (history is newest-first)
+                const score = scorer(incoming, history[0].fingerprint);
+                if (score > (bestMatch?.confidence ?? 0)) {
+                    bestMatch = { ...cand, confidence: score };
+                }
             }
-            // Score against the most-recent snapshot (history is newest-first)
-            const score = scorer(incoming, history[0].fingerprint);
-            if (score > (bestMatch?.confidence ?? 0)) {
-                bestMatch = { ...cand, confidence: score };
+            const isMatched = !!(bestMatch && bestMatch.confidence > this.context.matchThreshold);
+            const deviceId = isMatched ? bestMatch.deviceId : `dev_${randomUUID()}`;
+            const isNewDevice = !isMatched;
+            const finalConfidence = bestMatch?.confidence ?? 0;
+            // 3. Save — include matchConfidence for drift tracking (#7)
+            await this.adapter.save({
+                id: randomUUID(),
+                deviceId,
+                userId: context?.userId,
+                timestamp: new Date(),
+                fingerprint: incoming,
+                ip: context?.ip,
+                matchConfidence: finalConfidence,
+            });
+            baseResult = {
+                deviceId,
+                confidence: finalConfidence,
+                isNewDevice,
+                matchConfidence: finalConfidence,
+                enrichmentInfo: this.createEmptyEnrichmentInfo(),
+            };
+            if (dedupWindowMs > 0 && cacheKey) {
+                this.dedupCache.set(cacheKey, { result: baseResult, expiresAt: Date.now() + dedupWindowMs });
             }
         }
-        const isMatched = !!(bestMatch && bestMatch.confidence > this.context.matchThreshold);
-        const deviceId = isMatched ? bestMatch.deviceId : `dev_${randomUUID()}`;
-        const isNewDevice = !isMatched;
-        const finalConfidence = bestMatch?.confidence ?? 0;
         const durationMs = performance.now() - start;
-        // 3. Save — include matchConfidence for drift tracking (#7)
-        await this.adapter.save({
-            id: randomUUID(),
-            deviceId,
-            userId: context?.userId,
-            timestamp: new Date(),
-            fingerprint: incoming,
-            ip: context?.ip,
-            matchConfidence: finalConfidence,
+        const matched = !baseResult.isNewDevice;
+        const { result, logMeta } = await this.applyIdentifyPostProcessors(baseResult, incoming, context, {
+            cacheHit,
+            candidatesCount,
+            matched,
+            durationMs,
         });
-        // Record Metrics + Logging
-        this.metrics.recordIdentify(durationMs, finalConfidence, isNewDevice, candidates.length, !!bestMatch);
+        this.metrics.recordIdentify(durationMs, result.confidence, result.isNewDevice, candidatesCount, matched);
         this.logger.info('Device identification completed', {
-            deviceId,
-            confidence: finalConfidence,
-            isNewDevice,
-            candidates: candidates.length,
+            deviceId: result.deviceId,
+            confidence: result.confidence,
+            isNewDevice: result.isNewDevice,
+            candidates: candidatesCount,
             durationMs: Math.round(durationMs),
+            cacheHit,
+            enrichmentInfo: result.enrichmentInfo,
+            pluginLogMeta: logMeta,
         });
-        const result = {
-            deviceId,
-            confidence: finalConfidence,
-            isNewDevice,
-            matchConfidence: finalConfidence,
-            linkedUserId: context?.userId,
-        };
-        if (dedupWindowMs > 0 && cacheKey) {
-            this.dedupCache.set(cacheKey, { result, expiresAt: Date.now() + dedupWindowMs });
-        }
         return result;
     }
     /**

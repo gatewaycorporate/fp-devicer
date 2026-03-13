@@ -1,6 +1,34 @@
 import type { StorageAdapter } from "../types/storage.js";
 import type { FPDataSet } from "../types/data.js";
 import { ObservabilityOptions } from "../types/observability.js";
+export interface IdentifyEnrichmentInfo {
+    plugins: string[];
+    details: Record<string, Record<string, unknown>>;
+    failures: Array<{
+        plugin: string;
+        message: string;
+    }>;
+}
+export type IdentifyContext = Record<string, unknown> & {
+    userId?: string;
+    ip?: string;
+};
+export interface IdentifyPostProcessorPayload {
+    incoming: FPDataSet;
+    context?: IdentifyContext;
+    result: IdentifyResult;
+    baseResult: IdentifyResult;
+    cacheHit: boolean;
+    candidatesCount: number;
+    matched: boolean;
+    durationMs: number;
+}
+export interface IdentifyPostProcessorResult {
+    result?: Record<string, unknown>;
+    enrichmentInfo?: Record<string, unknown>;
+    logMeta?: Record<string, unknown>;
+}
+export type IdentifyPostProcessor = (payload: IdentifyPostProcessorPayload) => Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void;
 /** Return type of {@link DeviceManager.identify}. */
 export interface IdentifyResult {
     deviceId: string;
@@ -9,6 +37,7 @@ export interface IdentifyResult {
     /** Mirror of `confidence`; also persisted on the saved snapshot for drift tracking. */
     matchConfidence: number;
     linkedUserId?: string;
+    enrichmentInfo: IdentifyEnrichmentInfo;
 }
 /**
  * High-level device identification service.
@@ -37,6 +66,7 @@ export declare class DeviceManager {
     private context;
     private logger;
     private metrics;
+    private identifyPostProcessors;
     /**
      * Cache entry for the deduplication window (feature #8).
      * Keyed by the TLSH hash of the incoming fingerprint.
@@ -66,6 +96,10 @@ export declare class DeviceManager {
         /** Dedup window in ms; repeated identifies within this window skip DB writes. Default `5000`. Set `0` to disable. */
         dedupWindowMs?: number;
     } & ObservabilityOptions);
+    private createEmptyEnrichmentInfo;
+    private cloneResultForRequest;
+    private applyIdentifyPostProcessors;
+    registerIdentifyPostProcessor(name: string, processor: IdentifyPostProcessor): () => void;
     /**
      * Compute per-field stability scores across a window of historical snapshots.
      *
@@ -102,10 +136,7 @@ export declare class DeviceManager {
      * @returns .matchConfidence - Same as confidence; also persisted on the snapshot.
      * @returns .linkedUserId - The `userId` passed in `context`, if any.
      */
-    identify(incoming: FPDataSet, context?: {
-        userId?: string;
-        ip?: string;
-    }): Promise<IdentifyResult>;
+    identify(incoming: FPDataSet, context?: IdentifyContext): Promise<IdentifyResult>;
     /**
      * Identify multiple devices in a batch.
      *
@@ -113,10 +144,7 @@ export declare class DeviceManager {
      * @param context - Optional context including userId and IP address.
      * @returns A promise that resolves to an array of identification results.
      */
-    identifyMany(incomingList: FPDataSet[], context?: {
-        userId?: string;
-        ip?: string;
-    }): Promise<IdentifyResult[]>;
+    identifyMany(incomingList: FPDataSet[], context?: IdentifyContext): Promise<IdentifyResult[]>;
     /**
      * Clear the deduplication cache immediately.
      * Useful in tests or after a forced re-identification.
