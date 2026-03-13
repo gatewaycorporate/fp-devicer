@@ -19,6 +19,11 @@ describe('DeviceManager', () => {
     expect(result.isNewDevice).toBe(true);
     expect(result.confidence).toBe(0);
     expect(result.linkedUserId).toBe('user_abc');
+    expect(result.enrichmentInfo).toEqual({
+      plugins: [],
+      details: {},
+      failures: [],
+    });
   });
 
   it('returns existing device on high-confidence match (>80)', async () => {
@@ -167,6 +172,48 @@ describe('DeviceManager – Observability', () => {
     expect(typeof msg).toBe('string');
   });
 
+  it('includes post-processor enrichment data in the final info log', async () => {
+    const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, logger });
+
+    manager.registerIdentifyPostProcessor('demo', ({ result }) => ({
+      result: { demoScore: 12 },
+      enrichmentInfo: { score: 12, deviceId: result.deviceId },
+      logMeta: { score: 12 },
+    }));
+
+    const result = await manager.identify(fpIdentical) as any;
+
+    expect(result.demoScore).toBe(12);
+    expect(result.enrichmentInfo.plugins).toEqual(['demo']);
+    expect(result.enrichmentInfo.details.demo).toEqual({
+      score: 12,
+      deviceId: result.deviceId,
+    });
+
+    const [, meta] = (logger.info as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(meta.enrichmentInfo.details.demo).toEqual({
+      score: 12,
+      deviceId: result.deviceId,
+    });
+    expect(meta.pluginLogMeta.demo).toEqual({ score: 12 });
+  });
+
+  it('records post-processor failures without failing identify', async () => {
+    const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 0, logger });
+
+    manager.registerIdentifyPostProcessor('broken', () => {
+      throw new Error('boom');
+    });
+
+    const result = await manager.identify(fpIdentical);
+
+    expect(result.deviceId).toMatch(/^dev_/);
+    expect(result.enrichmentInfo.failures).toEqual([{ plugin: 'broken', message: 'boom' }]);
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
   it('custom logger.debug is called at the start of identify', async () => {
     const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
     const manager = new DeviceManager(adapter, { dedupWindowMs: 0, logger });
@@ -244,6 +291,28 @@ describe('DeviceManager – Dedup cache edge cases', () => {
     await manager.identify(fpIdentical);
 
     expect(saveSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('reruns post-processors on dedup cache hits', async () => {
+    const manager = new DeviceManager(adapter, { dedupWindowMs: 5000 });
+    const saveSpy = vi.spyOn(adapter, 'save');
+    const processor = vi.fn(({ context }: { context?: { userId?: string } }) => ({
+      enrichmentInfo: {
+        sequence: processor.mock.calls.length,
+        userId: context?.userId,
+      },
+    }));
+
+    manager.registerIdentifyPostProcessor('sequence', processor);
+
+    const first = await manager.identify(fpIdentical, { userId: 'u1' });
+    const second = await manager.identify(fpIdentical, { userId: 'u2' });
+
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    expect(processor).toHaveBeenCalledTimes(2);
+    expect(first.enrichmentInfo.details.sequence).toEqual({ sequence: 1, userId: 'u1' });
+    expect(second.enrichmentInfo.details.sequence).toEqual({ sequence: 2, userId: 'u2' });
+    expect(second.linkedUserId).toBe('u2');
   });
 });
 

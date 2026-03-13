@@ -7,6 +7,38 @@ import { randomUUID } from "crypto";
 import { Logger, Metrics, ObservabilityOptions } from "../types/observability.js";
 import { defaultLogger, defaultMetrics } from "../libs/default-observability.js";
 
+export interface IdentifyEnrichmentInfo {
+  plugins: string[];
+  details: Record<string, Record<string, unknown>>;
+  failures: Array<{ plugin: string; message: string }>;
+}
+
+export type IdentifyContext = Record<string, unknown> & {
+  userId?: string;
+  ip?: string;
+};
+
+export interface IdentifyPostProcessorPayload {
+  incoming: FPDataSet;
+  context?: IdentifyContext;
+  result: IdentifyResult;
+  baseResult: IdentifyResult;
+  cacheHit: boolean;
+  candidatesCount: number;
+  matched: boolean;
+  durationMs: number;
+}
+
+export interface IdentifyPostProcessorResult {
+  result?: Record<string, unknown>;
+  enrichmentInfo?: Record<string, unknown>;
+  logMeta?: Record<string, unknown>;
+}
+
+export type IdentifyPostProcessor = (
+  payload: IdentifyPostProcessorPayload
+) => Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void;
+
 /** Return type of {@link DeviceManager.identify}. */
 export interface IdentifyResult {
   deviceId: string;
@@ -15,6 +47,7 @@ export interface IdentifyResult {
   /** Mirror of `confidence`; also persisted on the saved snapshot for drift tracking. */
   matchConfidence: number;
   linkedUserId?: string;
+  enrichmentInfo: IdentifyEnrichmentInfo;
 }
 
 /**
@@ -42,6 +75,7 @@ export interface IdentifyResult {
 export class DeviceManager {
   private logger: Logger;
   private metrics: Metrics;
+  private identifyPostProcessors: Array<{ name: string; processor: IdentifyPostProcessor }> = [];
 
   /**
    * Cache entry for the deduplication window (feature #8).
@@ -79,6 +113,84 @@ export class DeviceManager {
     this.context.dedupWindowMs ??= 5000;
     this.logger = this.context.logger ?? defaultLogger;
     this.metrics = this.context.metrics ?? defaultMetrics;
+  }
+
+  private createEmptyEnrichmentInfo(): IdentifyEnrichmentInfo {
+    return {
+      plugins: [],
+      details: {},
+      failures: [],
+    };
+  }
+
+  private cloneResultForRequest(baseResult: IdentifyResult, context?: IdentifyContext): IdentifyResult {
+    return {
+      ...baseResult,
+      linkedUserId: context?.userId,
+      enrichmentInfo: this.createEmptyEnrichmentInfo(),
+    };
+  }
+
+  private async applyIdentifyPostProcessors(
+    baseResult: IdentifyResult,
+    incoming: FPDataSet,
+    context: IdentifyContext | undefined,
+    execution: { cacheHit: boolean; candidatesCount: number; matched: boolean; durationMs: number }
+  ): Promise<{ result: IdentifyResult; logMeta: Record<string, Record<string, unknown>> }> {
+    let result = this.cloneResultForRequest(baseResult, context);
+    const logMeta: Record<string, Record<string, unknown>> = {};
+
+    for (const { name, processor } of this.identifyPostProcessors) {
+      try {
+        const processed = await processor({
+          incoming,
+          context,
+          result,
+          baseResult: this.cloneResultForRequest(baseResult, context),
+          cacheHit: execution.cacheHit,
+          candidatesCount: execution.candidatesCount,
+          matched: execution.matched,
+          durationMs: execution.durationMs,
+        });
+
+        if (!processed) {
+          continue;
+        }
+
+        result = {
+          ...result,
+          ...(processed.result ?? {}),
+          enrichmentInfo: result.enrichmentInfo,
+        } as IdentifyResult;
+
+        if (!result.enrichmentInfo.plugins.includes(name)) {
+          result.enrichmentInfo.plugins.push(name);
+        }
+
+        if (processed.enrichmentInfo) {
+          result.enrichmentInfo.details[name] = processed.enrichmentInfo;
+        }
+
+        if (processed.logMeta) {
+          logMeta[name] = processed.logMeta;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        result.enrichmentInfo.failures.push({ plugin: name, message });
+        this.logger.warn("Identify post-processor failed", { plugin: name, message });
+      }
+    }
+
+    return { result, logMeta };
+  }
+
+  registerIdentifyPostProcessor(name: string, processor: IdentifyPostProcessor): () => void {
+    this.identifyPostProcessors.push({ name, processor });
+    return () => {
+      this.identifyPostProcessors = this.identifyPostProcessors.filter(
+        (registered) => registered.name !== name || registered.processor !== processor
+      );
+    };
   }
 
   /**
@@ -140,100 +252,117 @@ export class DeviceManager {
    * @returns .matchConfidence - Same as confidence; also persisted on the snapshot.
    * @returns .linkedUserId - The `userId` passed in `context`, if any.
    */
-  async identify(incoming: FPDataSet, context?: { userId?: string; ip?: string }): Promise<IdentifyResult> {
+  async identify(incoming: FPDataSet, context?: IdentifyContext): Promise<IdentifyResult> {
     const start = performance.now();
 
     // --- #8 Dedup cache check ---
     const dedupWindowMs = this.context.dedupWindowMs!;
     let cacheKey: string | null = null;
+    let baseResult: IdentifyResult | null = null;
+    let cacheHit = false;
+    let candidatesCount = 0;
     if (dedupWindowMs > 0) {
       cacheKey = getHash(canonicalizedStringify(incoming));
       const cached = this.dedupCache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
         this.logger.debug!("Dedup cache hit — skipping DB write", { cacheKey });
-        return cached.result;
+        baseResult = cached.result;
+        cacheHit = true;
       }
     }
 
     this.logger.debug!("Device identification started", { userId: context?.userId, ip: context?.ip });
 
-    // 1. Quick pre-filter (screen, hardwareConcurrency, etc.) → candidates
-    const candidates = await this.adapter.findCandidates(incoming, this.context.candidateMinScore!, 100);
+    if (!baseResult) {
+      // 1. Quick pre-filter (screen, hardwareConcurrency, etc.) → candidates
+      const candidates = await this.adapter.findCandidates(incoming, this.context.candidateMinScore!, 100);
+      candidatesCount = candidates.length;
 
-    // 2. Full scoring with optional adaptive weights
-    const windowSize = this.context.stabilityWindowSize!;
-    let bestMatch: DeviceMatch | null = null;
-    for (const cand of candidates) {
-      const rawHistory = await this.adapter.getHistory(cand.deviceId, windowSize);
-      if (!rawHistory.length) continue;
+      // 2. Full scoring with optional adaptive weights
+      const windowSize = this.context.stabilityWindowSize!;
+      let bestMatch: DeviceMatch | null = null;
+      for (const cand of candidates) {
+        const rawHistory = await this.adapter.getHistory(cand.deviceId, windowSize);
+        if (!rawHistory.length) continue;
 
-      // Normalise to newest-first so history[0] is always the most recent
-      // snapshot regardless of adapter ordering (SQLite = DESC, inmemory = ASC).
-      const history = [...rawHistory].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        // Normalise to newest-first so history[0] is always the most recent
+        // snapshot regardless of adapter ordering (SQLite = DESC, inmemory = ASC).
+        const history = [...rawHistory].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      // Build a per-device confidence scorer that down-weights unstable fields
-      let scorer = calculateConfidence;
-      if (history.length >= 2) {
-        const stabilities = this.computeFieldStabilities(history);
-        const adaptedWeights: Record<string, number> = {};
-        for (const [field, baseWeight] of Object.entries(DEFAULT_WEIGHTS)) {
-          adaptedWeights[field] = baseWeight * (stabilities[field] ?? 1);
+        // Build a per-device confidence scorer that down-weights unstable fields
+        let scorer = calculateConfidence;
+        if (history.length >= 2) {
+          const stabilities = this.computeFieldStabilities(history);
+          const adaptedWeights: Record<string, number> = {};
+          for (const [field, baseWeight] of Object.entries(DEFAULT_WEIGHTS)) {
+            adaptedWeights[field] = baseWeight * (stabilities[field] ?? 1);
+          }
+          scorer = createConfidenceCalculator({ weights: adaptedWeights }).calculateConfidence;
         }
-        scorer = createConfidenceCalculator({ weights: adaptedWeights }).calculateConfidence;
+
+        // Score against the most-recent snapshot (history is newest-first)
+        const score = scorer(incoming, history[0].fingerprint);
+        if (score > (bestMatch?.confidence ?? 0)) {
+          bestMatch = { ...cand, confidence: score };
+        }
       }
 
-      // Score against the most-recent snapshot (history is newest-first)
-      const score = scorer(incoming, history[0].fingerprint);
-      if (score > (bestMatch?.confidence ?? 0)) {
-        bestMatch = { ...cand, confidence: score };
+      const isMatched = !!(bestMatch && bestMatch.confidence > this.context.matchThreshold!);
+      const deviceId = isMatched ? bestMatch!.deviceId : `dev_${randomUUID()}`;
+      const isNewDevice = !isMatched;
+      const finalConfidence = bestMatch?.confidence ?? 0;
+
+      // 3. Save — include matchConfidence for drift tracking (#7)
+      await this.adapter.save({
+        id: randomUUID(),
+        deviceId,
+        userId: context?.userId,
+        timestamp: new Date(),
+        fingerprint: incoming,
+        ip: context?.ip,
+        matchConfidence: finalConfidence,
+      });
+
+      baseResult = {
+        deviceId,
+        confidence: finalConfidence,
+        isNewDevice,
+        matchConfidence: finalConfidence,
+        enrichmentInfo: this.createEmptyEnrichmentInfo(),
+      };
+
+      if (dedupWindowMs > 0 && cacheKey) {
+        this.dedupCache.set(cacheKey, { result: baseResult, expiresAt: Date.now() + dedupWindowMs });
       }
     }
 
-    const isMatched = !!(bestMatch && bestMatch.confidence > this.context.matchThreshold!);
-    const deviceId = isMatched ? bestMatch!.deviceId : `dev_${randomUUID()}`;
-    const isNewDevice = !isMatched;
-    const finalConfidence = bestMatch?.confidence ?? 0;
     const durationMs = performance.now() - start;
-
-    // 3. Save — include matchConfidence for drift tracking (#7)
-    await this.adapter.save({
-      id: randomUUID(),
-      deviceId,
-      userId: context?.userId,
-      timestamp: new Date(),
-      fingerprint: incoming,
-      ip: context?.ip,
-      matchConfidence: finalConfidence,
+    const matched = !baseResult.isNewDevice;
+    const { result, logMeta } = await this.applyIdentifyPostProcessors(baseResult, incoming, context, {
+      cacheHit,
+      candidatesCount,
+      matched,
+      durationMs,
     });
 
-    // Record Metrics + Logging
     this.metrics.recordIdentify(
       durationMs,
-      finalConfidence,
-      isNewDevice,
-      candidates.length,
-      !!bestMatch
+      result.confidence,
+      result.isNewDevice,
+      candidatesCount,
+      matched
     );
 
     this.logger.info('Device identification completed', {
-      deviceId,
-      confidence: finalConfidence,
-      isNewDevice,
-      candidates: candidates.length,
+      deviceId: result.deviceId,
+      confidence: result.confidence,
+      isNewDevice: result.isNewDevice,
+      candidates: candidatesCount,
       durationMs: Math.round(durationMs),
+      cacheHit,
+      enrichmentInfo: result.enrichmentInfo,
+      pluginLogMeta: logMeta,
     });
-
-    const result: IdentifyResult = {
-      deviceId,
-      confidence: finalConfidence,
-      isNewDevice,
-      matchConfidence: finalConfidence,
-      linkedUserId: context?.userId,
-    };
-
-    if (dedupWindowMs > 0 && cacheKey) {
-      this.dedupCache.set(cacheKey, { result, expiresAt: Date.now() + dedupWindowMs });
-    }
 
     return result;
   }
@@ -245,7 +374,7 @@ export class DeviceManager {
 	 * @param context - Optional context including userId and IP address.
 	 * @returns A promise that resolves to an array of identification results.
 	 */
-	async identifyMany(incomingList: FPDataSet[], context?: { userId?: string; ip?: string }): Promise<IdentifyResult[]> {
+  async identifyMany(incomingList: FPDataSet[], context?: IdentifyContext): Promise<IdentifyResult[]> {
 		const results: IdentifyResult[] = [];
 		for (const incoming of incomingList) {
 			const result = await this.identify(incoming, context);
