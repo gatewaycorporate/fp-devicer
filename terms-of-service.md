@@ -113,6 +113,8 @@ You may not use, and may not authorize others to use, the Software:
    or otherwise prohibited under Sanctions Laws.
 6. For malicious, unlawful, or abusive tracking, targeting, harassment,
    intimidation, or exploitation.
+7. In furtherance of, or in connection with, any criminal activity or offense
+   under applicable law.
 
 Any use reasonably determined by Gateway to present substantial risk of harm,
 unlawful surveillance, or rights violations is prohibited.
