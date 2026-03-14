@@ -100,7 +100,7 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
 			return raw
 				.slice(0, limit)
 				.map((value: string) => parseStoredFingerprint(value))
-				.filter((snapshot): snapshot is StoredFingerprint => snapshot !== null);
+				.filter((snapshot: StoredFingerprint | null): snapshot is StoredFingerprint => snapshot !== null);
     },
     async findCandidates(query, minConfidence, limit = 20) {
       // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.

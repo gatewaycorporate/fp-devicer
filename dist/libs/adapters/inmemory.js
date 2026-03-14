@@ -1,4 +1,5 @@
 import { calculateConfidence } from "../confidence.js";
+import { getStoredFingerprintHash } from "../fingerprint-hash.js";
 /**
  * Create a volatile, in-process {@link StorageAdapter} backed by a plain
  * `Map`. All data is lost when the process exits.
@@ -16,13 +17,36 @@ import { calculateConfidence } from "../confidence.js";
  */
 export function createInMemoryAdapter() {
     const store = new Map();
+    const hashIndex = new Map();
+    const rebuildHashIndex = () => {
+        hashIndex.clear();
+        for (const history of store.values()) {
+            for (const snapshot of history) {
+                const signalsHash = getStoredFingerprintHash(snapshot);
+                if (signalsHash) {
+                    hashIndex.set(signalsHash, snapshot.id);
+                }
+            }
+        }
+    };
     return {
         async init() { },
         async save(snapshot) {
-            if (!store.has(snapshot.deviceId))
-                store.set(snapshot.deviceId, []);
-            store.get(snapshot.deviceId).push(snapshot);
-            return snapshot.id;
+            const signalsHash = getStoredFingerprintHash(snapshot);
+            const existingId = signalsHash ? hashIndex.get(signalsHash) : undefined;
+            if (existingId) {
+                return existingId;
+            }
+            const storedSnapshot = signalsHash && snapshot.signalsHash !== signalsHash
+                ? { ...snapshot, signalsHash }
+                : snapshot;
+            if (!store.has(storedSnapshot.deviceId))
+                store.set(storedSnapshot.deviceId, []);
+            store.get(storedSnapshot.deviceId).push(storedSnapshot);
+            if (signalsHash) {
+                hashIndex.set(signalsHash, storedSnapshot.id);
+            }
+            return storedSnapshot.id;
         },
         async getHistory(deviceId, limit = 50) {
             return (store.get(deviceId) || []).slice(-limit);
@@ -56,6 +80,7 @@ export function createInMemoryAdapter() {
                     store.set(deviceId, filtered);
                 }
             });
+            rebuildHashIndex();
             return 0; // Return 0 since we're not tracking individual deletions in this stub.
         },
         async getAllFingerprints() {

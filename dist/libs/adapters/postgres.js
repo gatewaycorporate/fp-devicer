@@ -5,6 +5,7 @@ import { eq, lt } from "drizzle-orm/sql/expressions/conditions";
 import { desc } from "drizzle-orm/sql/expressions/select";
 import { randomUUID } from "crypto";
 import { calculateConfidence } from "../confidence.js";
+import { getFingerprintHash, getStoredFingerprintHash } from "../fingerprint-hash.js";
 const fingerprintsTable = pgTable("fingerprints", {
     id: text("id").primaryKey(),
     deviceId: text("deviceId").notNull(),
@@ -31,6 +32,15 @@ const fingerprintsTable = pgTable("fingerprints", {
  */
 export function createPostgresAdapter(dbUrlOrClient) {
     const db = drizzle(dbUrlOrClient); // works for both SQLite & Postgres
+    const findExistingSnapshotIdByHash = async (signalsHash) => {
+        const rows = await db.select().from(fingerprintsTable);
+        for (const row of rows) {
+            if (row.data && getFingerprintHash(row.data) === signalsHash) {
+                return row.id;
+            }
+        }
+        return null;
+    };
     return {
         async init() {
             await db.execute(sql `CREATE TABLE IF NOT EXISTS fingerprints (
@@ -41,6 +51,13 @@ export function createPostgresAdapter(dbUrlOrClient) {
 				)`);
         },
         async save(snapshot) {
+            const signalsHash = getStoredFingerprintHash(snapshot);
+            if (signalsHash) {
+                const existingId = await findExistingSnapshotIdByHash(signalsHash);
+                if (existingId) {
+                    return existingId;
+                }
+            }
             const id = randomUUID();
             await db.insert(fingerprintsTable).values({
                 id,
@@ -63,6 +80,7 @@ export function createPostgresAdapter(dbUrlOrClient) {
                 deviceId: row.deviceId,
                 fingerprint: row.data,
                 timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+                signalsHash: getFingerprintHash(row.data),
             }));
         },
         async findCandidates(query, minConfidence, limit = 20) {
@@ -110,6 +128,7 @@ export function createPostgresAdapter(dbUrlOrClient) {
                 deviceId: row.deviceId,
                 fingerprint: row.data,
                 timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+                signalsHash: getFingerprintHash(row.data),
             }));
         }
     };

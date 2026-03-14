@@ -1,6 +1,6 @@
 import { calculateConfidence, createConfidenceCalculator, DEFAULT_WEIGHTS } from "../libs/confidence.js";
+import { getFingerprintHash } from "../libs/fingerprint-hash.js";
 import { getGlobalRegistry } from "../libs/registry.js";
-import { canonicalizedStringify, getHash } from "../libs/tlsh.js";
 import { randomUUID } from "crypto";
 import { defaultLogger, defaultMetrics } from "../libs/default-observability.js";
 /**
@@ -183,14 +183,14 @@ export class DeviceManager {
      */
     async identify(incoming, context) {
         const start = performance.now();
+        const fingerprintHash = getFingerprintHash(incoming);
         // --- #8 Dedup cache check ---
         const dedupWindowMs = this.context.dedupWindowMs;
-        let cacheKey = null;
+        const cacheKey = fingerprintHash ?? null;
         let baseResult = null;
         let cacheHit = false;
         let candidatesCount = 0;
-        if (dedupWindowMs > 0) {
-            cacheKey = getHash(canonicalizedStringify(incoming));
+        if (dedupWindowMs > 0 && cacheKey) {
             const cached = this.dedupCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
                 this.logger.debug("Dedup cache hit — skipping DB write", { cacheKey });
@@ -241,6 +241,7 @@ export class DeviceManager {
                 timestamp: new Date(),
                 fingerprint: incoming,
                 ip: context?.ip,
+                signalsHash: fingerprintHash,
                 matchConfidence: finalConfidence,
             });
             baseResult = {
