@@ -5,7 +5,7 @@
 FP-Devicer is a digital fingerprinting middleware library designed for ease of
 use and near-universal compatibility with servers.
 
-### Usage
+## Usage
 
 Importing and using the library to compare fingerprints between users is as
 simple as collecting some user data and running the calculateConfidence
@@ -58,7 +58,22 @@ app.listen(3000, () => console.log('✅ FP-Devicer server ready at http://localh
 The resulting confidence will range between 0 and 100, with 100 providing the
 highest confidence of the users being identical.
 
-### Quickstart
+## Installation
+
+You can install FP-Devicer with
+
+```bash
+npm install devicer.js
+```
+
+You can also install the meta-package for the entire Devicer Intelligence Suite
+with
+
+```bash
+npm install @gatewaycorporate/devicer-intel
+```
+
+## Quickstart
 
 To run the quickstart example:
 
@@ -67,17 +82,17 @@ npm install express devicer.js
 npx tsx src/examples/quickstart.ts
 ```
 
-### Demo
+## Demo
 
 There is a public demo of FP-Devicer (FP-Cicis Command and Control) available
 for viewing at [cicis.info](https://cicis.info/).
 
-### Documentation
+## Documentation
 
 This project uses typedoc and autodeploys via GitHub Pages. You can view the
 generated documentation [here](https://gatewaycorporate.github.io/fp-devicer/).
 
-### Benchmarks
+## Benchmarks
 
 When calibrated correctly, FP-Devicer is over 99% accurate and gets more
 accurate as it analyzes fingerprints. The average time to calculate the
@@ -88,7 +103,7 @@ on your machine:
 npm run bench
 ```
 
-### Whitepaper
+## Whitepaper
 
 The whitepaper covers the theory, architecture, and design decisions behind
 FP-Devicer. You can read it
