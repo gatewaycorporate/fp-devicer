@@ -93,7 +93,7 @@ describe('DeviceManager', () => {
 
   it('persists matchConfidence on saved snapshot', async () => {
     const first = await manager.identify(fpIdentical);
-    const second = await manager.identify(fpVerySimilar);
+    const second = await manager.identify(fpDifferent);
 
     const history = await adapter.getHistory(second.deviceId);
     // Most recent snapshot (last pushed in inmemory adapter) has matchConfidence
@@ -140,6 +140,15 @@ describe('DeviceManager', () => {
     await noDedupManager.identify(fpIdentical);
 
     expect(saveSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not persist a second snapshot when an identical fingerprint hash already exists', async () => {
+    const first = await manager.identify(fpIdentical);
+    const second = await manager.identify(fpIdentical);
+
+    const history = await adapter.getHistory(first.deviceId);
+    expect(second.deviceId).toBe(first.deviceId);
+    expect(history).toHaveLength(1);
   });
 
   it('adaptive weights: stable device history does not degrade confidence', async () => {
@@ -386,7 +395,7 @@ describe('DeviceManager – identifyMany', () => {
       context?: { userId?: string; ip?: string }
     ) => Promise<any[]>;
 
-    const results = await identifyMany([fpIdentical, fpVerySimilar], {
+    const results = await identifyMany([fpIdentical, fpDifferent], {
       userId: 'batch_user',
       ip: '127.0.0.1',
     });

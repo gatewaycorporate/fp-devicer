@@ -1,8 +1,8 @@
 import type { StorageAdapter, DeviceMatch, StoredFingerprint } from "../types/storage.js";
 import type { FPDataSet } from "../types/data.js";
 import { calculateConfidence, createConfidenceCalculator, DEFAULT_WEIGHTS } from "../libs/confidence.js";
+import { getFingerprintHash } from "../libs/fingerprint-hash.js";
 import { getGlobalRegistry } from "../libs/registry.js";
-import { canonicalizedStringify, getHash } from "../libs/tlsh.js";
 import { randomUUID } from "crypto";
 import { Logger, Metrics, ObservabilityOptions } from "../types/observability.js";
 import { defaultLogger, defaultMetrics } from "../libs/default-observability.js";
@@ -254,15 +254,15 @@ export class DeviceManager {
    */
   async identify(incoming: FPDataSet, context?: IdentifyContext): Promise<IdentifyResult> {
     const start = performance.now();
+    const fingerprintHash = getFingerprintHash(incoming);
 
     // --- #8 Dedup cache check ---
     const dedupWindowMs = this.context.dedupWindowMs!;
-    let cacheKey: string | null = null;
+    const cacheKey = fingerprintHash ?? null;
     let baseResult: IdentifyResult | null = null;
     let cacheHit = false;
     let candidatesCount = 0;
-    if (dedupWindowMs > 0) {
-      cacheKey = getHash(canonicalizedStringify(incoming));
+    if (dedupWindowMs > 0 && cacheKey) {
       const cached = this.dedupCache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
         this.logger.debug!("Dedup cache hit — skipping DB write", { cacheKey });
@@ -320,6 +320,7 @@ export class DeviceManager {
         timestamp: new Date(),
         fingerprint: incoming,
         ip: context?.ip,
+        signalsHash: fingerprintHash,
         matchConfidence: finalConfidence,
       });
 

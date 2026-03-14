@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createSqliteAdapter } from '../../libs/adapters/sqlite';
 import type { StoredFingerprint } from '../../types/storage';
 import { randomUUID } from 'crypto';
-import { fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
+import { fpDifferent, fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
 
 describe('SqliteAdapter', () => {
   let adapter: ReturnType<typeof createSqliteAdapter>;
@@ -10,7 +10,7 @@ describe('SqliteAdapter', () => {
   beforeEach(async () => {
     adapter = createSqliteAdapter("./src/tests/storage/test-db.sqlite");
     await adapter.init();
-    adapter.deleteOldSnapshots(0); // Clear all entries before each test
+    await adapter.deleteOldSnapshots(0); // Clear all entries before each test
   });
 
   it('saves snapshot and retrieves full history', async () => {
@@ -79,10 +79,19 @@ describe('SqliteAdapter', () => {
 		const deviceId1 = 'dev_1';
 		const deviceId2 = 'dev_2';
 		await adapter.save({ id: randomUUID(), deviceId: deviceId1, timestamp: new Date(), fingerprint: fpIdentical });
-		await adapter.save({ id: randomUUID(), deviceId: deviceId2, timestamp: new Date(), fingerprint: fpVerySimilar });
+    await adapter.save({ id: randomUUID(), deviceId: deviceId2, timestamp: new Date(), fingerprint: fpDifferent });
 		
 		const allFingerprints = await adapter.getAllFingerprints();
 		expect(allFingerprints).toHaveLength(2);
 		expect(allFingerprints.map(fp => fp.deviceId)).toEqual(expect.arrayContaining([deviceId1, deviceId2]));
 	});
+
+  it('skips inserting a duplicate fingerprint hash', async () => {
+    const firstId = await adapter.save({ id: randomUUID(), deviceId: 'dev_a', timestamp: new Date(), fingerprint: fpIdentical });
+    const secondId = await adapter.save({ id: randomUUID(), deviceId: 'dev_b', timestamp: new Date(), fingerprint: fpIdentical });
+
+    const allFingerprints = await adapter.getAllFingerprints();
+    expect(allFingerprints).toHaveLength(1);
+    expect(secondId).toBe(firstId);
+  });
 });

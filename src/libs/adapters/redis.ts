@@ -1,8 +1,8 @@
 import Redis from "ioredis";
-import { randomUUID } from "crypto";
 import type { StorageAdapter, DeviceMatch, StoredFingerprint } from "../../types/storage.js";
 import { calculateConfidence } from "../confidence.js";
 import { FPUserDataSet } from "../../types/data.js";
+import { getStoredFingerprintHash } from "../fingerprint-hash.js";
 
 /**
  * Create a {@link StorageAdapter} backed by Redis via `ioredis`.
@@ -31,25 +31,76 @@ import { FPUserDataSet } from "../../types/data.js";
 export function createRedisAdapter(redisUrl?: string): StorageAdapter {
   const redis = new (Redis as any)(redisUrl || "redis://localhost:6379");
 
+	const parseStoredFingerprint = (value: string): StoredFingerprint | null => {
+		try {
+			const parsed = JSON.parse(value);
+			if (parsed && typeof parsed === "object" && "fingerprint" in parsed && "deviceId" in parsed) {
+				return parsed as StoredFingerprint;
+			}
+		} catch {
+			return null;
+		}
+		return null;
+	};
+
+	const readAllFingerprints = async (): Promise<StoredFingerprint[]> => {
+		const deviceKeys = await redis.smembers('idx:devices');
+		const allFingerprints: StoredFingerprint[] = [];
+		if (!deviceKeys.length) {
+			return allFingerprints;
+		}
+
+		const pipeline = redis.pipeline();
+		deviceKeys.forEach((key: string) => pipeline.hvals(key));
+		const results = await pipeline.exec();
+		results.forEach(([err, raw]: [Error | null, string[]]) => {
+			if (err) return;
+			raw.forEach((value: string) => {
+				const snapshot = parseStoredFingerprint(value);
+				if (snapshot) {
+					allFingerprints.push(snapshot);
+				}
+			});
+		});
+
+		return allFingerprints;
+	};
+
   return {
     async init() { /* optional schema check */ },
     async save(snapshot) {
+			const signalsHash = getStoredFingerprintHash(snapshot);
+			if (signalsHash) {
+				const existing = (await readAllFingerprints()).find(
+					(storedSnapshot) => getStoredFingerprintHash(storedSnapshot) === signalsHash
+				);
+				if (existing) {
+					return existing.id;
+				}
+			}
+
       const key = `fp:device:${snapshot.deviceId}`;
-      const snapshotId = randomUUID();
+			const storedSnapshot = signalsHash && snapshot.signalsHash !== signalsHash
+				? { ...snapshot, signalsHash }
+				: snapshot;
+			await redis.sadd('idx:devices', key);
 			await redis.sadd(`idx:platform:${snapshot.fingerprint.platform}`, key);
 			await redis.sadd(`idx:deviceMemory:${snapshot.fingerprint.deviceMemory}`, key);
 			await redis.sadd(`idx:hardwareConcurrency:${snapshot.fingerprint.hardwareConcurrency}`, key);
       await redis
         .multi()
-        .hset(key, snapshotId, JSON.stringify(snapshot))
+				.hset(key, storedSnapshot.id, JSON.stringify(storedSnapshot))
         .expire(key, 60 * 60 * 24 * 90) // 90-day TTL
         .exec();
-      return snapshotId;
+			return storedSnapshot.id;
     },
     async getHistory(deviceId, limit = 50) {
       const key = `fp:device:${deviceId}`;
       const raw = await redis.hvals(key);
-      return raw.slice(0, limit).map((v: string) => JSON.parse(v));
+			return raw
+				.slice(0, limit)
+				.map((value: string) => parseStoredFingerprint(value))
+				.filter((snapshot): snapshot is StoredFingerprint => snapshot !== null);
     },
     async findCandidates(query, minConfidence, limit = 20) {
       // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.
@@ -121,24 +172,7 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
       return 0;
     },
 		async getAllFingerprints() {
-			const stream = redis.scanStream({ match: 'fp:device:*', count: 100 });
-			const allFingerprints: StoredFingerprint[] = [];
-			
-			return new Promise((resolve, reject) => {
-				stream.on('data', async (keys: string[]) => {
-					if (keys.length) {
-						const pipeline = redis.pipeline();
-						keys.forEach(key => pipeline.hvals(key));
-						const results = await pipeline.exec();
-						results.forEach(([err, raw]: [Error | null, any]) => {
-							if (err) return; // skip errors
-							raw.forEach((v: string) => allFingerprints.push(JSON.parse(v)));
-						});
-					}
-				});
-				stream.on('end', () => resolve(allFingerprints));
-				stream.on('error', (err: any) => reject(err));
-			});
+			return readAllFingerprints();
 		},
     async close() { await redis.quit(); }
   };

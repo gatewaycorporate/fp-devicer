@@ -68,4 +68,12 @@ describe('InMemoryAdapter', () => {
 			expect.objectContaining({ id: expect.any(String), timestamp: expect.any(Date) }),
 		]));
 	});
+
+  it('skips saving a duplicate fingerprint hash', async () => {
+    await adapter.save({ id: randomUUID(), deviceId: 'dev_a', timestamp: new Date(), fingerprint: fpIdentical });
+    await adapter.save({ id: randomUUID(), deviceId: 'dev_b', timestamp: new Date(), fingerprint: fpIdentical });
+
+    const allFingerprints = await adapter.getAllFingerprints();
+    expect(allFingerprints).toHaveLength(1);
+  });
 });

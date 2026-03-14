@@ -96,5 +96,25 @@ for (const { name, factory } of adapterFactories) {
       expect(ids).toContain(devA);
       expect(ids).toContain(devB);
     });
+
+    it('save does not create a second record when the fingerprint hash already exists', async () => {
+      const firstId = await adapter.save({
+        id: randomUUID(),
+        deviceId: `dev_dup_${randomUUID()}`,
+        timestamp: new Date(),
+        fingerprint: fpIdentical,
+      });
+
+      const secondId = await adapter.save({
+        id: randomUUID(),
+        deviceId: `dev_dup_${randomUUID()}`,
+        timestamp: new Date(),
+        fingerprint: fpIdentical,
+      });
+
+      const all = await adapter.getAllFingerprints();
+      expect(all).toHaveLength(1);
+      expect(secondId).toBe(firstId);
+    });
   });
 }

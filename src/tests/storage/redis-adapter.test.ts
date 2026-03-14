@@ -238,4 +238,13 @@ describe('RedisAdapter', () => {
 	it('close quits the redis connection', async () => {
 		await expect(adapter.close?.()).resolves.not.toThrow();
 	});
+
+	it('skips inserting a duplicate fingerprint hash', async () => {
+		const firstId = await adapter.save({ id: randomUUID(), deviceId: 'dev_a', timestamp: new Date(), fingerprint: fpIdentical });
+		const secondId = await adapter.save({ id: randomUUID(), deviceId: 'dev_b', timestamp: new Date(), fingerprint: fpIdentical });
+
+		const allFingerprints = await adapter.getAllFingerprints();
+		expect(allFingerprints).toHaveLength(1);
+		expect(secondId).toBe(firstId);
+	});
 });
