@@ -1,9 +1,9 @@
 ---
 title: "FP-Devicer: Open-Source Digital Fingerprinting Middleware"
-subtitle: "Technical Whitepaper — Version 1.5.8+"
+subtitle: "Technical Whitepaper — Version 1.6.0+"
 author: "Gateway Corporate Solutions LLC"
 date: "March 2026"
-lang: en
+lang: en-US
 table-of-contents: true
 toc-depth: 3
 toc-title: "Table of Contents"
@@ -16,7 +16,7 @@ fontsize: 11pt
 mainfont: "Fira Sans"
 ---
 
-# Abstract
+# 1 Abstract
 
 FP-Devicer is a lightweight, highly extensible TypeScript middleware library for
 server-side digital device fingerprinting. It computes a **confidence score
@@ -45,7 +45,7 @@ solution.
 
 ---
 
-# Introduction & Motivation
+# 2 Introduction & Motivation
 
 Traditional fingerprinting libraries (e.g., FingerprintJS open-source) focus on
 client-side collection and hash generation. FP-Devicer shifts the intelligence
@@ -69,9 +69,9 @@ reference documentation is hosted at
 
 ---
 
-# Architecture Overview
+# 3 Architecture Overview
 
-FP-Devicer is structured into four logical layers, each with a clearly defined
+FP-Devicer is structured into five logical layers, each with a clearly defined
 responsibility:
 
 **Data Model** (`src/types/data.ts`) : Defines `FPUserDataSet`, the canonical
@@ -90,6 +90,14 @@ user plugins.
 matching pipeline. Storage adapters implement a common interface so that the
 engine code is entirely decoupled from the choice of database.
 
+**Plugin Architecture** (`src/core/PluginRegistrar.ts`) : The `PluginRegistrar`
+manages `DeviceManagerPlugin` objects that hook into the post-identification
+pipeline. Each plugin implements a single `registerWith()` method that receives
+a `DeviceManagerLike` handle and registers one or more `IdentifyPostProcessor`
+callbacks. First-party companion libraries (`ip-devicer`, `tls-devicer`) use
+this mechanism to enrich `IdentifyResult` with IP intelligence and TLS
+consistency data without coupling to FP-Devicer internals.
+
 **Observability** (`src/types/observability.ts` +
 `src/libs/default-observability.ts`) : Defines injectable `Logger` and `Metrics`
 interfaces with no-op defaults, allowing callers to route telemetry to any
@@ -98,24 +106,27 @@ logging or metrics platform.
 The relationships among components are summarized in the class diagram below.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        FP-Devicer                           │
-│                                                             │
-│  FPDataSet ──► ConfidenceCalculator ◄── Registry            │
-│                        ▲                                    │
-│                        │                                    │
-│  StorageAdapter ──► DeviceManager                           │
-│        ▲               │                                    │
-│  (SQLite / Postgres    └──► ConfidenceCalculator            │
-│   Redis / InMemory)                                         │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                          FP-Devicer                              │
+│                                                                  │
+│  FPDataSet ──► ConfidenceCalculator ◄── Registry                 │
+│                        ▲                                         │
+│                        │                                         │
+│  StorageAdapter ──► DeviceManager ◄──── PluginRegistrar          │
+│        ▲               │                      ▲                  │
+│  (SQLite / Postgres    │               DeviceManagerPlugin       │
+│   Redis / InMemory)    └──► IdentifyPostProcessors               │
+│                                    ▲                             │
+│                          (ip-devicer IpManager,                  │
+│                           tls-devicer TlsManager, …)             │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# Core Components
+# 4 Core Components
 
-## Fingerprint Data Model
+## 4.1 Fingerprint Data Model
 
 The `FPUserDataSet` interface (defined in `src/types/data.ts`) is the canonical
 schema for all browser signals that FP-Snatch collects client-side and
@@ -123,22 +134,38 @@ FP-Devicer consumes server-side. It contains more than 30 optional fields,
 allowing partial fingerprints to be processed gracefully. Relevant fields
 include:
 
-| Field                    | Type                  | Description                                    |
-| ------------------------ | --------------------- | ---------------------------------------------- |
-| `userAgent`              | `string`              | Full browser user-agent string                 |
-| `platform`               | `string`              | OS platform string (e.g., `"Win32"`)           |
-| `screen`                 | `object`              | Width, height, color depth, orientation        |
-| `fonts`                  | `string[]`            | Enumerated installed system fonts              |
-| `canvas`                 | `string`              | Hash of a rendered canvas element              |
-| `webgl`                  | `string`              | Hash of WebGL rendering output                 |
-| `audio`                  | `string`              | Hash of an AudioContext fingerprint            |
-| `plugins`                | `object[]`            | Browser plugin names and descriptions          |
-| `mimeTypes`              | `object[]`            | Supported MIME types                           |
-| `hardwareConcurrency`    | `number`              | Logical CPU core count                         |
-| `deviceMemory`           | `number`              | Reported device RAM (GiB, rounded)             |
-| `highEntropyValues`      | `object`              | UA-CH high-entropy hints (brands, model, etc.) |
-| `language` / `languages` | `string` / `string[]` | Browser locale information                     |
-| `timezone`               | `string`              | IANA timezone identifier                       |
++----------------------------+------------------------+------------------------------------------+
+| Field                      | Type                   | Description                              |
++============================+========================+==========================================+
+| `userAgent`                | `string`               | Full browser user-agent string           |
++----------------------------+------------------------+------------------------------------------+
+| `platform`                 | `string`               | OS platform string (e.g., `"Win32"`)     |
++----------------------------+------------------------+------------------------------------------+
+| `screen`                   | `object`               | Width, height, color depth, orientation  |
++----------------------------+------------------------+------------------------------------------+
+| `fonts`                    | `string[]`             | Enumerated installed system fonts        |
++----------------------------+------------------------+------------------------------------------+
+| `canvas`                   | `string`               | Hash of a rendered canvas element        |
++----------------------------+------------------------+------------------------------------------+
+| `webgl`                    | `string`               | Hash of WebGL rendering output           |
++----------------------------+------------------------+------------------------------------------+
+| `audio`                    | `string`               | Hash of an AudioContext fingerprint      |
++----------------------------+------------------------+------------------------------------------+
+| `plugins`                  | `object[]`             | Browser plugin names and descriptions    |
++----------------------------+------------------------+------------------------------------------+
+| `mimeTypes`                | `object[]`             | Supported MIME types                     |
++----------------------------+------------------------+------------------------------------------+
+| `hardwareConcurrency`      | `number`               | Logical CPU core count                   |
++----------------------------+------------------------+------------------------------------------+
+| `deviceMemory`             | `number`               | Reported device RAM (GiB, rounded)       |
++----------------------------+------------------------+------------------------------------------+
+| `highEntropyValues`        | `object`               | UA-CH high-entropy hints (brands, model, |
+|                            |                        | etc.)                                    |
++----------------------------+------------------------+------------------------------------------+
+| `language` / `languages`   | `string` / `string[]`  | Browser locale information               |
++----------------------------+------------------------+------------------------------------------+
+| `timezone`                 | `string`               | IANA timezone identifier                 |
++----------------------------+------------------------+------------------------------------------+
 
 All fields are optional. The scoring engine treats a field that is absent on one
 side of the comparison as a zero-similarity match for that path rather than
@@ -152,7 +179,7 @@ custom data models:
 export type FPDataSet<T = FPUserDataSet> = T;
 ```
 
-## Confidence Scoring Engine
+## 4.2 Confidence Scoring Engine
 
 The scoring engine lives in `src/libs/confidence.ts` and is the intellectual
 core of FP-Devicer. It exposes two entry points:
@@ -162,7 +189,7 @@ core of FP-Devicer. It exposes two entry points:
 - `createConfidenceCalculator(options)` — a factory that returns a calculator
   instance scoped to a specific `ComparisonOptions` configuration.
 
-### Strategy 1: Weighted Structural Comparison
+### 4.2.1 Strategy 1: Weighted Structural Comparison
 
 The structural comparison is performed by `compareRecursive`, an internal
 function that walks both fingerprint objects simultaneously using dot-notation
@@ -188,7 +215,7 @@ $$S_{\text{structural}} = \frac{\sum_i w_i \cdot \text{sim}_i}{\sum_i w_i}$$
 where $w_i$ is the effective weight for path $i$ and $\text{sim}_i \in [0, 1]$
 is the similarity returned by the path's comparator.
 
-### Strategy 2: TLSH Fuzzy Hashing
+### 4.2.2 Strategy 2: TLSH Fuzzy Hashing
 
 TLSH (Trend Micro Locality Sensitive Hash) is a fuzzy hashing algorithm designed
 so that similar inputs produce similar hashes. Unlike cryptographic hashes, two
@@ -206,7 +233,7 @@ whole rather than individual fields, it catches fingerprint-wide shifts that the
 structural scorer might partially miss when individual fields receive low
 weight.
 
-### Score Blending
+### 4.2.3 Score Blending
 
 The two strategies are combined by a configurable `tlshWeight` parameter
 (default `0.30`):
@@ -217,7 +244,7 @@ The final result is scaled to the integer range `[0, 100]` and returned. A score
 of `100` indicates an exact or near-exact match; a score of `0` indicates no
 detectable similarity.
 
-### Options Resolution Order
+### 4.2.4 Options Resolution Order
 
 When `createConfidenceCalculator` builds its internal weight and comparator
 tables it merges sources in the following priority order (highest first):
@@ -227,7 +254,7 @@ tables it merges sources in the following priority order (highest first):
 3. Global registry entries added via `registerPlugin` / `registerWeight`
 4. `defaultWeight` fallback (default `1`)
 
-### ComparisonOptions Reference
+### 4.2.5 ComparisonOptions Reference
 
 ```typescript
 interface ComparisonOptions {
@@ -246,7 +273,7 @@ interface ComparisonOptions {
 }
 ```
 
-## Plugin & Registry System
+## 4.3 Plugin & Registry System
 
 The registry (`src/libs/registry.ts`) is a **global singleton** that stores
 per-path comparators and weights. It is lazily seeded by
@@ -297,13 +324,13 @@ Registry changes take effect immediately for all subsequent calls to
 `calculateConfidence` (including via `DeviceManager`) because the global
 registry is consulted at scoring time, not at calculator-creation time.
 
-## Device Management
+## 4.4 Device Management
 
 `DeviceManager` (`src/core/DeviceManager.ts`) is the high-level orchestrator
 that makes FP-Devicer suitable for production use. It wraps the scoring engine
 with a complete fingerprint matching pipeline:
 
-### Pipeline Steps
+### 4.4.1 Pipeline Steps
 
 1. **Deduplication cache** — Computes the TLSH hash of the incoming fingerprint
    and checks an in-memory LRU cache (keyed by hash, 5-second TTL). If the same
@@ -345,7 +372,15 @@ with a complete fingerprint matching pipeline:
    `Logger`. Metrics counters and gauges are incremented via the injected
    `Metrics` instance. Both default to no-op implementations.
 
-### Constructor Options
+8. **Post-processing** — Each registered `IdentifyPostProcessor` is called in
+   registration order with the full pipeline outcome. Processors may merge
+   additional fields onto the result, attach structured enrichment data under
+   `enrichmentInfo.details[name]`, and emit additional log metadata. Processor
+   failures are caught individually — a throwing processor records an entry in
+   `enrichmentInfo.failures` and execution continues with the next processor.
+   See §4.4 for the full plugin architecture.
+
+### 4.4.2 Constructor Options
 
 ```typescript
 new DeviceManager(adapter, {
@@ -360,32 +395,282 @@ new DeviceManager(adapter, {
 });
 ```
 
-### Return Value
+### 4.4.3 Return Value
 
 ```typescript
 interface IdentifyResult {
 	deviceId: string; // stable UUID for this device
 	confidence: number; // 0–100 score against the best matched snapshot
 	isNewDevice: boolean; // true if no candidate exceeded matchThreshold
+	matchConfidence: number; // mirror of confidence; persisted on the snapshot
 	linkedUserId?: string; // if a userId was supplied and stored
+	enrichmentInfo: {
+		plugins: string[]; // names of processors that ran
+		details: Record<string, Record<string, unknown>>; // per-plugin structured data
+		failures: Array<{ plugin: string; message: string }>; // caught processor errors
+	};
 }
 ```
 
-## Storage Adapters
+## 4.5 Universal Plugin Architecture for Device Managers
+
+FP-Devicer provides a second, distinct extension mechanism that operates at the
+**pipeline level** rather than the field level. Where the scoring registry
+(§4.2) customizes _how individual fingerprint fields are compared_, the plugin
+architecture customizes _what happens after a device has been identified_. The
+two systems are orthogonal and can be combined freely.
+
+### 4.5.1 Design Overview
+
+The architecture is built from three collaborating types:
+
+- **`DeviceManagerPlugin`** (`src/core/PluginRegistrar.ts`) — the interface all
+  plugins implement. It declares a single method, `registerWith`, that receives
+  a `DeviceManagerLike` handle and uses it to subscribe to pipeline hooks.
+- **`PluginRegistrar`** (`src/core/PluginRegistrar.ts`) — a class owned by
+  `DeviceManager` that validates and tracks active plugins. It is exported
+  publicly so custom orchestrators can host plugins against any compatible
+  manager.
+- **`DeviceManagerLike`** (`src/core/DeviceManager.ts`) — a minimal interface
+  that exposes only the methods plugins need. Decoupling this from the concrete
+  `DeviceManager` class prevents circular imports and makes plugins testable
+  against lightweight fakes.
+
+### 4.5.2 `DeviceManagerPlugin` Interface
+
+```typescript
+interface DeviceManagerPlugin {
+	/**
+	 * Called immediately when the plugin is registered via DeviceManager.use().
+	 * May return an optional teardown function invoked on unregister.
+	 */
+	registerWith(deviceManager: DeviceManagerLike): (() => void) | void;
+}
+```
+
+Plugins are registered by calling `DeviceManager.use(plugin)`, which internally
+delegates to `PluginRegistrar.register()`. That method validates that
+`registerWith` is a function (throwing
+`"Invalid plugin: Missing 'registerWith'
+method."` otherwise), calls it with the
+manager, and returns an unregister function that calls any returned teardown and
+removes the plugin from the active list.
+
+```typescript
+const unregister = manager.use(myPlugin);
+
+// Later, to cleanly tear down:
+unregister();
+```
+
+The currently active plugins are inspectable at any time:
+
+```typescript
+const active: readonly DeviceManagerPlugin[] = manager.getPlugins();
+```
+
+### 4.5.3 `DeviceManagerLike` Interface
+
+```typescript
+interface DeviceManagerLike {
+	registerIdentifyPostProcessor(
+		name: string,
+		processor: IdentifyPostProcessor,
+	): () => void;
+}
+```
+
+This minimal surface is the only handle exposed to plugin code, preventing
+plugins from accidentally mutating manager state outside the sanctioned hook.
+`registerIdentifyPostProcessor` accepts a unique `name` (used as the key in
+`enrichmentInfo.details`) and a processor function, and returns an unregister
+closure.
+
+### 4.5.4 `IdentifyPostProcessor` Lifecycle
+
+After the core pipeline (dedup → candidates → score → decide → save) completes,
+`DeviceManager` invokes each registered post-processor in registration order.
+Each receives an `IdentifyPostProcessorPayload` and may return an
+`IdentifyPostProcessorResult` (or nothing).
+
+**`IdentifyPostProcessorPayload`**
+
++--------------------+------------------------+------------------------------------------------------+
+| Field              | Type                   | Description                                          |
++====================+========================+======================================================+
+| `incoming`         | `FPDataSet`            | The raw fingerprint from the current request         |
++--------------------+------------------------+------------------------------------------------------+
+| `context`          | `IdentifyContext?`     | Per-request context passed to `identify()` (e.g.,    |
+|                    |                        | `ip`, `userId`, `tlsProfile`)                        |
++--------------------+------------------------+------------------------------------------------------+
+| `result`           | `IdentifyResult`       | The result as enriched by all preceding processors   |
++--------------------+------------------------+------------------------------------------------------+
+| `baseResult`       | `IdentifyResult`       | A fresh clone of the core result, unaffected by      |
+|                    |                        | other processors                                     |
++--------------------+------------------------+------------------------------------------------------+
+| `cacheHit`         | `boolean`              | Whether the dedup cache was used for this request    |
++--------------------+------------------------+------------------------------------------------------+
+| `candidatesCount`  | `number`               | Number of candidates returned by `findCandidates()`  |
++--------------------+------------------------+------------------------------------------------------+
+| `matched`          | `boolean`              | Whether an existing device was matched               |
++--------------------+------------------------+------------------------------------------------------+
+| `durationMs`       | `number`               | Elapsed time of the core pipeline in milliseconds    |
++--------------------+------------------------+------------------------------------------------------+
+
+**`IdentifyPostProcessorResult`**
+
++------------------+----------------------------+--------------------------------------------------+
+| Field            | Type                       | Description                                      |
++==================+============================+==================================================+
+| `result`         | `Record<string, unknown>?` | Fields merged directly onto `IdentifyResult`     |
+|                  |                            | (e.g., custom scores)                            |
++------------------+----------------------------+--------------------------------------------------+
+| `enrichmentInfo` | `Record<string, unknown>?` | Structured data stored under                     |
+|                  |                            | `enrichmentInfo.details[name]`                   |
++------------------+----------------------------+--------------------------------------------------+
+| `logMeta`        | `Record<string, unknown>?` | Extra key-value pairs bundled into the           |
+|                  |                            | structured log entry                             |
++------------------+----------------------------+--------------------------------------------------+
+
+### 4.5.5 `IdentifyEnrichmentInfo`
+
+Every `IdentifyResult` carries an `enrichmentInfo` object that accumulates the
+contributions of all post-processors for that request:
+
++------------+----------------------------------------------+------------------------------------+
+| Field      | Type                                         | Description                        |
++============+==============================================+====================================+
+| `plugins`  | `string[]`                                   | Names of all processors that ran   |
++------------+----------------------------------------------+------------------------------------+
+| `details`  | `Record<string, Record<string, unknown>>`    | Per-plugin structured enrichment   |
+|            |                                              | data                               |
++------------+----------------------------------------------+------------------------------------+
+| `failures` | `Array<{ plugin: string; message: string }>` | Errors caught from failed          |
+|            |                                              | processors                         |
++------------+----------------------------------------------+------------------------------------+
+
+### 4.5.6 Error Isolation
+
+If a processor throws or rejects, the error is caught, a `{ plugin, message }`
+entry is appended to `enrichmentInfo.failures`, and a `logger.warn` line is
+emitted. Execution continues with the next registered processor. No processor
+failure can prevent the core `IdentifyResult` from being returned to the caller.
+
+### 4.5.7 Companion Plugin: ip-devicer `IpManager`
+
+`IpManager` from the **ip-devicer** companion package implements
+`DeviceManagerPlugin`. When registered, it hooks into the post-processor
+pipeline to perform real-time IP intelligence enrichment on every `identify()`
+call.
+
+**Registration:**
+
+```typescript
+import { IpManager } from "ip-devicer";
+import { createSqliteAdapter, DeviceManager } from "devicer.js";
+
+const ipManager = new IpManager({/* MaxMind DB paths, thresholds */});
+const manager = new DeviceManager(createSqliteAdapter("./fp.db"), {
+	matchThreshold: 60,
+});
+await manager.adapter.init();
+
+manager.use(ipManager);
+```
+
+**Enriched fields added to `IdentifyResult`:**
+
++----------------+----------+----------------------------------------------------+
+| Field          | Type     | Description                                        |
++================+==========+====================================================+
+| `ipEnrichment` | `object` | Country, ASN, agent info, risk score, consistency  |
+|                |          | score, impossible-travel flag, and                 |
+|                |          | proxy/VPN/Tor/hosting flags                        |
++----------------+----------+----------------------------------------------------+
+| `ipRiskDelta`  | `number` | Change in risk score since the device's previous   |
+|                |          | visit                                              |
++----------------+----------+----------------------------------------------------+
+
+The processor reads the resolved IP from `context.ip` (or `context.resolvedIp`
+as set by `createIpMiddleware`). If no IP is present in the context, the
+processor returns without enriching the result.
+
+### 4.5.8 Companion Plugin: tls-devicer `TlsManager`
+
+`TlsManager` from the **tls-devicer** companion package implements
+`DeviceManagerPlugin`. It cross-references the TLS/JA4 fingerprint attached to
+the request against stored TLS profiles for the matched device, producing a
+consistency score and optionally boosting the confidence value.
+
+**Registration:**
+
+```typescript
+import { createTlsMiddleware, TlsManager } from "tls-devicer";
+import { createSqliteAdapter, DeviceManager } from "devicer.js";
+
+const tlsManager = new TlsManager({/* options */});
+const manager = new DeviceManager(createSqliteAdapter("./fp.db"), {
+	matchThreshold: 60,
+});
+await manager.adapter.init();
+
+manager.use(tlsManager);
+```
+
+The `createTlsMiddleware()` helper extracts JA4/JA3 hashes, HTTP/2 SETTINGS, and
+header-order signals from each request and attaches them as `req.tlsProfile`.
+Pass this into `identify()` via the context:
+
+```typescript
+app.post("/identify", async (req, res) => {
+	const result = await manager.identify(req.body, {
+		tlsProfile: req.tlsProfile,
+	});
+	res.json(result);
+});
+```
+
+**Enriched fields added to `IdentifyResult`:**
+
++----------------------+----------+------------------------------------------------+
+| Field                | Type     | Description                                    |
++======================+==========+================================================+
+| `tlsConsistency`     | `object` | Consistency score (0–1), JA4/JA3 match         |
+|                      |          | flags, and per-factor breakdown                |
++----------------------+----------+------------------------------------------------+
+| `tlsConfidenceBoost` | `number` | Signed delta applied to `result.confidence`    |
+|                      |          | based on TLS consistency                       |
++----------------------+----------+------------------------------------------------+
+| `confidence`         | `number` | Overwritten with the TLS-boosted value         |
+|                      |          | (original preserved in `matchConfidence`)      |
++----------------------+----------+------------------------------------------------+
+
+## 4.6 Storage Adapters
 
 All adapters implement the `StorageAdapter` interface defined in
 `src/types/storage.ts`. The interface methods are:
 
-| Method                  | Description                                                  |
-| ----------------------- | ------------------------------------------------------------ |
-| `init()`                | Create tables / open connections. Must be called before use. |
-| `save(snapshot)`        | Persist a new fingerprint snapshot.                          |
-| `findCandidates(fp, n)` | Return up to `n` broadly-similar stored snapshots.           |
-| `getHistory(id, limit)` | Return recent snapshots for a given device ID.               |
-| `getAllFingerprints()`  | Return all stored snapshots (e.g., for bulk analysis).       |
-| `linkToUser(id, uid)`   | Associate a device ID with an application user ID.           |
-| `deleteOldSnapshots()`  | Prune snapshots older than a configured retention window.    |
-| `close()`               | (Optional) Gracefully close database connections.            |
++--------------------------+----------------------------------------------------------+
+| Method                   | Description                                              |
++==========================+==========================================================+
+| `init()`                 | Create tables / open connections. Must be called before  |
+|                          | use.                                                     |
++--------------------------+----------------------------------------------------------+
+| `save(snapshot)`         | Persist a new fingerprint snapshot.                      |
++--------------------------+----------------------------------------------------------+
+| `findCandidates(fp, n)`  | Return up to `n` broadly-similar stored snapshots.       |
++--------------------------+----------------------------------------------------------+
+| `getHistory(id, limit)`  | Return recent snapshots for a given device ID.           |
++--------------------------+----------------------------------------------------------+
+| `getAllFingerprints()`   | Return all stored snapshots (e.g., for bulk analysis).   |
++--------------------------+----------------------------------------------------------+
+| `linkToUser(id, uid)`    | Associate a device ID with an application user ID.       |
++--------------------------+----------------------------------------------------------+
+| `deleteOldSnapshots()`   | Prune snapshots older than a configured retention        |
+|                          | window.                                                  |
++--------------------------+----------------------------------------------------------+
+| `close()`                | (Optional) Gracefully close database connections.        |
++--------------------------+----------------------------------------------------------+
 
 The four provided adapter implementations handle the specifics:
 
@@ -419,9 +704,9 @@ const adapter = AdapterFactory.create("sqlite", {
 
 ---
 
-# Code Paths & Sequence Diagrams
+# 5 Code Paths & Sequence Diagrams
 
-## Simple Confidence Calculation
+## 5.1 Simple Confidence Calculation
 
 The simplest use case requires no instance management:
 
@@ -447,7 +732,7 @@ Client
   └─◄─ blended integer score [0–100]
 ```
 
-## Full Device Identification
+## 5.2 Full Device Identification
 
 ```
 HTTP Request
@@ -476,18 +761,27 @@ HTTP Request
   │       │       deviceId = crypto.randomUUID()  (new device)
   │       │
   │       ├─► adapter.save({ deviceId, fingerprint: incoming, ... })
-  │       ├─► dedupCache.set(dedupKey, result, dedupWindowMs)
-  │       ├─► logger.info(...)
+  │       ├─► dedupCache.set(dedupKey, baseResult, dedupWindowMs)
+  │       │
+  │       ├─► for each identifyPostProcessor [plugin]:
+  │       │       ├─► processor({ incoming, context, result, baseResult,
+  │       │       │               cacheHit, candidatesCount, matched, durationMs })
+  │       │       │       └─► returns { result?, enrichmentInfo?, logMeta? }
+  │       │       ├─► merge returned result fields → enrichedResult
+  │       │       ├─► append enrichedResult.enrichmentInfo.details[plugin]
+  │       │       └─► on throw: append enrichmentInfo.failures[plugin], continue
+  │       │
+  │       ├─► logger.info({ ...perPluginLogMeta })
   │       └─► metrics.incrementCounter(...)
   │
-  └─◄─ IdentifyResult { deviceId, confidence, isNewDevice, linkedUserId }
+  └─◄─ IdentifyResult { deviceId, confidence, isNewDevice, enrichmentInfo, ... }
 ```
 
 ---
 
-# Extensibility & Customization
+# 6 Extensibility & Customization
 
-## Custom Comparators
+## 6.1 Custom Comparators
 
 A `Comparator` is any function with the signature:
 
@@ -510,7 +804,7 @@ Common comparator patterns include:
 - **Exact match** for high-entropy hash fields where any difference is
   significant.
 
-## Custom Storage Adapters
+## 6.2 Custom Storage Adapters
 
 To integrate FP-Devicer with a database not covered by the built-in adapters,
 implement the `StorageAdapter` interface:
@@ -537,7 +831,7 @@ const myAdapter: StorageAdapter = {
 };
 ```
 
-## Custom Observability
+## 6.3 Custom Observability
 
 Inject a `Logger` and/or `Metrics` implementation into `DeviceManager` to route
 telemetry to your platform (e.g., Winston, Pino, StatsD, Prometheus):
@@ -561,11 +855,52 @@ const manager = new DeviceManager(createInMemoryAdapter(), {
 });
 ```
 
+## 6.4 Device Manager Plugins
+
+To integrate custom post-identification logic with any `DeviceManager`,
+implement the `DeviceManagerPlugin` interface exported from `devicer.js`:
+
+```typescript
+import type {
+	DeviceManagerLike,
+	DeviceManagerPlugin,
+	IdentifyPostProcessorPayload,
+} from "devicer.js";
+
+const riskPlugin: DeviceManagerPlugin = {
+	registerWith(deviceManager: DeviceManagerLike) {
+		const unregister = deviceManager.registerIdentifyPostProcessor(
+			"risk-scorer",
+			async ({ result, context }: IdentifyPostProcessorPayload) => {
+				const riskScore = await myRiskApi.score(result.deviceId);
+				return {
+					result: { riskScore },
+					enrichmentInfo: { riskScore, deviceId: result.deviceId },
+					logMeta: { riskScore },
+				};
+			},
+		);
+		// Return the unregister closure as the plugin teardown function
+		return unregister;
+	},
+};
+
+const unregisterRisk = manager.use(riskPlugin);
+
+// To remove the plugin cleanly:
+unregisterRisk();
+```
+
+Any fields returned in `result` are merged onto `IdentifyResult` and immediately
+visible to processors registered after this one. The teardown function (the
+unregister closure from `registerIdentifyPostProcessor`) is called automatically
+when `unregisterRisk()` is invoked, so no manual cleanup is required.
+
 ---
 
-# Performance & Accuracy
+# 7 Performance & Accuracy
 
-## Benchmarking Methodology
+## 7.1 Benchmarking Methodology
 
 FP-Devicer ships with a rigorous, self-contained benchmark suite under
 `src/benchmarks/`. All benchmarks run under the [Vitest](https://vitest.dev/)
@@ -574,7 +909,7 @@ across many iterations to produce stable, reproducible results. The suite is
 split into two concerns: **accuracy** (does the scorer make correct decisions?)
 and **performance** (how fast does it run?).
 
-### Synthetic Dataset Generation
+### 7.1.1 Synthetic Dataset Generation
 
 All accuracy benchmarks operate on synthetic data produced by
 `data-generator.ts`. The generator is fully deterministic — it uses a seeded
@@ -607,7 +942,7 @@ realistic value pools:
 - **Font list** — drawn from a pool of real system fonts; count and order vary
   per device.
 
-#### Attractor Devices
+#### 7.1.1.1 Attractor Devices
 
 Approximately 10–15% of simulated devices are designated **attractor devices**.
 These are generated by `createAttractorFingerprint` and represent common
@@ -619,7 +954,7 @@ completely different users may share nearly identical feature vectors. The
 the `attr` column in the output table reports the False Accept Rate computed
 exclusively over impostor pairs where at least one party is an attractor device.
 
-### Mutation Model
+### 7.1.2 Mutation Model
 
 Each device is assigned `sessionsPerDevice` fingerprint snapshots by applying
 the `mutate()` function at escalating intensity levels, cycling through
@@ -627,18 +962,29 @@ the `mutate()` function at escalating intensity levels, cycling through
 `low`-intensity pass is layered on top to ensure no two samples from the same
 device are ever bit-for-bit identical:
 
-| Level     | Signals Modified                                                                                                                                               |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `none`    | Clean baseline — no changes from the generated base                                                                                                            |
-| `low`     | ±1–2 px screen width rounding; canvas hash micro-jitter; 40% chance of font list reorder                                                                       |
-| `medium`  | Chrome minor version bump; font addition or removal; 20% chance of timezone change; canvas and audio re-hash                                                   |
-| `high`    | Screen resolution change; Chrome major version jump (+2–6); DoNotTrack toggle; multiple font changes; canvas and WebGL hash drift from simulated driver update |
-| `extreme` | Entirely new device profile generated from a fresh seed — treated as a different device for scoring purposes                                                   |
++-----------+------------------------------------------------------------------------+
+| Level     | Signals Modified                                                       |
++===========+========================================================================+
+| `none`    | Clean baseline — no changes from the generated base                    |
++-----------+------------------------------------------------------------------------+
+| `low`     | ±1–2 px screen width rounding; canvas hash micro-jitter; 40% chance of |
+|           | font list reorder                                                      |
++-----------+------------------------------------------------------------------------+
+| `medium`  | Chrome minor version bump; font addition or removal; 20% chance of     |
+|           | timezone change; canvas and audio re-hash                              |
++-----------+------------------------------------------------------------------------+
+| `high`    | Screen resolution change; Chrome major version jump (+2–6); DoNotTrack |
+|           | toggle; multiple font changes; canvas and WebGL hash drift from        |
+|           | simulated driver update                                                |
++-----------+------------------------------------------------------------------------+
+| `extreme` | Entirely new device profile generated from a fresh seed — treated as a |
+|           | different device for scoring purposes                                  |
++-----------+------------------------------------------------------------------------+
 
 The `extreme` level is excluded from the standard accuracy test corpus because
 it represents a hardware replacement, not a re-visit.
 
-### Pair Construction
+### 7.1.3 Pair Construction
 
 The accuracy benchmark (`accuracy.bench.ts`) generates **5,750 scored pairs**
 from a corpus of 2,000 devices × 5 sessions each:
@@ -661,20 +1007,34 @@ All pair scores are computed synchronously at module load time before the Vitest
 bench harness starts timing, so DBSCAN analysis (O(n²)) does not pollute the
 performance measurement.
 
-### Accuracy Metrics
+### 7.1.4 Accuracy Metrics
 
 Pair scores are evaluated across 21 thresholds from 0 to 100 in steps of 5. For
 each threshold the following metrics are computed:
 
-| Metric        | Formula                                 | Interpretation                                                   |
-| ------------- | --------------------------------------- | ---------------------------------------------------------------- |
-| **Precision** | $\text{TP} / (\text{TP} + \text{FP})$   | Of all pairs accepted, what fraction were genuine?               |
-| **Recall**    | $\text{TP} / (\text{TP} + \text{FN})$   | Of all genuine pairs, what fraction were correctly accepted?     |
-| **F1**        | $2 \cdot P \cdot R / (P + R)$           | Harmonic mean of precision and recall                            |
-| **FAR**       | $\text{FP} / (\text{FP} + \text{TN})$   | Rate at which impostors are incorrectly accepted                 |
-| **FRR**       | $\text{FN} / (\text{TP} + \text{FN})$   | Rate at which genuine pairs are incorrectly rejected             |
-| **EER**       | $\lvert \text{FAR} - \text{FRR} \rvert$ | Proximity of FAR and FRR — minimum indicates the crossover point |
-| **attr**      | FAR over attractor-only impostor pairs  | Hardened FAR for the most challenging impostor category          |
++----------------+--------------------------------------------+----------------------------------------------+
+| Metric         | Formula                                    | Interpretation                               |
++================+============================================+==============================================+
+| **Precision**  | $\text{TP} / (\text{TP} + \text{FP})$      | Of all pairs accepted, what fraction were    |
+|                |                                            | genuine?                                     |
++----------------+--------------------------------------------+----------------------------------------------+
+| **Recall**     | $\text{TP} / (\text{TP} + \text{FN})$      | Of all genuine pairs, what fraction were     |
+|                |                                            | correctly accepted?                          |
++----------------+--------------------------------------------+----------------------------------------------+
+| **F1**         | $2 \cdot P \cdot R / (P + R)$              | Harmonic mean of precision and recall        |
++----------------+--------------------------------------------+----------------------------------------------+
+| **FAR**        | $\text{FP} / (\text{FP} + \text{TN})$      | Rate at which impostors are incorrectly      |
+|                |                                            | accepted                                     |
++----------------+--------------------------------------------+----------------------------------------------+
+| **FRR**        | $\text{FN} / (\text{TP} + \text{FN})$      | Rate at which genuine pairs are incorrectly  |
+|                |                                            | rejected                                     |
++----------------+--------------------------------------------+----------------------------------------------+
+| **EER**        | $\lvert \text{FAR} - \text{FRR} \rvert$    | Proximity of FAR and FRR — minimum indicates |
+|                |                                            | the crossover point                          |
++----------------+--------------------------------------------+----------------------------------------------+
+| **attr**       | FAR over attractor-only impostor pairs     | Hardened FAR for the most challenging        |
+|                |                                            | impostor category                            |
++----------------+--------------------------------------------+----------------------------------------------+
 
 The threshold with the highest F1 score is selected as the recommended operating
 point. Results are persisted to `src/benchmarks/benchmark.out` after each run.
@@ -687,42 +1047,62 @@ populations. The summary reports cluster count, noise points (pairs with
 anomalous scores not belonging to any cluster), total clustered points, and the
 largest cluster size.
 
-### Performance Benchmarks
+### 7.1.5 Performance Benchmarks
 
 `performance.bench.ts` measures end-to-end latency across the three deployment
 configurations most likely to be used in production:
 
-| Benchmark                                    | What is timed                                                                       |
-| -------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `calculateConfidence` (hybrid scorer)        | Pure scoring only — structural comparison + TLSH blend, no I/O                      |
-| `DeviceManager.identify` (In-Memory)         | Full pipeline: dedup cache check, candidate scan, adaptive weighting, scoring, save |
-| `DeviceManager.identify` (SQLite in-memory)  | Same pipeline with SQLite `:memory:` as the storage backend                         |
-| `DeviceManager.identify` (SQLite file-based) | Same pipeline with a real on-disk SQLite database, reflecting realistic conditions  |
++-------------------------------------------------+----------------------------------------------------+
+| Benchmark                                       | What is timed                                      |
++=================================================+====================================================+
+| `calculateConfidence` (hybrid scorer)           | Pure scoring only — structural comparison + TLSH   |
+|                                                 | blend, no I/O                                      |
++-------------------------------------------------+----------------------------------------------------+
+| `DeviceManager.identify` (In-Memory)            | Full pipeline: dedup cache check, candidate scan,  |
+|                                                 | adaptive weighting, scoring, save                  |
++-------------------------------------------------+----------------------------------------------------+
+| `DeviceManager.identify` (SQLite in-memory)     | Same pipeline with SQLite `:memory:` as the        |
+|                                                 | storage backend                                    |
++-------------------------------------------------+----------------------------------------------------+
+| `DeviceManager.identify` (SQLite file-based)    | Same pipeline with a real on-disk SQLite database, |
+|                                                 | reflecting realistic conditions                    |
++-------------------------------------------------+----------------------------------------------------+
 
 Each adapter is seeded with 5 warmup `identify` calls before timing begins to
 ensure the dedup cache, query plan cache, and JIT compiler are in a steady
 state. The harness runs for 6 seconds per configuration (`time: 6000`) with a
 minimum of 50 iterations.
 
-## Benchmark Results
+## 7.2 Benchmark Results
 
 Results are from the most recent run against the current codebase on an 8-core
 x86_64 development machine. Timings are in milliseconds.
 
-### Accuracy (2,000 devices, 5,750 pairs)
+### 7.2.1 Accuracy (2,000 devices, 5,750 pairs)
 
-| Metric                        | Value    |
-| ----------------------------- | -------- |
-| Best threshold                | 60       |
-| Precision at threshold 60     | 0.988    |
-| Recall at threshold 60        | 0.991    |
-| F1 at threshold 60            | 0.989    |
-| EER at threshold 60           | 0.000    |
-| FAR at threshold 60           | 0.010    |
-| FRR at threshold 60           | 0.009    |
-| Attractor impostor FAR (attr) | 0.041    |
-| DBSCAN clusters               | 76       |
-| DBSCAN noise points           | 8 / 5750 |
++----------------------------------+------------+
+| Metric                           | Value      |
++==================================+============+
+| Best threshold                   | 60         |
++----------------------------------+------------+
+| Precision at threshold 60        | 0.988      |
++----------------------------------+------------+
+| Recall at threshold 60           | 0.991      |
++----------------------------------+------------+
+| F1 at threshold 60               | 0.989      |
++----------------------------------+------------+
+| EER at threshold 60              | 0.000      |
++----------------------------------+------------+
+| FAR at threshold 60              | 0.010      |
++----------------------------------+------------+
+| FRR at threshold 60              | 0.009      |
++----------------------------------+------------+
+| Attractor impostor FAR (attr)    | 0.041      |
++----------------------------------+------------+
+| DBSCAN clusters                  | 76         |
++----------------------------------+------------+
+| DBSCAN noise points              | 8 / 5750   |
++----------------------------------+------------+
 
 The zero EER at threshold 60 is the Pareto-optimal operating point where FAR and
 FRR cross. The attractor FAR of 4.1% at this threshold represents the primary
@@ -731,14 +1111,20 @@ densely together can occasionally produce false accepts. This rate drops to zero
 above threshold 70, but at that point FRR rises to 12.6%, making threshold 60
 the practical recommendation.
 
-### Performance
+### 7.2.2 Performance
 
-| Configuration                       | Mean (ms) | p75 (ms) | p99 (ms) | Throughput (ops/sec) | RME    |
-| ----------------------------------- | --------- | -------- | -------- | -------------------- | ------ |
-| `calculateConfidence` (scorer only) | 1.13      | 1.12     | 1.63     | 884                  | ±1.74% |
-| `DeviceManager` (In-Memory)         | 0.77      | 0.75     | 1.69     | 1,301                | ±0.52% |
-| `DeviceManager` (SQLite in-memory)  | 0.78      | 0.78     | 1.54     | 1,274                | ±0.52% |
-| `DeviceManager` (SQLite file-based) | 0.76      | 0.75     | 1.32     | 1,321                | ±0.84% |
++-------------------------------------+-----------+----------+----------+-----------------+----------+
+| Configuration                       | Mean (ms) | p75 (ms) | p99 (ms) | Throughput      | RME      |
+|                                     |           |          |          | (ops/sec)       |          |
++=====================================+===========+==========+==========+=================+==========+
+| `calculateConfidence` (scorer only) | 1.13      | 1.12     | 1.63     | 884             | ±1.74%   |
++-------------------------------------+-----------+----------+----------+-----------------+----------+
+| `DeviceManager` (In-Memory)         | 0.77      | 0.75     | 1.69     | 1,301           | ±0.52%   |
++-------------------------------------+-----------+----------+----------+-----------------+----------+
+| `DeviceManager` (SQLite in-memory)  | 0.78      | 0.78     | 1.54     | 1,274           | ±0.52%   |
++-------------------------------------+-----------+----------+----------+-----------------+----------+
+| `DeviceManager` (SQLite file-based) | 0.76      | 0.75     | 1.32     | 1,321           | ±0.84%   |
++-------------------------------------+-----------+----------+----------+-----------------+----------+
 
 The `DeviceManager` configurations outperform the raw scorer in mean latency
 because the dedup cache short-circuits repeated fingerprints before any scoring
@@ -761,7 +1147,7 @@ and `src/benchmarks/benchmark.out` (formatted accuracy tables).
 
 ---
 
-# Testing
+# 8 Testing
 
 FP-Devicer ships with a comprehensive, multi-layered test suite located under
 `src/tests/`. All tests run under [Vitest](https://vitest.dev/) and are
@@ -770,7 +1156,7 @@ organized into four distinct categories: **unit tests**, **integration tests**,
 they cover every public API surface, internal library function, storage adapter
 implementation, and cross-cutting resilience concern.
 
-## Test Organization
+## 8.1 Test Organization
 
 ```
 src/tests/
@@ -779,7 +1165,8 @@ src/tests/
 │   └── fingerprints.ts           # Shared deterministic fingerprint fixtures
 ├── core/
 │   ├── adapter-factory.test.ts   # AdapterFactory configuration-driven creation
-│   └── device-manager.test.ts    # DeviceManager pipeline & decision logic
+│   ├── device-manager.test.ts    # DeviceManager pipeline & decision logic
+│   └── plugin-registrar.test.ts  # PluginRegistrar contract & lifecycle
 ├── libs/
 │   ├── comparitors.test.ts       # Built-in comparator functions
 │   ├── confidence.test.ts        # Scoring engine & blending logic
@@ -796,7 +1183,7 @@ src/tests/
     └── resilience.test.ts        # Fault tolerance & edge-case handling
 ```
 
-## Fixtures
+## 8.2 Fixtures
 
 `fixtures/fingerprints.ts` provides a set of deterministic, hand-authored
 `FPUserDataSet` objects shared across all unit and integration tests. Using
@@ -815,9 +1202,9 @@ rather than a flaky random result. Fixtures cover:
 - **Edge-case** fingerprints containing empty arrays, null-like values, and
   maximum-entropy hash strings.
 
-## Unit Tests
+## 8.3 Unit Tests
 
-### Comparator Functions (`libs/comparitors.test.ts`)
+### 8.3.1 Comparator Functions (`libs/comparitors.test.ts`)
 
 Tests every built-in comparator exported from `src/libs/comparitors.ts` in
 isolation:
@@ -837,7 +1224,7 @@ Each comparator is exercised with boundary inputs (both values `undefined`, one
 value `undefined`, empty string, zero) to confirm the absence of thrown
 exceptions.
 
-### TLSH Hashing (`libs/tlsh.test.ts`)
+### 8.3.2 TLSH Hashing (`libs/tlsh.test.ts`)
 
 Tests the `getHash` and `compareHashes` functions from `src/libs/tlsh.ts`:
 
@@ -851,7 +1238,7 @@ Tests the `getHash` and `compareHashes` functions from `src/libs/tlsh.ts`:
   same result as applying it to an equivalent object serialized independently,
   confirming key-order independence.
 
-### Plugin Registry (`libs/registry.test.ts`)
+### 8.3.3 Plugin Registry (`libs/registry.test.ts`)
 
 Tests the global registry singleton via its full public API:
 
@@ -867,7 +1254,53 @@ Tests the global registry singleton via its full public API:
 - **Precedence** — verifies the documented resolution order: caller
   `userOptions` override registry entries, which override built-in defaults.
 
-### Confidence Scoring (`libs/confidence.test.ts`)
+### 8.3.4 Device Manager (`core/device-manager.test.ts`)
+
+Tests the full `DeviceManager` pipeline and decision logic:
+
+- **Dedup cache** — a second call within `dedupWindowMs` returns the cached
+  result without a DB write.
+- **New-device minting** — when no candidate exceeds `matchThreshold`, a fresh
+  UUID is returned with `isNewDevice: true`.
+- **Returning-device matching** — a stored fingerprint exceeding the threshold
+  returns the existing `deviceId` with `isNewDevice: false`.
+- **Adaptive weighting** — verifies that a field with high historical variance
+  is down-weighted in subsequent comparisons.
+- **`enrichmentInfo` structure** — every `IdentifyResult` carries an
+  `enrichmentInfo` object with `plugins`, `details`, and `failures` arrays
+  initialized to empty values before any post-processors run.
+- **Post-processor results** — a registered `IdentifyPostProcessor` can merge
+  new fields onto the result and attach structured data under
+  `enrichmentInfo.details[name]`.
+- **Post-processor failure isolation** — a processor that throws appends an
+  entry to `enrichmentInfo.failures` and does not prevent subsequent processors
+  from running.
+- **Post-processor sequencing** — multiple processors are called in registration
+  order; each sees the `result` as mutated by all preceding processors.
+- **`use()` / `getPlugins()` / unregister** — `manager.use(plugin)` delegates to
+  `PluginRegistrar`, the plugin appears in `getPlugins()`, and the returned
+  unregister function calls the plugin's teardown and removes it from the active
+  list.
+- **Plugin `enrichmentInfo` end-to-end** — a plugin registered via `use()` that
+  returns `enrichmentInfo` has its data visible in the final `IdentifyResult`.
+
+### 8.3.5 PluginRegistrar (`core/plugin-registrar.test.ts`)
+
+Tests the `PluginRegistrar` class in isolation via a lightweight
+`DeviceManagerLike` fake:
+
+- **`registerWith` invocation** — `register()` calls `plugin.registerWith` with
+  the provided manager instance exactly once.
+- **Invalid plugin validation** — passing an object whose `registerWith` is not
+  a function throws `"Invalid plugin: Missing 'registerWith' method."`
+- **Teardown on unregister** — the returned unregister function calls the
+  teardown returned by `registerWith`.
+- **Active plugin enumeration** — `getRegisteredPlugins()` returns the active
+  set; after unregistering, the plugin no longer appears.
+- **Multiple plugins** — registering two plugins and unregistering one leaves
+  the other active.
+
+### 8.3.6 Confidence Scoring (`libs/confidence.test.ts`)
 
 Tests `calculateConfidence` and `createConfidenceCalculator` against the shared
 fixtures:
@@ -889,7 +1322,7 @@ fixtures:
 - **`useGlobalRegistry: false`** causes registry entries to be ignored, verified
   by registering a custom comparator that would otherwise affect the score.
 
-### Synthetic Data Generator (`data-generator.test.ts`)
+### 8.3.7 Synthetic Data Generator (`data-generator.test.ts`)
 
 Tests `generateFingerprint`, `mutate`, and `createAttractorFingerprint` from
 `src/benchmarks/data-generator.ts`:
@@ -905,9 +1338,9 @@ Tests `generateFingerprint`, `mutate`, and `createAttractorFingerprint` from
 - Verifies that `createAttractorFingerprint` sets the `isAttractor` flag and
   produces a fingerprint within the expected common-hardware value pools.
 
-## Storage Tests
+## 8.4 Storage Tests
 
-### Shared Adapter Contract (`storage/adapter-contract.test.ts`)
+### 8.4.1 Shared Adapter Contract (`storage/adapter-contract.test.ts`)
 
 A single parameterized test suite is executed against every adapter
 implementation. This approach ensures that all adapters exhibit identical
@@ -931,7 +1364,7 @@ contract tests cover:
 - **`close()`** — completes without throwing when the adapter has been
   initialized and when it has not.
 
-### Per-Adapter Specialization Tests
+### 8.4.2 Per-Adapter Specialization Tests
 
 Each adapter's dedicated test file extends the shared contract with
 backend-specific concerns:
@@ -959,9 +1392,9 @@ configured correctly, and that `close()` disconnects the client. These tests
 require a live Redis instance and are skipped automatically when
 `TEST_REDIS_URL` is absent.
 
-## Integration Tests
+## 8.5 Integration Tests
 
-### API Surface (`integration/api-surface.test.ts`)
+### 8.5.1 API Surface (`integration/api-surface.test.ts`)
 
 Exercises the full public API as a consumer would use it, without mocking any
 internal modules:
@@ -980,7 +1413,7 @@ internal modules:
 - All exported types (`FPUserDataSet`, `StorageAdapter`, `IdentifyResult`,
   `ComparisonOptions`, etc.) are present on the module namespace.
 
-### Resilience (`integration/resilience.test.ts`)
+### 8.5.2 Resilience (`integration/resilience.test.ts`)
 
 Verifies fault-tolerance and edge-case handling throughout the pipeline:
 
@@ -1002,7 +1435,7 @@ Verifies fault-tolerance and edge-case handling throughout the pipeline:
 - **Registry state isolation** — modifications made to the global registry
   during one test do not leak into subsequent tests.
 
-## Running the Test Suite
+## 8.6 Running the Test Suite
 
 ```bash
 # Run all tests once
@@ -1028,9 +1461,9 @@ npm test
 
 ---
 
-# Usage Examples
+# 9 Usage Examples
 
-## Method 1: Simple (Using Defaults)
+## 9.1 Method 1: Simple (Using Defaults)
 
 ```typescript
 import { calculateConfidence } from "devicer.js";
@@ -1039,7 +1472,7 @@ const score = calculateConfidence(fpData1, fpData2);
 // score is an integer in [0, 100]
 ```
 
-## Method 2: Advanced (Custom Weights & Comparators)
+## 9.2 Method 2: Advanced (Custom Weights & Comparators)
 
 ```typescript
 import { createConfidenceCalculator, registerPlugin } from "devicer.js";
@@ -1066,7 +1499,7 @@ const calculator = createConfidenceCalculator({
 const score = calculator.calculateConfidence(fpData1, fpData2);
 ```
 
-## Method 3: Enterprise (DeviceManager with Express)
+## 9.3 Method 3: Enterprise (DeviceManager with Express)
 
 ```typescript
 import express from "express";
@@ -1096,7 +1529,7 @@ app.listen(
 );
 ```
 
-## Method 4: Deno / Oak (FP-Cicis Pattern)
+## 9.4 Method 4: Deno / Oak (FP-Cicis Pattern)
 
 ```typescript
 import { Application, Router } from "oak";
@@ -1119,17 +1552,60 @@ router.post("/identify", async (ctx) => {
 });
 ```
 
+## 9.5 Method 5: Universal Plugins (ip-devicer + tls-devicer)
+
+```typescript
+import express from "express";
+import { createSqliteAdapter, DeviceManager } from "devicer.js";
+import { createIpMiddleware, IpManager } from "ip-devicer";
+import { createTlsMiddleware, TlsManager } from "tls-devicer";
+
+// Construct the manager and companion plugins
+const adapter = createSqliteAdapter("./fp.db");
+const manager = new DeviceManager(adapter, { matchThreshold: 60 });
+const ipManager = new IpManager({/* MaxMind DB options */});
+const tlsManager = new TlsManager();
+
+await adapter.init();
+
+// Register companion plugins — order determines post-processor execution order
+manager.use(tlsManager); // runs first: may boost result.confidence via JA4 match
+manager.use(ipManager); // runs second: adds IP intelligence to the result
+
+const app = express();
+app.use(express.json());
+app.use(createTlsMiddleware()); // attaches req.tlsProfile on every request
+
+app.post("/identify", createIpMiddleware(), async (req: any, res) => {
+	const result = await manager.identify(req.body, {
+		userId: req.user?.id,
+		ip: req.resolvedIp, // set by createIpMiddleware
+		tlsProfile: req.tlsProfile, // set by createTlsMiddleware
+	});
+
+	console.log(result.deviceId); // stable device UUID
+	console.log(result.confidence); // base score ± TLS confidence boost
+	console.log(result.tlsConsistency); // { consistencyScore, ja4Match, factors, … }
+	console.log(result.ipEnrichment); // { country, asn, riskScore, isVpn, … }
+	console.log(result.enrichmentInfo); // { plugins: ["tls-devicer","ip-devicer"], details, failures }
+
+	res.json(result);
+});
+
+app.listen(3000);
+```
+
 ---
 
-# Installation & Integration
+# 10 Installation & Integration
 
-## Installation
+## 10.1 Installation
 
 ```bash
 npm install devicer.js
 ```
 
-## FP-Snatch Integration
+## 10.2 FP-Snatch Integration
 
 FP-Devicer is designed to pair with **FP-Snatch**, a companion open-source
 client-side JavaScript library that collects all fields of `FPUserDataSet` from
@@ -1158,7 +1634,7 @@ hosted at [cicis.info](https://cicis.info).
 
 ---
 
-# Conclusion & Future Work
+# 11 Conclusion & Future Work
 
 FP-Devicer delivers production-grade, open-source device intelligence with
 unmatched extensibility and accuracy for its class. Its hybrid
@@ -1180,7 +1656,7 @@ Community contributions are welcome. Possible future directions include:
 
 ---
 
-# License
+# 12 License
 
 See `license.txt` in the repository root. FP-Devicer is released under a
 permissive open-source license.
