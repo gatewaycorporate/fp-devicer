@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { randomUUID } from 'crypto';
 import type { StoredFingerprint } from '../../types/storage';
-import { fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
+import { fpIdentical, fpVerySimilar, fpDifferent } from '../fixtures/fingerprints';
 import { createPostgresAdapter } from '../../libs/adapters/postgres';
 
 // ─── In-memory store ──────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ describe('PostgresAdapter', () => {
 		const deviceId2 = 'dev_2';
 
 		await adapter.save({ id: randomUUID(), deviceId: deviceId1, timestamp: new Date(), fingerprint: fpIdentical });
-		await adapter.save({ id: randomUUID(), deviceId: deviceId2, timestamp: new Date(), fingerprint: fpVerySimilar });
+		await adapter.save({ id: randomUUID(), deviceId: deviceId2, timestamp: new Date(), fingerprint: fpDifferent });
 
 		const allFingerprints = await adapter.getAllFingerprints();
 		expect(allFingerprints).toHaveLength(2);

@@ -92,6 +92,37 @@ for viewing at [cicis.info](https://cicis.info/).
 This project uses typedoc and autodeploys via GitHub Pages. You can view the
 generated documentation [here](https://gatewaycorporate.github.io/fp-devicer/).
 
+## Plugin Architecture
+
+`DeviceManager` supports a universal plugin system via `use()`. Any object
+implementing `DeviceManagerPlugin` (with a `registerWith(deviceManager)` method)
+can extend `identify()` results with additional signals.
+
+```typescript
+import { createSqliteAdapter, DeviceManager } from "devicer.js";
+import { IpManager } from "ip-devicer";
+import { TlsManager } from "tls-devicer";
+
+const manager = new DeviceManager(createSqliteAdapter("./db.sqlite"));
+
+manager.use(new IpManager({ licenseKey: process.env.DEVICER_LICENSE_KEY }));
+manager.use(new TlsManager({ licenseKey: process.env.DEVICER_LICENSE_KEY }));
+
+// result now includes ipEnrichment, tlsConsistency, etc.
+const result = await manager.identify(fp, {
+	ip: req.ip,
+	tlsProfile: req.tlsProfile,
+});
+
+// Optionally unregister a plugin later:
+const unregister = manager.use(myPlugin);
+unregister();
+```
+
+Custom plugins implement `DeviceManagerPlugin` from `devicer.js`. See the
+[documentation](https://gatewaycorporate.github.io/fp-devicer/) for the full
+interface reference.
+
 ## Benchmarks
 
 When calibrated correctly, FP-Devicer is over 99% accurate and gets more

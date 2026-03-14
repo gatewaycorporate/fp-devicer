@@ -6,5 +6,6 @@ export { createSqliteAdapter } from "./libs/adapters/sqlite.js";
 export { createPostgresAdapter } from "./libs/adapters/postgres.js";
 export { createRedisAdapter } from "./libs/adapters/redis.js";
 export { DeviceManager } from "./core/DeviceManager.js";
+export { PluginRegistrar } from "./core/PluginRegistrar.js";
 export { AdapterFactory } from "./core/AdapterFactory.js";
 export { defaultLogger, defaultMetrics } from "./libs/default-observability.js";

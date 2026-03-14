@@ -441,3 +441,88 @@ describe('DeviceManager – identifyMany', () => {
     expect(saveSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('DeviceManager – use() / getPlugins()', () => {
+  let manager: DeviceManager;
+
+  beforeEach(() => {
+    manager = new DeviceManager(createInMemoryAdapter(), { dedupWindowMs: 0 });
+  });
+
+  it('calls plugin.registerWith with the DeviceManager instance', () => {
+    const registerWith = vi.fn();
+    manager.use({ registerWith });
+    expect(registerWith).toHaveBeenCalledOnce();
+    expect(registerWith).toHaveBeenCalledWith(manager);
+  });
+
+  it('adds the plugin to getPlugins()', () => {
+    const plugin = { registerWith: vi.fn() };
+    manager.use(plugin);
+    expect(manager.getPlugins()).toContain(plugin);
+  });
+
+  it('getPlugins() returns an empty list before any plugin is registered', () => {
+    expect(manager.getPlugins()).toHaveLength(0);
+  });
+
+  it('returned unregister fn removes the plugin from getPlugins()', () => {
+    const plugin = { registerWith: vi.fn() };
+    const unregister = manager.use(plugin);
+
+    expect(manager.getPlugins()).toContain(plugin);
+    unregister();
+    expect(manager.getPlugins()).not.toContain(plugin);
+  });
+
+  it('unregistering a plugin stops its post-processor from running', async () => {
+    const processor = vi.fn().mockReturnValue(undefined);
+    const plugin = {
+      registerWith: (dm: DeviceManager) => {
+        return dm.registerIdentifyPostProcessor('test-plugin', processor);
+      },
+    };
+
+    const unregister = manager.use(plugin);
+    await manager.identify(fpIdentical);
+    expect(processor).toHaveBeenCalledTimes(1);
+
+    unregister();
+    processor.mockClear();
+    await manager.identify(fpIdentical);
+    expect(processor).not.toHaveBeenCalled();
+  });
+
+  it('multiple plugins can be registered and independently unregistered', () => {
+    const p1 = { registerWith: vi.fn() };
+    const p2 = { registerWith: vi.fn() };
+
+    const unregister1 = manager.use(p1);
+    manager.use(p2);
+
+    expect(manager.getPlugins()).toHaveLength(2);
+
+    unregister1();
+    expect(manager.getPlugins()).toHaveLength(1);
+    expect(manager.getPlugins()).not.toContain(p1);
+    expect(manager.getPlugins()).toContain(p2);
+  });
+
+  it('plugin enrichmentInfo appears in result after use()', async () => {
+    const plugin = {
+      registerWith: (dm: DeviceManager) => {
+        dm.registerIdentifyPostProcessor('my-plugin', ({ result }) => ({
+          result: { ...result, myExtra: 'hello' },
+          enrichmentInfo: { tag: 'enriched' },
+        }));
+      },
+    };
+
+    manager.use(plugin);
+    const result = await manager.identify(fpIdentical) as any;
+
+    expect(result.myExtra).toBe('hello');
+    expect(result.enrichmentInfo.plugins).toContain('my-plugin');
+    expect(result.enrichmentInfo.details['my-plugin']).toEqual({ tag: 'enriched' });
+  });
+});

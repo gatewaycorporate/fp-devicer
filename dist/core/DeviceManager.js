@@ -3,6 +3,7 @@ import { getFingerprintHash } from "../libs/fingerprint-hash.js";
 import { getGlobalRegistry } from "../libs/registry.js";
 import { randomUUID } from "crypto";
 import { defaultLogger, defaultMetrics } from "../libs/default-observability.js";
+import { PluginRegistrar } from "./PluginRegistrar.js";
 /**
  * High-level device identification service.
  *
@@ -31,6 +32,7 @@ export class DeviceManager {
     logger;
     metrics;
     identifyPostProcessors = [];
+    pluginRegistrar = new PluginRegistrar();
     /**
      * Cache entry for the deduplication window (feature #8).
      * Keyed by the TLSH hash of the incoming fingerprint.
@@ -122,6 +124,25 @@ export class DeviceManager {
         return () => {
             this.identifyPostProcessors = this.identifyPostProcessors.filter((registered) => registered.name !== name || registered.processor !== processor);
         };
+    }
+    /**
+     * Register a plugin with this DeviceManager.
+     *
+     * The plugin's {@link DeviceManagerPlugin.registerWith} method is called
+     * immediately with this instance. Returns an unregister function that removes
+     * the plugin and calls any teardown returned by `registerWith`.
+     *
+     * @param plugin - Any object implementing {@link DeviceManagerPlugin}.
+     * @returns A `() => void` that unregisters the plugin.
+     */
+    use(plugin) {
+        return this.pluginRegistrar.register(this, plugin);
+    }
+    /**
+     * Returns the list of currently registered plugins (those not yet unregistered).
+     */
+    getPlugins() {
+        return this.pluginRegistrar.getRegisteredPlugins();
     }
     /**
      * Compute per-field stability scores across a window of historical snapshots.

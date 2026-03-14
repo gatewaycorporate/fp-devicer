@@ -18,6 +18,7 @@ export { createPostgresAdapter } from "./libs/adapters/postgres.js";
 export { createRedisAdapter } from "./libs/adapters/redis.js";
 export {
     DeviceManager,
+    DeviceManagerLike,
     IdentifyResult,
     IdentifyContext,
     IdentifyEnrichmentInfo,
@@ -25,6 +26,7 @@ export {
     IdentifyPostProcessorPayload,
     IdentifyPostProcessorResult
 } from "./core/DeviceManager.js";
+export { PluginRegistrar, DeviceManagerPlugin } from "./core/PluginRegistrar.js";
 export { AdapterFactory, AdapterFactoryOptions } from "./core/AdapterFactory.js";
 export { Logger, Metrics, ObservabilityOptions } from "./types/observability.js";
 export { defaultLogger, defaultMetrics } from "./libs/default-observability.js";

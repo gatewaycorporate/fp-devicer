@@ -1,6 +1,7 @@
 import type { StorageAdapter } from "../types/storage.js";
 import type { FPDataSet } from "../types/data.js";
 import { ObservabilityOptions } from "../types/observability.js";
+import { DeviceManagerPlugin } from "./PluginRegistrar.js";
 export interface IdentifyEnrichmentInfo {
     plugins: string[];
     details: Record<string, Record<string, unknown>>;
@@ -29,6 +30,13 @@ export interface IdentifyPostProcessorResult {
     logMeta?: Record<string, unknown>;
 }
 export type IdentifyPostProcessor = (payload: IdentifyPostProcessorPayload) => Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void;
+/**
+ * Minimal structural interface that plugins depend on.
+ * Avoids a hard circular import between PluginRegistrar and DeviceManager.
+ */
+export interface DeviceManagerLike {
+    registerIdentifyPostProcessor(name: string, processor: IdentifyPostProcessor): () => void;
+}
 /** Return type of {@link DeviceManager.identify}. */
 export interface IdentifyResult {
     deviceId: string;
@@ -67,6 +75,7 @@ export declare class DeviceManager {
     private logger;
     private metrics;
     private identifyPostProcessors;
+    private readonly pluginRegistrar;
     /**
      * Cache entry for the deduplication window (feature #8).
      * Keyed by the TLSH hash of the incoming fingerprint.
@@ -100,6 +109,21 @@ export declare class DeviceManager {
     private cloneResultForRequest;
     private applyIdentifyPostProcessors;
     registerIdentifyPostProcessor(name: string, processor: IdentifyPostProcessor): () => void;
+    /**
+     * Register a plugin with this DeviceManager.
+     *
+     * The plugin's {@link DeviceManagerPlugin.registerWith} method is called
+     * immediately with this instance. Returns an unregister function that removes
+     * the plugin and calls any teardown returned by `registerWith`.
+     *
+     * @param plugin - Any object implementing {@link DeviceManagerPlugin}.
+     * @returns A `() => void` that unregisters the plugin.
+     */
+    use(plugin: DeviceManagerPlugin): () => void;
+    /**
+     * Returns the list of currently registered plugins (those not yet unregistered).
+     */
+    getPlugins(): readonly DeviceManagerPlugin[];
     /**
      * Compute per-field stability scores across a window of historical snapshots.
      *

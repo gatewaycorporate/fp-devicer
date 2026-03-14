@@ -6,6 +6,7 @@ import { getGlobalRegistry } from "../libs/registry.js";
 import { randomUUID } from "crypto";
 import { Logger, Metrics, ObservabilityOptions } from "../types/observability.js";
 import { defaultLogger, defaultMetrics } from "../libs/default-observability.js";
+import { PluginRegistrar, DeviceManagerPlugin } from "./PluginRegistrar.js";
 
 export interface IdentifyEnrichmentInfo {
   plugins: string[];
@@ -38,6 +39,14 @@ export interface IdentifyPostProcessorResult {
 export type IdentifyPostProcessor = (
   payload: IdentifyPostProcessorPayload
 ) => Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void;
+
+/**
+ * Minimal structural interface that plugins depend on.
+ * Avoids a hard circular import between PluginRegistrar and DeviceManager.
+ */
+export interface DeviceManagerLike {
+  registerIdentifyPostProcessor(name: string, processor: IdentifyPostProcessor): () => void;
+}
 
 /** Return type of {@link DeviceManager.identify}. */
 export interface IdentifyResult {
@@ -76,6 +85,7 @@ export class DeviceManager {
   private logger: Logger;
   private metrics: Metrics;
   private identifyPostProcessors: Array<{ name: string; processor: IdentifyPostProcessor }> = [];
+  private readonly pluginRegistrar = new PluginRegistrar();
 
   /**
    * Cache entry for the deduplication window (feature #8).
@@ -191,6 +201,27 @@ export class DeviceManager {
         (registered) => registered.name !== name || registered.processor !== processor
       );
     };
+  }
+
+  /**
+   * Register a plugin with this DeviceManager.
+   *
+   * The plugin's {@link DeviceManagerPlugin.registerWith} method is called
+   * immediately with this instance. Returns an unregister function that removes
+   * the plugin and calls any teardown returned by `registerWith`.
+   *
+   * @param plugin - Any object implementing {@link DeviceManagerPlugin}.
+   * @returns A `() => void` that unregisters the plugin.
+   */
+  use(plugin: DeviceManagerPlugin): () => void {
+    return this.pluginRegistrar.register(this, plugin);
+  }
+
+  /**
+   * Returns the list of currently registered plugins (those not yet unregistered).
+   */
+  getPlugins(): readonly DeviceManagerPlugin[] {
+    return this.pluginRegistrar.getRegisteredPlugins();
   }
 
   /**
