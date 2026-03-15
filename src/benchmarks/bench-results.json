@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "filepath": "/home/sam/Documents/Code/TypeScript/FP-Devicer-Suite/fp-devicer/src/benchmarks/accuracy.bench.ts",
+      "filepath": "/home/sam/Documents/Code/TypeScript/Devicer Intelligence Suite/fp-devicer/src/benchmarks/accuracy.bench.ts",
       "groups": [
         {
           "fullName": "src/benchmarks/accuracy.bench.ts > Accuracy & Robustness",
@@ -10,26 +10,151 @@
               "id": "-556698140_0_0",
               "name": "full accuracy evaluation (2000 devices, 5000 pairs)",
               "rank": 1,
-              "rme": 1.15411033866287,
+              "rme": 0.9070082245176591,
               "samples": [],
-              "totalTime": 501.0949649999984,
-              "min": 2.0001240000001417,
-              "max": 4.355147999998735,
-              "hz": 451.01231460188535,
-              "period": 2.2172343584070724,
-              "mean": 2.2172343584070724,
-              "variance": 0.03852247296998979,
-              "sd": 0.19627142677931955,
-              "sem": 0.013055781103449682,
-              "df": 225,
+              "totalTime": 500.2713519999961,
+              "min": 2.1488200000003417,
+              "max": 4.2879439999996976,
+              "hz": 405.7797816893612,
+              "period": 2.464390896551705,
+              "mean": 2.464390896551705,
+              "variance": 0.026401313685725836,
+              "sd": 0.16248481063079662,
+              "sem": 0.01140419801836145,
+              "df": 202,
               "critical": 1.96,
-              "moe": 0.025589330962761375,
-              "p75": 2.3404719999998633,
-              "p99": 2.4647380000005796,
-              "p995": 2.47113200000058,
-              "p999": 4.355147999998735,
-              "sampleCount": 226,
-              "median": 2.2038034999995944
+              "moe": 0.022352228115988443,
+              "p75": 2.512410000001182,
+              "p99": 2.791403999999602,
+              "p995": 2.9940330000008544,
+              "p999": 4.2879439999996976,
+              "sampleCount": 203,
+              "median": 2.4842120000012073
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filepath": "/home/sam/Documents/Code/TypeScript/Devicer Intelligence Suite/fp-devicer/src/benchmarks/performance.bench.ts",
+      "groups": [
+        {
+          "fullName": "src/benchmarks/performance.bench.ts > Performance",
+          "benchmarks": [
+            {
+              "id": "816650281_0_0",
+              "name": "calculateConfidence (hybrid scorer)",
+              "rank": 1,
+              "rme": 2.285463754818441,
+              "samples": [],
+              "totalTime": 500.32316299999366,
+              "min": 1.0355730000010226,
+              "max": 6.368109999999433,
+              "hz": 895.4212659548718,
+              "period": 1.1167927745535573,
+              "mean": 1.1167927745535573,
+              "variance": 0.07597308092693832,
+              "sd": 0.27563214784734075,
+              "sem": 0.013022394938190194,
+              "df": 447,
+              "critical": 1.96,
+              "moe": 0.02552389407885278,
+              "p75": 1.0937010000016016,
+              "p99": 1.5807370000002265,
+              "p995": 1.608938000001217,
+              "p999": 6.368109999999433,
+              "sampleCount": 448,
+              "median": 1.0608929999998509
+            }
+          ]
+        },
+        {
+          "fullName": "src/benchmarks/performance.bench.ts > Performance > DeviceManager.identify (In-Memory)",
+          "benchmarks": [
+            {
+              "id": "816650281_0_1_0",
+              "name": "DeviceManager.identify (In-Memory)",
+              "rank": 1,
+              "rme": 0.4773423847344422,
+              "samples": [],
+              "totalTime": 6000.210637999959,
+              "min": 0.9917129999994359,
+              "max": 3.9132229999995616,
+              "hz": 914.1345747535802,
+              "period": 1.0939308364630735,
+              "mean": 1.0939308364630735,
+              "variance": 0.038931775960542155,
+              "sd": 0.1973113680469074,
+              "sem": 0.0026641813990399316,
+              "df": 5484,
+              "critical": 1.96,
+              "moe": 0.005221795542118266,
+              "p75": 1.0858150000003661,
+              "p99": 1.8304589999997916,
+              "p995": 2.3199679999997898,
+              "p999": 3.173471999999947,
+              "sampleCount": 5485,
+              "median": 1.037322000000131
+            }
+          ]
+        },
+        {
+          "fullName": "src/benchmarks/performance.bench.ts > Performance > DeviceManager.identify (SQLite in-memory)",
+          "benchmarks": [
+            {
+              "id": "816650281_0_2_0",
+              "name": "DeviceManager.identify (SQLite in-memory)",
+              "rank": 1,
+              "rme": 0.479924285072153,
+              "samples": [],
+              "totalTime": 6001.451584999908,
+              "min": 0.9767649999994319,
+              "max": 6.28222900000037,
+              "hz": 929.9416850998533,
+              "period": 1.0753362452965254,
+              "mean": 1.0753362452965254,
+              "variance": 0.03869313350135554,
+              "sd": 0.19670570276775287,
+              "sem": 0.002633061116000553,
+              "df": 5580,
+              "critical": 1.96,
+              "moe": 0.005160799787361083,
+              "p75": 1.0544489999992948,
+              "p99": 1.8172249999988708,
+              "p995": 1.9381219999995665,
+              "p999": 2.9497800000008283,
+              "sampleCount": 5581,
+              "median": 1.0210389999992913
+            }
+          ]
+        },
+        {
+          "fullName": "src/benchmarks/performance.bench.ts > Performance > DeviceManager.identify (SQLite file-based)",
+          "benchmarks": [
+            {
+              "id": "816650281_0_3_0",
+              "name": "DeviceManager.identify (SQLite file-based)",
+              "rank": 1,
+              "rme": 12.841015631617614,
+              "samples": [],
+              "totalTime": 6000.45402099995,
+              "min": 0.969649999999092,
+              "max": 394.03872500000216,
+              "hz": 893.9323559896409,
+              "period": 1.1186528749067768,
+              "mean": 1.1186528749067768,
+              "variance": 28.811512778127394,
+              "sd": 5.367635678595129,
+              "sem": 0.07328897476036685,
+              "df": 5363,
+              "critical": 1.96,
+              "moe": 0.14364639053031902,
+              "p75": 1.0275860000001558,
+              "p99": 1.7046319999972184,
+              "p995": 1.777620000000752,
+              "p999": 1.933085000000574,
+              "sampleCount": 5364,
+              "median": 1.0081039999995483
             }
           ]
         }

@@ -1,4 +1,5 @@
 import { writeFileSync } from 'fs';
+import { fileURLToPath } from 'node:url';
 import { bench, describe } from 'vitest';
 import type { LabeledFingerprint } from './data-generator.js';
 import { calculateConfidence } from '../libs/confidence.js';
@@ -102,7 +103,7 @@ generatePairs();
     },
   ];
 
-  const outPath = new URL('./accuracy.bench.out', import.meta.url).pathname;
+  const outPath = fileURLToPath(new URL('./accuracy.bench.out', import.meta.url));
   const output = [
     `--- Accuracy Metrics (${new Date().toISOString()}) ---`,
     formatTable(results as unknown as Record<string, unknown>[]),

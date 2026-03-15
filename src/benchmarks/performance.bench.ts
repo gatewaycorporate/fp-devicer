@@ -7,6 +7,7 @@ import { createSqliteAdapter } from '../libs/adapters/sqlite.js';
 import { generateDataset } from './data-generator.js';
 import type { FPDataSet } from '../types/data.js';
 import { writeFileSync } from 'fs';
+import { fileURLToPath } from 'node:url';
 
 const dataset = generateDataset(50);
 const base: FPDataSet = dataset[0].data;
@@ -43,7 +44,7 @@ async function measureBatchIdentify(manager: DeviceManager, data: FPDataSet, ite
 // Compute metrics and write file once at module load - outside the bench hot loop
 {
 	const confidenceTime = await measureBatchConfidence(1000);
-	const outPath = new URL('./performance.bench.out', import.meta.url).pathname;
+	const outPath = fileURLToPath(new URL('./performance.bench.out', import.meta.url));
 	const inMemoryTime = await measureBatchIdentify(inMemoryManager, base, 50);
 	const sqliteInMemoryTime = await measureBatchIdentify(sqliteInMemoryManager, base, 50);
 	const sqliteFileTime = await measureBatchIdentify(sqliteFileManager, base, 50);
