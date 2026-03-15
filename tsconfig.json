@@ -16,7 +16,9 @@
   "exclude": [
     "node_modules",
     "dist",
-    "**/*.test.ts",
+		"src/benchmarks",
+		"src/examples",
+		"src/tests",
     "**/*.config.ts"
   ]
 }
