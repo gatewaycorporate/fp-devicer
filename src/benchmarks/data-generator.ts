@@ -650,29 +650,32 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
       break;
 
     case 'low': {
-      // Sub-pixel / DPI rounding differences: ±1–2px width
-      mutated.screen!.width! += Math.round((Math.random() - 0.5) * 4);
-      // Canvas hash may differ by a few bits due to GPU driver micro-differences
-      const canvasMatch = mutated.canvas!.match(/\d+$/);
-      if (canvasMatch) {
-        mutated.canvas = mutated.canvas!.replace(/\d+$/, String(parseInt(canvasMatch[0], 10) + Math.floor(Math.random() * 3)));
-      }
+      // Sub-pixel / DPI rounding differences: always ±1–2px (never zero)
+      mutated.screen!.width += (Math.random() < 0.5 ? 1 : -1) * (Math.floor(Math.random() * 2) + 1);
+      // Canvas hash always gets micro-jitter — use simpleHash so the change
+      // is guaranteed regardless of the hash's trailing characters
+      mutated.canvas = simpleHash(mutated.canvas! + String(Math.floor(Math.random() * 3) + 1));
       // Occasional font list reorder (different enumeration order)
-      if (Math.random() < 0.4) {
-        mutated.fonts = [...mutated.fonts!].sort(() => Math.random() - 0.5);
+      if (Math.random() < 0.4 && mutated.fonts!.length >= 2) {
+        const original = mutated.fonts!.slice();
+        const shuffled = [...original].sort(() => Math.random() - 0.5);
+        // If the shuffle happened to preserve the original order, force a swap
+        mutated.fonts = shuffled.every((f, i) => f === original[i])
+          ? [shuffled[1], shuffled[0], ...shuffled.slice(2)]
+          : shuffled;
       }
       break;
     }
 
     case 'medium': {
-      // Browser minor version bump
+      // Browser minor version bump — always at least 1 to guarantee a change
       mutated.userAgent = mutated.userAgent!.replace(
         /Chrome\/(\d+)/,
-        (_, v) => `Chrome/${parseInt(v) + Math.floor(Math.random() * 2)}`
+        (_, v) => `Chrome/${parseInt(v) + Math.floor(Math.random() * 2) + 1}`
       );
       mutated.appVersion = mutated.appVersion!.replace(
         /Chrome\/(\d+)/,
-        (_, v) => `Chrome/${parseInt(v) + Math.floor(Math.random() * 2)}`
+        (_, v) => `Chrome/${parseInt(v) + Math.floor(Math.random() * 2) + 1}`
       );
       // Installed a new font / uninstalled one
       if (Math.random() < 0.5 && mutated.fonts!.length < FONT_POOL.length) {
@@ -681,9 +684,10 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
       } else if (mutated.fonts!.length > 3) {
         mutated.fonts!.splice(Math.floor(Math.random() * mutated.fonts!.length), 1);
       }
-      // Timezone may change (VPN, travel)
+      // Timezone may change (VPN, travel) — always pick a different one
       if (Math.random() < 0.2) {
-        mutated.timezone = TIMEZONES[Math.floor(Math.random() * TIMEZONES.length)];
+        const otherZones = TIMEZONES.filter(tz => tz !== mutated.timezone);
+        mutated.timezone = otherZones[Math.floor(Math.random() * otherZones.length)];
       }
 			// Canvas: re-hash with fresh jitter to simulate GPU micro-differences.
       // The stable seed is derived from the existing hash so the same device
@@ -696,8 +700,13 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
     }
 
     case 'high': {
-      // Connected / disconnected external monitor
-      const res = SCREEN_RESOLUTIONS[Math.floor(Math.random() * SCREEN_RESOLUTIONS.length)];
+      // Connected / disconnected external monitor — always pick a different resolution
+      const otherRes = SCREEN_RESOLUTIONS.filter(
+        ([w, h]) => w !== mutated.screen!.width || h !== mutated.screen!.height
+      );
+      const res = (otherRes.length ? otherRes : SCREEN_RESOLUTIONS)[
+        Math.floor(Math.random() * (otherRes.length || SCREEN_RESOLUTIONS.length))
+      ];
       mutated.screen!.width  = res[0];
       mutated.screen!.height = res[1];
       // Major Chrome upgrade (2–6 versions)
