@@ -18,7 +18,6 @@
     "dist",
 		"src/benchmarks",
 		"src/examples",
-		"src/tests",
-    "**/*.config.ts"
+		"src/tests"
   ]
 }
