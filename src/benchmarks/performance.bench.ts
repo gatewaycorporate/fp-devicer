@@ -15,7 +15,7 @@ const mutated: FPDataSet = dataset[5].data;
 
 const inMemoryAdapter = createInMemoryAdapter();
 const sqliteInMemoryAdapter = createSqliteAdapter(':memory:');
-const sqliteFileAdapter = createSqliteAdapter('./src/benchmarks/benchmark-sqlite.db');
+const sqliteFileAdapter = createSqliteAdapter('./src/benchmarks/benchmark-db.sqlite');
 const inMemoryManager = new DeviceManager(inMemoryAdapter);
 const sqliteInMemoryManager = new DeviceManager(sqliteInMemoryAdapter);
 const sqliteFileManager = new DeviceManager(sqliteFileAdapter);
