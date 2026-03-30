@@ -1,5 +1,5 @@
---- Performance Metrics (2026-03-30T00:49:07.312Z) ---
-calculateConfidence (hybrid scorer): 1.33 ms (per call)
-DeviceManager.identify (In-Memory): 1.44 ms (1.09x longer than confidence)
-DeviceManager.identify (SQLite in-memory): 1.55 ms (1.17x longer than confidence)
-DeviceManager.identify (SQLite file-based): 1.40 ms (1.05x longer than confidence)
+--- Performance Metrics (2026-03-30T00:59:18.752Z) ---
+calculateConfidence (hybrid scorer): 1.53 ms (per call)
+DeviceManager.identify (In-Memory): 1.51 ms (0.99x longer than confidence)
+DeviceManager.identify (SQLite in-memory): 1.59 ms (1.04x longer than confidence)
+DeviceManager.identify (SQLite file-based): 1.50 ms (0.98x longer than confidence)

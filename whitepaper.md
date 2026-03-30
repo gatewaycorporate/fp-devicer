@@ -1,6 +1,6 @@
 ---
 title: "FP-Devicer: Open-Source Digital Fingerprinting Middleware"
-subtitle: "Technical Whitepaper — Version 1.6.0+"
+subtitle: "Technical Whitepaper — Version 1.7.0+"
 author: "Gateway Corporate Solutions LLC"
 date: "March 2026"
 lang: en-US
@@ -20,9 +20,11 @@ mainfont: "Fira Sans"
 
 FP-Devicer is a lightweight, highly extensible TypeScript middleware library for
 server-side digital device fingerprinting. It computes a **confidence score
-(0–100)** between two fingerprint datasets by combining **weighted structural
-field-by-field comparison** with **TLSH (Trend Micro Locality Sensitive Hash)
-fuzzy holistic scoring**.
+(0–100)** between two fingerprint datasets using a **multi-component composite
+scorer**. The current engine blends recursive weighted comparison and TLSH
+similarity into a base device-similarity score, then calibrates that score with
+evidence-richness, field-agreement, structural-stability, entropy, missingness,
+and attractor-risk heuristics.
 
 The library provides a simple `calculateConfidence` API for one-off comparisons
 and a full-featured `DeviceManager` paired with a pluggable `StorageAdapter`
@@ -35,7 +37,8 @@ Key design goals:
 - Near-universal server compatibility (Express, Fastify, Deno/Oak, etc.)
 - Extensibility via a global plugin registry (custom weights and comparators per
   field path)
-- High accuracy (>99% in benchmarks) with sub-millisecond per-comparison latency
+- Strong separation on the bundled scenario benchmark suite with low-millisecond
+  scoring latency on commodity development hardware
 - Multiple storage backends: in-memory, SQLite, PostgreSQL, and Redis
 
 The codebase (~2,500 lines of clean TypeScript) is modular, well-tested,
@@ -80,10 +83,11 @@ interface for all fingerprint signals collected from a browser, and the generic
 `ComparisonOptions` and `Comparator`.
 
 **Scoring Engine** (`src/libs/confidence.ts` + `src/libs/registry.ts`) :
-Implements the two-strategy hybrid confidence calculation: recursive structural
-scoring and TLSH fuzzy hashing. The registry is a global singleton that stores
-per-path weights and comparator functions contributed by built-in defaults or
-user plugins.
+Implements a composite confidence model built from recursive weighted
+comparison, TLSH fuzzy hashing, secondary agreement/stability/richness
+dimensions, and explicit penalties for attractor profiles and missing data. The
+registry is a global singleton that stores per-path weights and comparator
+functions contributed by built-in defaults or user plugins.
 
 **Persistence & Orchestration** (`src/core/DeviceManager.ts` +
 `src/libs/adapters/`) : The `DeviceManager` class runs the full fingerprint
@@ -167,9 +171,10 @@ include:
 | `timezone`                 | `string`               | IANA timezone identifier                 |
 +----------------------------+------------------------+------------------------------------------+
 
-All fields are optional. The scoring engine treats a field that is absent on one
-side of the comparison as a zero-similarity match for that path rather than
-throwing an error.
+All fields are optional. Missing values never cause the scorer to throw. In the
+current engine, recursive similarity skips absent branches, while separate
+missingness dimensions (`missingOneSide`, `missingBothSides`) are folded into
+the final composite score.
 
 The generic `FPDataSet<T>` alias allows the scoring engine to operate on shapes
 other than `FPUserDataSet`, supporting advanced use cases where callers supply
@@ -189,114 +194,186 @@ core of FP-Devicer. It exposes two entry points:
 - `createConfidenceCalculator(options)` — a factory that returns a calculator
   instance scoped to a specific `ComparisonOptions` configuration.
 
-### 4.2.1 Strategy 1: Weighted Structural Comparison
+The current engine should be understood as a three-stage pipeline rather than a
+simple two-term blend.
 
-The structural comparison is performed by `compareRecursive`, an internal
-function that walks both fingerprint objects simultaneously using dot-notation
-paths. At each node it determines whether the value is:
+### 4.2.1 Stage 1: Recursive Device Similarity
 
-- **Primitive / leaf** — delegates to the registered comparator for that path
-  (or the built-in default) and returns a similarity in `[0, 1]`.
-- **Array** — pairs elements by index and recurses into each pair, accumulating
-  weighted contributions from each element.
-- **Object** — takes the union of keys present in either object and recurses
-  into each key pair.
+The first stage builds `deviceSimilarity`, the strongest positive signal in the
+final composite. Internally, `compareRecursive` walks both fingerprint objects
+simultaneously using dot-notation paths.
 
-Weights are retrieved via `getWeight(path)`, which consults the merged weight
-table built from `userOptions.weights`, the global registry, and built-in
-`DEFAULT_WEIGHTS`. The weights are **normalized internally**, meaning only
-relative magnitudes matter; it is not necessary for them to sum to any
-particular value.
+- Primitive / leaf values delegate to the comparator registered for that path,
+  or to exact equality when no comparator is available.
+- Arrays are compared index-by-index up to the shorter length.
+- Objects recurse over the union of keys found on either side.
+- Missing branches contribute no recursive weight at this stage; they are
+  handled later by explicit missingness dimensions.
 
-The structural score is computed as:
+The recursive structural score is:
 
-$$S_{\text{structural}} = \frac{\sum_i w_i \cdot \text{sim}_i}{\sum_i w_i}$$
+$$
+S_{\text{structural}} = \frac{\sum_i w_i \cdot \mathrm{sim}_i}{\sum_i w_i}
+$$
 
-where $w_i$ is the effective weight for path $i$ and $\text{sim}_i \in [0, 1]$
-is the similarity returned by the path's comparator.
+where $w_i$ is the effective path weight and $\mathrm{sim}_i \in [0,1]$ is the
+path comparator output.
 
-### 4.2.2 Strategy 2: TLSH Fuzzy Hashing
+FP-Devicer then computes a holistic TLSH similarity over canonicalized JSON:
 
-TLSH (Trend Micro Locality Sensitive Hash) is a fuzzy hashing algorithm designed
-so that similar inputs produce similar hashes. Unlike cryptographic hashes, two
-TLSH hashes can be compared to produce a numeric distance score that correlates
-with the semantic similarity of the original inputs.
+$$
+S_{\text{tlsh}} = \max\left(0, \frac{300 - d(h_1, h_2)}{300}\right)
+$$
 
-FP-Devicer serializes each fingerprint to a canonical JSON string (key-sorted,
-deterministic) before hashing. The hash distance is normalized to a `[0, 1]`
-similarity score:
+with `300` as the fixed normalization constant used in the implementation.
 
-$$S_{\text{tlsh}} = 1 - \frac{\text{distance}(h_1, h_2)}{\text{maxDistance}}$$
-
-TLSH serves as a holistic cross-check. Because it operates on the serialized
-whole rather than individual fields, it catches fingerprint-wide shifts that the
-structural scorer might partially miss when individual fields receive low
-weight.
-
-### 4.2.3 Score Blending
-
-The two strategies are combined by a configurable `tlshWeight` parameter
+The two are blended into `deviceSimilarity` with configurable `tlshWeight`
 (default `0.30`):
 
-$$S_{\text{final}} = S_{\text{structural}} \cdot (1 - w_{\text{tlsh}}) + S_{\text{tlsh}} \cdot w_{\text{tlsh}}$$
+$$
+S_{\text{device}} = 100 \cdot \left((1 - w_{\text{tlsh}})S_{\text{structural}} + w_{\text{tlsh}}S_{\text{tlsh}}\right)
+$$
 
-The final result is scaled to the integer range `[0, 100]` and returned. A score
-of `100` indicates an exact or near-exact match; a score of `0` indicates no
-detectable similarity.
+This value is rounded to an integer in `[0,100]`.
 
-### 4.2.4 Options Resolution Order
+### 4.2.2 Stage 2: Secondary Dimensions
 
-When `createConfidenceCalculator` builds its internal weight and comparator
-tables it merges sources in the following priority order (highest first):
+The scorer then computes seven additional dimensions, all normalized to
+`[0,100]`:
 
-1. `userOptions.weights` / `userOptions.comparators` (caller-supplied overrides)
-2. Built-in `DEFAULT_WEIGHTS` (hardcoded high-entropy emphasis)
-3. Global registry entries added via `registerPlugin` / `registerWeight`
-4. `defaultWeight` fallback (default `1`)
+- `evidenceRichness` — percentage of the default weighted field set present in
+  each fingerprint, averaged across both sides.
+- `fieldAgreement` — percentage of comparable top-level fields whose similarity
+  meets or exceeds `0.9`.
+- `structuralStability` — weighted agreement across the fields the library
+  treats as comparatively stable: `screen`, `hardwareConcurrency`,
+  `deviceMemory`, `platform`, and `highEntropyValues`.
+- `entropyContribution` — weighted agreement across the high-entropy hash
+  fields `canvas`, `webgl`, and `audio`.
+- `attractorRisk` — heuristic commonness score derived from six signals:
+  platform family, common language prefix, mainstream browser family, common
+  resolution, common CPU/RAM tuples, and absence of entropy-rich graphics/audio
+  fields.
+- `missingOneSide` — percentage of tracked fields present on exactly one side of
+  the comparison.
+- `missingBothSides` — percentage of tracked fields missing on both sides.
 
-### 4.2.5 ComparisonOptions Reference
+These dimensions are returned by `calculateScoreBreakdown` even when callers use
+`calculateConfidence` only for the final composite.
+
+### 4.2.3 Stage 3: Composite Calibration and Penalties
+
+The final score is not a raw weighted average. The implementation combines
+positive evidence and negative penalties separately.
+
+Positive dimensions and fixed base weights:
+
+- `deviceSimilarity`: `0.62`
+- `evidenceRichness`: `0.06`
+- `fieldAgreement`: `0.18`
+- `structuralStability`: `0.08`
+- `entropyContribution`: `0.06`
+
+Negative terms and fixed base weights:
+
+- attractor penalty: `0.55`
+- mismatch penalty: `0.08`
+- low-similarity penalty: `0.16`
+- `missingOneSide`: `0.02`
+- `missingBothSides`: `0.01`
+
+The attractor penalty is deliberately nonlinear:
+
+$$
+P_{\text{attractor}} = r^2 \cdot (0.35 + 0.4a + 0.25s)
+$$
+
+where $r$ is normalized attractor risk, $a$ is normalized field agreement, and
+$s$ is normalized device similarity.
+
+The mismatch and low-similarity penalties suppress false positives in opposite
+ways:
+
+- `computeMismatchPenalty()` grows when both agreement and holistic similarity
+  are weak.
+- `computeLowSimilarityPenalty()` activates only when `deviceSimilarity < 60`.
+
+After positive and negative totals are combined, the implementation applies a
+calibration offset of `+15`, clamps the result to `[0,100]`, and applies two
+important post-rules:
+
+- Non-exact ceiling — if the canonicalized fingerprints differ, the final score
+  is capped at `max(95, min(99, deviceSimilarity + 12))`.
+- Exact-match promotion — if the canonicalized fingerprints are identical and
+  `attractorRisk < 70`, the composite is forced to `100`.
+
+These rules explain why FP-Devicer's returned confidence is best read as a
+calibrated decision score, not a pure probability estimate.
+
+### 4.2.4 Adaptive Stability Weighting
+
+`ComparisonOptions.stabilities` lets callers provide per-field stability values.
+These are converted into dimension multipliers, not direct final scores. The
+current implementation down-weights `deviceSimilarity`, `fieldAgreement`,
+`structuralStability`, and `entropyContribution` when recent device history
+suggests those signals are volatile.
+
+`DeviceManager` uses the same idea operationally: it derives per-field
+stabilities from recent snapshots and scales `DEFAULT_WEIGHTS` before scoring a
+candidate's latest history entry.
+
+### 4.2.5 Options Resolution Order
+
+When `createConfidenceCalculator()` builds its context, the current resolution
+order is:
+
+1. `userOptions.weights` and `userOptions.comparators`
+2. built-in `DEFAULT_WEIGHTS`
+3. global registry entries
+4. `defaultWeight`
+
+For `defaultWeight` itself, the fallback order is local option, then global
+registry default, then `5`.
+
+One subtle but important consequence follows from the implementation: the
+built-in specialized comparators live in the global registry. If
+`useGlobalRegistry` is set to `false`, callers keep `DEFAULT_WEIGHTS` but lose
+those comparator specializations unless they supply replacements locally.
+
+### 4.2.6 ComparisonOptions Reference
 
 ```typescript
 interface ComparisonOptions {
-	/** Per-path weights. Normalized automatically. */
 	weights?: Record<string, number>;
-	/** Per-path custom similarity functions. */
 	comparators?: Record<string, Comparator>;
-	/** Fallback weight for paths without an explicit entry. Default: 1 */
-	defaultWeight?: number;
-	/** TLSH blend factor in [0, 1]. Default: 0.30 */
-	tlshWeight?: number;
-	/** Maximum object recursion depth. Default: 8 */
-	maxDepth?: number;
-	/** Whether to consult the global registry. Default: true */
-	useGlobalRegistry?: boolean;
+	stabilities?: FieldStabilityMap;
+	defaultWeight?: number; // default: 5
+	tlshWeight?: number; // default: 0.30
+	maxDepth?: number; // default: 5
+	useGlobalRegistry?: boolean; // default: true
 }
 ```
 
 ## 4.3 Plugin & Registry System
 
-The registry (`src/libs/registry.ts`) is a **global singleton** that stores
-per-path comparators and weights. It is lazily seeded by
+The registry (`src/libs/registry.ts`) is a global singleton that stores per-path
+comparators and weights. It is lazily seeded by
 `initializeDefaultRegistry()` (called from `src/libs/default-plugins.ts`) the
 first time any scoring function runs.
 
 Built-in defaults include:
 
-- **Jaccard similarity** for set-like arrays (`fonts`, `languages`, `plugins`,
-  `mimeTypes`) — measures the ratio of the intersection size to the union size.
-- **Exact match** for hash fields (`canvas`, `webgl`, `audio`) — returns `1.0`
-  only when both values are identical strings.
-- **`screenSimilarity`** for the `screen` object — a custom function that
-  tolerates small pixel-rounding differences while penalizing large resolution
-  changes.
-- **Structural equality** as a fallback for primitives with no registered
-  comparator.
+- Jaccard similarity for set-like arrays (`fonts`, `languages`, `plugins`,
+  `mimeTypes`)
+- exact match for hash fields (`canvas`, `webgl`, `audio`)
+- `screenSimilarity` for the `screen` object
+- structural equality as a fallback for primitives with no registered
+  comparator
 
 Callers can extend or override the registry at any time using the exported
 helper functions:
 
 ```typescript
-// Register both a custom weight and a custom comparator at once
 registerPlugin("userAgent", {
 	weight: 25,
 	comparator: (a, b) =>
@@ -306,16 +383,9 @@ registerPlugin("userAgent", {
 		),
 });
 
-// Register only a weight (keep the existing comparator)
 registerWeight("canvas", 40);
-
-// Register only a comparator (keep the existing weight)
 registerComparator("timezone", (a, b) => (a === b ? 1 : 0.5));
-
-// Set the fallback weight for any unregistered path
 setDefaultWeight(2);
-
-// Remove a registration
 unregisterWeight("audio");
 unregisterComparator("audio");
 ```
@@ -332,66 +402,46 @@ with a complete fingerprint matching pipeline:
 
 ### 4.4.1 Pipeline Steps
 
-1. **Deduplication cache** — Computes the TLSH hash of the incoming fingerprint
-   and checks an in-memory LRU cache (keyed by hash, 5-second TTL). If the same
-   fingerprint is seen twice within the window, the cached `IdentifyResult` is
-   returned immediately without any database I/O. This is critical for endpoints
-   that receive burst traffic.
+1. Deduplication cache — computes the fingerprint hash of the incoming
+   fingerprint and checks an in-memory TTL cache (implemented as a `Map`, not an
+   LRU). If the same fingerprint is seen twice within the window, the cached
+   core result is reused and the expensive persistence path is skipped.
 
-2. **Candidate pre-filtering** — Calls
-   `adapter.findCandidates(incoming,
-   minScore)` to retrieve a small set of
-   stored device snapshots that are broadly similar to the incoming data. Each
-   adapter implements this differently: the SQLite and PostgreSQL adapters use
-   JSON-operator `WHERE` clauses on indexed fields; the in-memory adapter does a
-   linear scan with early termination. The default `candidateMinScore` is `30`,
-   meaning only candidates where the adapter's rough score exceeds 30 are
-   returned.
+2. Candidate pre-filtering — calls `adapter.findCandidates(incoming, minScore)`
+   to retrieve a small set of stored device snapshots that are broadly similar
+   to the incoming data.
 
-3. **Adaptive weighting** — For each candidate, `DeviceManager` calls
-   `adapter.getHistory(deviceId, limit=5)` to retrieve recent snapshots and
-   passes them to `computeFieldStabilities`. This function measures, for each
-   fingerprint path, how consistent the field's value has been across the
-   historical snapshots. Fields that have varied frequently (e.g., `timezone`
-   for a travelling user) are assigned a reduced weight for this comparison,
-   preventing transient signal drift from causing a false negative.
+3. Adaptive weighting — for each candidate, `DeviceManager` calls
+   `adapter.getHistory(deviceId, limit=5)` and measures how stable each tracked
+   field has been across recent history.
 
-4. **Full confidence scoring** — Each candidate is scored against its most
-   recent snapshot using a `createConfidenceCalculator` instance configured with
-   the adaptive weights computed in step 3. The candidate with the highest score
-   is selected as `bestMatch`.
+4. Full confidence scoring — each candidate is scored against its most recent
+   snapshot using a scorer whose field weights have been scaled by those
+   stability estimates. The highest-scoring candidate becomes `bestMatch`.
 
-5. **Decision** — If `bestMatch.confidence >= matchThreshold` (default `50`),
-   its existing device ID is reused. Otherwise a new UUID-based device ID is
-   minted, marking the visit as a new device.
+5. Decision — if `bestMatch.confidence > matchThreshold` (default `50`), its
+   existing device ID is reused. Otherwise a new UUID-based device ID is minted.
 
-6. **Persistence** — The incoming fingerprint is saved via `adapter.save()` as a
+6. Persistence — the incoming fingerprint is saved via `adapter.save()` as a
    new snapshot associated with the resolved device ID.
 
-7. **Observability** — Structured log entries are emitted via the injected
-   `Logger`. Metrics counters and gauges are incremented via the injected
-   `Metrics` instance. Both default to no-op implementations.
+7. Observability — structured log entries are emitted via the injected
+   `Logger`. Metrics are recorded via the injected `Metrics` instance.
 
-8. **Post-processing** — Each registered `IdentifyPostProcessor` is called in
-   registration order with the full pipeline outcome. Processors may merge
-   additional fields onto the result, attach structured enrichment data under
-   `enrichmentInfo.details[name]`, and emit additional log metadata. Processor
-   failures are caught individually — a throwing processor records an entry in
-   `enrichmentInfo.failures` and execution continues with the next processor.
-   See §4.4 for the full plugin architecture.
+8. Post-processing — each registered `IdentifyPostProcessor` is called in
+   registration order with the full pipeline outcome. Processor failures are
+   caught individually and recorded under `enrichmentInfo.failures`.
 
 ### 4.4.2 Constructor Options
 
 ```typescript
 new DeviceManager(adapter, {
-  matchThreshold?: number;      // min score to reuse a device ID (default: 50)
-  candidateMinScore?: number;   // pre-filter floor passed to adapter (default: 30)
-  dedupWindowMs?: number;       // dedup cache TTL in milliseconds (default: 5000)
-  comparisonOptions?: ComparisonOptions; // forwarded to createConfidenceCalculator
-  observability?: {
-    logger?: Logger;
-    metrics?: Metrics;
-  };
+  matchThreshold?: number;      // default: 50
+  candidateMinScore?: number;   // default: 30
+  stabilityWindowSize?: number; // default: 5
+  dedupWindowMs?: number;       // default: 5000
+  logger?: Logger;
+  metrics?: Metrics;
 });
 ```
 
@@ -399,15 +449,15 @@ new DeviceManager(adapter, {
 
 ```typescript
 interface IdentifyResult {
-	deviceId: string; // stable UUID for this device
-	confidence: number; // 0–100 score against the best matched snapshot
-	isNewDevice: boolean; // true if no candidate exceeded matchThreshold
-	matchConfidence: number; // mirror of confidence; persisted on the snapshot
-	linkedUserId?: string; // if a userId was supplied and stored
+	deviceId: string;
+	confidence: number;
+	isNewDevice: boolean;
+	matchConfidence: number;
+	linkedUserId?: string;
 	enrichmentInfo: {
-		plugins: string[]; // names of processors that ran
-		details: Record<string, Record<string, unknown>>; // per-plugin structured data
-		failures: Array<{ plugin: string; message: string }>; // caught processor errors
+		plugins: string[];
+		details: Record<string, Record<string, unknown>>;
+		failures: Array<{ plugin: string; message: string }>;
 	};
 }
 ```
@@ -415,59 +465,29 @@ interface IdentifyResult {
 ## 4.5 Universal Plugin Architecture for Device Managers
 
 FP-Devicer provides a second, distinct extension mechanism that operates at the
-**pipeline level** rather than the field level. Where the scoring registry
-(§4.2) customizes _how individual fingerprint fields are compared_, the plugin
-architecture customizes _what happens after a device has been identified_. The
-two systems are orthogonal and can be combined freely.
+pipeline level rather than the field level. Where the scoring registry customizes
+how individual fingerprint fields are compared, the plugin architecture
+customizes what happens after a device has been identified.
 
 ### 4.5.1 Design Overview
 
 The architecture is built from three collaborating types:
 
-- **`DeviceManagerPlugin`** (`src/core/PluginRegistrar.ts`) — the interface all
-  plugins implement. It declares a single method, `registerWith`, that receives
-  a `DeviceManagerLike` handle and uses it to subscribe to pipeline hooks.
-- **`PluginRegistrar`** (`src/core/PluginRegistrar.ts`) — a class owned by
-  `DeviceManager` that validates and tracks active plugins. It is exported
-  publicly so custom orchestrators can host plugins against any compatible
-  manager.
-- **`DeviceManagerLike`** (`src/core/DeviceManager.ts`) — a minimal interface
-  that exposes only the methods plugins need. Decoupling this from the concrete
-  `DeviceManager` class prevents circular imports and makes plugins testable
-  against lightweight fakes.
+- `DeviceManagerPlugin` — the interface all plugins implement
+- `PluginRegistrar` — validates and tracks active plugins
+- `DeviceManagerLike` — the minimal structural interface exposed to plugins
 
 ### 4.5.2 `DeviceManagerPlugin` Interface
 
 ```typescript
 interface DeviceManagerPlugin {
-	/**
-	 * Called immediately when the plugin is registered via DeviceManager.use().
-	 * May return an optional teardown function invoked on unregister.
-	 */
 	registerWith(deviceManager: DeviceManagerLike): (() => void) | void;
 }
 ```
 
-Plugins are registered by calling `DeviceManager.use(plugin)`, which internally
-delegates to `PluginRegistrar.register()`. That method validates that
-`registerWith` is a function (throwing
-`"Invalid plugin: Missing 'registerWith'
-method."` otherwise), calls it with the
-manager, and returns an unregister function that calls any returned teardown and
-removes the plugin from the active list.
-
-```typescript
-const unregister = manager.use(myPlugin);
-
-// Later, to cleanly tear down:
-unregister();
-```
-
-The currently active plugins are inspectable at any time:
-
-```typescript
-const active: readonly DeviceManagerPlugin[] = manager.getPlugins();
-```
+Plugins are registered by calling `DeviceManager.use(plugin)`. The returned
+function unregisters the plugin and calls any teardown returned by
+`registerWith()`.
 
 ### 4.5.3 `DeviceManagerLike` Interface
 
@@ -480,83 +500,26 @@ interface DeviceManagerLike {
 }
 ```
 
-This minimal surface is the only handle exposed to plugin code, preventing
-plugins from accidentally mutating manager state outside the sanctioned hook.
-`registerIdentifyPostProcessor` accepts a unique `name` (used as the key in
-`enrichmentInfo.details`) and a processor function, and returns an unregister
-closure.
-
 ### 4.5.4 `IdentifyPostProcessor` Lifecycle
 
-After the core pipeline (dedup → candidates → score → decide → save) completes,
-`DeviceManager` invokes each registered post-processor in registration order.
-Each receives an `IdentifyPostProcessorPayload` and may return an
-`IdentifyPostProcessorResult` (or nothing).
-
-**`IdentifyPostProcessorPayload`**
-
-+--------------------+------------------------+------------------------------------------------------+
-| Field              | Type                   | Description                                          |
-+====================+========================+======================================================+
-| `incoming`         | `FPDataSet`            | The raw fingerprint from the current request         |
-+--------------------+------------------------+------------------------------------------------------+
-| `context`          | `IdentifyContext?`     | Per-request context passed to `identify()` (e.g.,    |
-|                    |                        | `ip`, `userId`, `tlsProfile`)                        |
-+--------------------+------------------------+------------------------------------------------------+
-| `result`           | `IdentifyResult`       | The result as enriched by all preceding processors   |
-+--------------------+------------------------+------------------------------------------------------+
-| `baseResult`       | `IdentifyResult`       | A fresh clone of the core result, unaffected by      |
-|                    |                        | other processors                                     |
-+--------------------+------------------------+------------------------------------------------------+
-| `cacheHit`         | `boolean`              | Whether the dedup cache was used for this request    |
-+--------------------+------------------------+------------------------------------------------------+
-| `candidatesCount`  | `number`               | Number of candidates returned by `findCandidates()`  |
-+--------------------+------------------------+------------------------------------------------------+
-| `matched`          | `boolean`              | Whether an existing device was matched               |
-+--------------------+------------------------+------------------------------------------------------+
-| `durationMs`       | `number`               | Elapsed time of the core pipeline in milliseconds    |
-+--------------------+------------------------+------------------------------------------------------+
-
-**`IdentifyPostProcessorResult`**
-
-+------------------+----------------------------+--------------------------------------------------+
-| Field            | Type                       | Description                                      |
-+==================+============================+==================================================+
-| `result`         | `Record<string, unknown>?` | Fields merged directly onto `IdentifyResult`     |
-|                  |                            | (e.g., custom scores)                            |
-+------------------+----------------------------+--------------------------------------------------+
-| `enrichmentInfo` | `Record<string, unknown>?` | Structured data stored under                     |
-|                  |                            | `enrichmentInfo.details[name]`                   |
-+------------------+----------------------------+--------------------------------------------------+
-| `logMeta`        | `Record<string, unknown>?` | Extra key-value pairs bundled into the           |
-|                  |                            | structured log entry                             |
-+------------------+----------------------------+--------------------------------------------------+
+After the core pipeline completes, `DeviceManager` invokes each registered
+post-processor in registration order. Each receives an
+`IdentifyPostProcessorPayload` and may return an
+`IdentifyPostProcessorResult`.
 
 ### 4.5.5 `IdentifyEnrichmentInfo`
 
 Every `IdentifyResult` carries an `enrichmentInfo` object that accumulates the
-contributions of all post-processors for that request:
-
-+------------+----------------------------------------------+------------------------------------+
-| Field      | Type                                         | Description                        |
-+============+==============================================+====================================+
-| `plugins`  | `string[]`                                   | Names of all processors that ran   |
-+------------+----------------------------------------------+------------------------------------+
-| `details`  | `Record<string, Record<string, unknown>>`    | Per-plugin structured enrichment   |
-|            |                                              | data                               |
-+------------+----------------------------------------------+------------------------------------+
-| `failures` | `Array<{ plugin: string; message: string }>` | Errors caught from failed          |
-|            |                                              | processors                         |
-+------------+----------------------------------------------+------------------------------------+
+contributions of all post-processors for that request.
 
 ### 4.5.6 Error Isolation
 
 If a processor throws or rejects, the error is caught, a `{ plugin, message }`
-entry is appended to `enrichmentInfo.failures`, and a `logger.warn` line is
-emitted. Execution continues with the next registered processor. No processor
-failure can prevent the core `IdentifyResult` from being returned to the caller.
+entry is appended to `enrichmentInfo.failures`, and execution continues with the
+next processor.
 
 ### 4.5.7 Companion Plugin: ip-devicer `IpManager`
+
 
 `IpManager` from the **ip-devicer** companion package implements
 `DeviceManagerPlugin`. When registered, it hooks into the post-processor
@@ -719,17 +682,21 @@ Client
   │       │       │
   │       │       └─► registerPlugin × N   [canvas, fonts, screen, ...]
   │       │
-  │       ├─► compareRecursive(fp1, fp2)
-  │       │       │
-  │       │       └─► for each field path:
-  │       │               getWeight(path)
-  │       │               getComparator(path)(val1, val2)
+  │       ├─► compareRecursive(fp1, fp2)      → structural score
+  │       ├─► compareHashes(getHash(fp1), getHash(fp2))
+  │       │                                    → TLSH similarity
+  │       ├─► computeEvidenceRichness()
+  │       ├─► computeFieldAgreement()
+  │       ├─► computeStructuralStability()
+  │       ├─► computeEntropyContribution()
+  │       ├─► computeAttractorRisk()
+  │       ├─► computeMissingOneSide() / computeMissingBothSides()
+  │       ├─► apply positive weights, penalties, calibration offset,
+  │       │    exact-match promotion, and non-exact ceiling
   │       │
-  │       ├─► getHash(canonicalizedStringify(fp1))
-  │       ├─► getHash(canonicalizedStringify(fp2))
-  │       └─► compareHashes(h1, h2)  → tlsh score
+  │       └─► calculateScoreBreakdown(...).composite
   │
-  └─◄─ blended integer score [0–100]
+  └─◄─ calibrated integer score [0–100]
 ```
 
 ## 5.2 Full Device Identification
@@ -741,7 +708,7 @@ HTTP Request
   │       │
   │       ├─► getHash(incoming)  →  dedupKey
   │       ├─► dedupCache.get(dedupKey)
-  │       │       ├─ HIT  → return cached IdentifyResult immediately
+  │       │       ├─ HIT  → reuse cached core identify result
   │       │       └─ MISS → continue
   │       │
   │       ├─► adapter.findCandidates(incoming, candidateMinScore)
@@ -750,17 +717,19 @@ HTTP Request
   │       ├─► for each candidate:
   │       │       ├─► adapter.getHistory(candidate.deviceId, 5)
   │       │       ├─► computeFieldStabilities(history)
+  │       │       ├─► scale DEFAULT_WEIGHTS by stability
   │       │       ├─► createConfidenceCalculator({ weights: adaptiveWeights })
   │       │       └─► calculator.calculateConfidence(incoming, latestSnapshot)
   │       │
   │       ├─► select bestMatch (highest score)
   │       │
-  │       ├─► if bestMatch.score >= matchThreshold:
+  │       ├─► if bestMatch.score > matchThreshold:
   │       │       deviceId = bestMatch.deviceId   (returning device)
   │       │   else:
   │       │       deviceId = crypto.randomUUID()  (new device)
   │       │
-  │       ├─► adapter.save({ deviceId, fingerprint: incoming, ... })
+  │       ├─► adapter.save({ deviceId, fingerprint: incoming,
+  │       │                 signalsHash, matchConfidence, ... })
   │       ├─► dedupCache.set(dedupKey, baseResult, dedupWindowMs)
   │       │
   │       ├─► for each identifyPostProcessor [plugin]:
@@ -900,563 +869,338 @@ when `unregisterRisk()` is invoked, so no manual cleanup is required.
 
 # 7 Performance & Accuracy
 
-## 7.1 Benchmarking Methodology
+## 7.1 Re-evaluated Benchmark Methodology
 
-FP-Devicer ships with a rigorous, self-contained benchmark suite under
-`src/benchmarks/`. All benchmarks run under the [Vitest](https://vitest.dev/)
-framework using its built-in `bench` harness, which applies statistical analysis
-across many iterations to produce stable, reproducible results. The suite is
-split into two concerns: **accuracy** (does the scorer make correct decisions?)
-and **performance** (how fast does it run?).
+FP-Devicer currently ships with three benchmark entry points under
+`src/benchmarks/`:
 
-### 7.1.1 Synthetic Dataset Generation
+- `accuracy.bench.ts` evaluates thresholded decision quality over a fixed
+  scenario corpus.
+- `scenarios.bench.ts` emits a single-seed explainability table for the
+  canonical scenario matrix.
+- `performance.bench.ts` reports coarse average latency for the scorer and for
+  `DeviceManager.identify()` across three storage configurations.
 
-All accuracy benchmarks operate on synthetic data produced by
-`data-generator.ts`. The generator is fully deterministic — it uses a seeded
-Linear Congruential Generator (LCG) as its PRNG so that results are reproducible
-across environments and CI runs. No external data sources or network calls are
-required.
+All three run under Vitest's benchmark runner, and the raw harness output is
+written to `src/benchmarks/bench-results.json`.
 
-For each simulated device a _base fingerprint_ is constructed by sampling from
-realistic value pools:
+### 7.1.1 Synthetic Input Families
 
-- **Platform & OS** — 11 OS/architecture combinations covering Windows 10/11,
-  macOS Intel/ARM, Ubuntu, Android 13/14, and iOS 16/17.
-- **Browser** — 14 browser profiles (Chrome, Firefox, Safari, Edge, Opera across
-  desktop and mobile) with versioned user-agent templates; version numbers are
-  sampled from a realistic recency window.
-- **Locale & timezone** — draws from a pool of 45 IANA timezone identifiers
-  paired with culturally appropriate language lists.
-- **Screen** — width × height × colour depth combinations sampled from 10 common
-  display resolutions.
-- **Hardware entropy** — `hardwareConcurrency` and `deviceMemory` sampled from
-  common real-world values; UA-CH high-entropy hints populated accordingly.
-- **Hash-based signals** — `canvas`, `webgl`, and `audio` fingerprints are
-  generated by dedicated functions (`generateCanvasBlob`, `generateWebGLBlob`,
-  `generateAudioBlob`) that produce multi-component strings mirroring the output
-  of FP-Snatch's collection routines. Each function has a _stable_ portion
-  (seeded deterministically from the device seed, representing GPU/hardware
-  baseline) and a _jitter_ portion (varied per call, representing per-render
-  floating-point noise). The raw strings are then passed through the same djb2
-  hash used by FP-Snatch.
-- **Font list** — drawn from a pool of real system fonts; count and order vary
-  per device.
+The repository now uses two distinct synthetic-data strategies.
 
-#### 7.1.1.1 Attractor Devices
+1. General corpus generation via `generateDataset()`.
+   This path creates realistic base fingerprints from seeded pools covering
+   platform, browser, locale, timezone, screen, hardware, fonts, plugins, and
+   high-entropy browser hints. It then applies `mutate()` at severities `none`,
+   `low`, `medium`, `high`, and `extreme`.
 
-Approximately 10–15% of simulated devices are designated **attractor devices**.
-These are generated by `createAttractorFingerprint` and represent common
-hardware/software profiles (e.g., default Windows 10 Chrome with a typical
-screen resolution) that produce fingerprints densely packed in feature space.
-Attractor devices are the hardest case for a fingerprint scorer because two
-completely different users may share nearly identical feature vectors. The
-`isAttractor` flag is propagated to every pair in the accuracy evaluation, and
-the `attr` column in the output table reports the False Accept Rate computed
-exclusively over impostor pairs where at least one party is an attractor device.
+2. Deterministic scenario-pair generation via dedicated builders such as
+   `generateBrowserDrift()`, `generateEnvironmentChange()`,
+   `generatePrivacyResistance()`, `generateAdversarialPerturbation()`,
+   `generateTravelNetworkChange()`, and `generateCommodityCollision()`.
 
-### 7.1.2 Mutation Model
+This distinction matters. Base-profile construction is seed-driven and stable,
+but `generateDataset()` intentionally injects session jitter with
+`Math.random()` and, in some mutation paths, `Date.now()`. By contrast, the
+scenario-pair builders used by the bundled accuracy and scenario benchmarks are
+deterministic for a given numeric seed.
 
-Each device is assigned `sessionsPerDevice` fingerprint snapshots by applying
-the `mutate()` function at escalating intensity levels, cycling through
-`none → low → medium → high → low`. On 40% of non-`none` sessions, a second
-`low`-intensity pass is layered on top to ensure no two samples from the same
-device are ever bit-for-bit identical:
+### 7.1.2 What the Scenario Corpus Actually Covers
 
-+-----------+------------------------------------------------------------------------+
-| Level     | Signals Modified                                                       |
-+===========+========================================================================+
-| `none`    | Clean baseline — no changes from the generated base                    |
-+-----------+------------------------------------------------------------------------+
-| `low`     | ±1–2 px screen width rounding; canvas hash micro-jitter; 40% chance of |
-|           | font list reorder                                                      |
-+-----------+------------------------------------------------------------------------+
-| `medium`  | Chrome minor version bump; font addition or removal; 20% chance of     |
-|           | timezone change; canvas and audio re-hash                              |
-+-----------+------------------------------------------------------------------------+
-| `high`    | Screen resolution change; Chrome major version jump (+2–6); DoNotTrack |
-|           | toggle; multiple font changes; canvas and WebGL hash drift from        |
-|           | simulated driver update                                                |
-+-----------+------------------------------------------------------------------------+
-| `extreme` | Entirely new device profile generated from a fresh seed — treated as a |
-|           | different device for scoring purposes                                  |
-+-----------+------------------------------------------------------------------------+
+The scenario matrix contains 17 labeled cases:
 
-The `extreme` level is excluded from the standard accuracy test corpus because
-it represents a hardware replacement, not a re-visit.
+- browser drift: `minor`, `major`, `cross-browser`
+- environment change: `home-office`, `external-dock`, `mobile-desktop`
+- privacy resistance: `tor`, `resistant-browser`, `canvas-defender`
+- adversarial perturbation: `canvas-noise`, `font-randomization`, `ua-rotation`
+- travel/network change: `timezone-travel`, `vpn-activation`
+- commodity collision: `corporate-fleet`, `iphone-defaults`, `public-terminal`
 
-### 7.1.3 Pair Construction
+Per seed, 10 scenarios are labeled `same-device` and 7 are labeled
+`different-device`. `accuracy.bench.ts` evaluates 50 seeds, so the current
+benchmark corpus is exactly:
 
-The accuracy benchmark (`accuracy.bench.ts`) generates **5,750 scored pairs**
-from a corpus of 2,000 devices × 5 sessions each:
+- `850` scored pairs total
+- `500` genuine pairs
+- `350` impostor pairs
 
-- **Genuine pairs** (`sameDevice = true`): For each iteration `i`, two distinct
-  sessions from the same device are selected and passed to
-  `calculateConfidence`. These represent legitimate re-visits that should score
-  above the decision threshold.
+This is a scenario-driven regression corpus, not a general population simulator.
 
-- **Random impostor pairs** (`sameDevice = false`): A session from a separate
-  device is paired with one from the target device. These represent different
-  users that should score below the threshold.
+### 7.1.3 Accuracy Metrics and Their Limits
 
-- **Cross-browser impostor pairs** (`sameDevice = false`, deliberately harder):
-  For 30% of iterations, a cross-browser pair is constructed by pairing a
-  session from the target device with one sampled from an attractor-zone device.
-  This tests resistance to the most difficult false-accept scenario.
+`calculateMetrics()` sweeps thresholds from `0` to `100` in increments of `5`
+and computes precision, recall, F1, FAR, FRR, `eer`, and `attr`.
 
-All pair scores are computed synchronously at module load time before the Vitest
-bench harness starts timing, so DBSCAN analysis (O(n²)) does not pollute the
-performance measurement.
+The implementation of `eer` should be stated precisely. It is not an
+interpolated equal-error-rate estimate. It is the absolute gap
+$|\mathrm{FAR} - \mathrm{FRR}|$ at each threshold, used as a simple closeness
+proxy. Likewise, `attr` is the false-accept rate computed only on attractor-zone
+impostor pairs.
 
-### 7.1.4 Accuracy Metrics
+The benchmark also acts as a regression gate: it throws if the best-F1 threshold
+still yields `eer > 0.08`.
 
-Pair scores are evaluated across 21 thresholds from 0 to 100 in steps of 5. For
-each threshold the following metrics are computed:
+### 7.1.4 Scenario Explainability Output
 
-+----------------+--------------------------------------------+----------------------------------------------+
-| Metric         | Formula                                    | Interpretation                               |
-+================+============================================+==============================================+
-| **Precision**  | $\text{TP} / (\text{TP} + \text{FP})$      | Of all pairs accepted, what fraction were    |
-|                |                                            | genuine?                                     |
-+----------------+--------------------------------------------+----------------------------------------------+
-| **Recall**     | $\text{TP} / (\text{TP} + \text{FN})$      | Of all genuine pairs, what fraction were     |
-|                |                                            | correctly accepted?                          |
-+----------------+--------------------------------------------+----------------------------------------------+
-| **F1**         | $2 \cdot P \cdot R / (P + R)$              | Harmonic mean of precision and recall        |
-+----------------+--------------------------------------------+----------------------------------------------+
-| **FAR**        | $\text{FP} / (\text{FP} + \text{TN})$      | Rate at which impostors are incorrectly      |
-|                |                                            | accepted                                     |
-+----------------+--------------------------------------------+----------------------------------------------+
-| **FRR**        | $\text{FN} / (\text{TP} + \text{FN})$      | Rate at which genuine pairs are incorrectly  |
-|                |                                            | rejected                                     |
-+----------------+--------------------------------------------+----------------------------------------------+
-| **EER**        | $\lvert \text{FAR} - \text{FRR} \rvert$    | Proximity of FAR and FRR — minimum indicates |
-|                |                                            | the crossover point                          |
-+----------------+--------------------------------------------+----------------------------------------------+
-| **attr**       | FAR over attractor-only impostor pairs     | Hardened FAR for the most challenging        |
-|                |                                            | impostor category                            |
-+----------------+--------------------------------------------+----------------------------------------------+
+`scenarios.bench.ts` evaluates a single deterministic seed and writes a compact
+table containing:
 
-The threshold with the highest F1 score is selected as the recommended operating
-point. Results are persisted to `src/benchmarks/benchmark.out` after each run.
+- composite score
+- `deviceSimilarity`
+- `fieldAgreement`
+- `attractorRisk`
+- `missingOneSide`
 
-A complementary **DBSCAN analysis** (`eps = 0.05`, `minPts = 3`) is run over the
-full scored-pair distribution to characterise separability. DBSCAN groups pairs
-with similar scores into clusters; a large number of tight, distinct clusters
-indicates good bimodal separation between genuine and impostor score
-populations. The summary reports cluster count, noise points (pairs with
-anomalous scores not belonging to any cluster), total clustered points, and the
-largest cluster size.
+This table is useful for explaining borderline scenarios that an aggregate F1
+score can hide.
 
-### 7.1.5 Performance Benchmarks
+### 7.1.5 Performance Methodology
 
-`performance.bench.ts` measures end-to-end latency across the three deployment
-configurations most likely to be used in production:
+`performance.bench.ts` measures four configurations:
 
-+-------------------------------------------------+----------------------------------------------------+
-| Benchmark                                       | What is timed                                      |
-+=================================================+====================================================+
-| `calculateConfidence` (hybrid scorer)           | Pure scoring only — structural comparison + TLSH   |
-|                                                 | blend, no I/O                                      |
-+-------------------------------------------------+----------------------------------------------------+
-| `DeviceManager.identify` (In-Memory)            | Full pipeline: dedup cache check, candidate scan,  |
-|                                                 | adaptive weighting, scoring, save                  |
-+-------------------------------------------------+----------------------------------------------------+
-| `DeviceManager.identify` (SQLite in-memory)     | Same pipeline with SQLite `:memory:` as the        |
-|                                                 | storage backend                                    |
-+-------------------------------------------------+----------------------------------------------------+
-| `DeviceManager.identify` (SQLite file-based)    | Same pipeline with a real on-disk SQLite database, |
-|                                                 | reflecting realistic conditions                    |
-+-------------------------------------------------+----------------------------------------------------+
+- `calculateConfidence`
+- `DeviceManager.identify` with the in-memory adapter
+- `DeviceManager.identify` with SQLite `:memory:`
+- `DeviceManager.identify` with file-backed SQLite
 
-Each adapter is seeded with 5 warmup `identify` calls before timing begins to
-ensure the dedup cache, query plan cache, and JIT compiler are in a steady
-state. The harness runs for 6 seconds per configuration (`time: 6000`) with a
-minimum of 50 iterations.
+Two timing mechanisms are present:
 
-## 7.2 Benchmark Results
+- the Vitest `bench()` harness for sustained execution
+- manual batch timing used to write `performance.bench.out`
 
-Results are from the most recent run against the current codebase on an 8-core
-x86_64 development machine. Timings are in milliseconds.
+The formatted output currently reports only average milliseconds per call,
+derived from `1000` scorer calls and `50` `identify()` calls. Each
+`DeviceManager` instance is warmed with five prior identifies.
 
-### 7.2.1 Accuracy (2,000 devices, 5,750 pairs)
+That warmup choice has an important consequence: the timed `identify()` loop
+reuses the same fingerprint repeatedly, so most measured requests are hot-path
+dedup-cache hits. The reported numbers therefore reflect warmed steady-state
+latency, not cold-start matching against a large candidate set.
 
-+----------------------------------+------------+
-| Metric                           | Value      |
-+==================================+============+
-| Best threshold                   | 60         |
-+----------------------------------+------------+
-| Precision at threshold 60        | 0.988      |
-+----------------------------------+------------+
-| Recall at threshold 60           | 0.991      |
-+----------------------------------+------------+
-| F1 at threshold 60               | 0.989      |
-+----------------------------------+------------+
-| EER at threshold 60              | 0.000      |
-+----------------------------------+------------+
-| FAR at threshold 60              | 0.010      |
-+----------------------------------+------------+
-| FRR at threshold 60              | 0.009      |
-+----------------------------------+------------+
-| Attractor impostor FAR (attr)    | 0.041      |
-+----------------------------------+------------+
-| DBSCAN clusters                  | 76         |
-+----------------------------------+------------+
-| DBSCAN noise points              | 8 / 5750   |
-+----------------------------------+------------+
+## 7.2 Current Benchmark Outputs
 
-The zero EER at threshold 60 is the Pareto-optimal operating point where FAR and
-FRR cross. The attractor FAR of 4.1% at this threshold represents the primary
-remaining risk: devices with common hardware profiles whose fingerprints cluster
-densely together can occasionally produce false accepts. This rate drops to zero
-above threshold 70, but at that point FRR rises to 12.6%, making threshold 60
-the practical recommendation.
+The following values are from the benchmark artifacts generated from the current
+repository state on March 30, 2026.
 
-### 7.2.2 Performance
+### 7.2.1 Accuracy
 
-+-------------------------------------+-----------+----------+----------+-----------------+----------+
-| Configuration                       | Mean (ms) | p75 (ms) | p99 (ms) | Throughput      | RME      |
-|                                     |           |          |          | (ops/sec)       |          |
-+=====================================+===========+==========+==========+=================+==========+
-| `calculateConfidence` (scorer only) | 1.13      | 1.12     | 1.63     | 884             | ±1.74%   |
-+-------------------------------------+-----------+----------+----------+-----------------+----------+
-| `DeviceManager` (In-Memory)         | 0.77      | 0.75     | 1.69     | 1,301           | ±0.52%   |
-+-------------------------------------+-----------+----------+----------+-----------------+----------+
-| `DeviceManager` (SQLite in-memory)  | 0.78      | 0.78     | 1.54     | 1,274           | ±0.52%   |
-+-------------------------------------+-----------+----------+----------+-----------------+----------+
-| `DeviceManager` (SQLite file-based) | 0.76      | 0.75     | 1.32     | 1,321           | ±0.84%   |
-+-------------------------------------+-----------+----------+----------+-----------------+----------+
+`accuracy.bench.out` reports the best operating point at threshold `85`:
 
-The `DeviceManager` configurations outperform the raw scorer in mean latency
-because the dedup cache short-circuits repeated fingerprints before any scoring
-occurs. At steady-state traffic where a meaningful fraction of requests are
-repeat device visits, the effective throughput is substantially higher than the
-worst-case figures above.
++--------------------------------+-------+
+| Metric                         | Value |
++================================+=======+
+| Best threshold                 | 85    |
++--------------------------------+-------+
+| Precision                      | 0.996 |
++--------------------------------+-------+
+| Recall                         | 0.980 |
++--------------------------------+-------+
+| F1                             | 0.988 |
++--------------------------------+-------+
+| FAR                            | 0.006 |
++--------------------------------+-------+
+| FRR                            | 0.020 |
++--------------------------------+-------+
+| `eer` proxy                    | 0.014 |
++--------------------------------+-------+
+| Attractor impostor FAR (`attr`)| 0.008 |
++--------------------------------+-------+
 
-SQLite file-based latency is comparable to in-memory at p75 and p99 due to
-SQLite's write-ahead logging and OS page cache effects; the higher tail at p999
-(1.62 ms vs 2.29 ms for in-memory) reflects occasional fsync overhead.
+These results support a strong claim for the bundled scenario corpus, but not a
+broader claim than that. The benchmark is excellent as a regression suite and a
+threshold-tuning aid; it is not a substitute for field validation against live
+traffic.
 
-To reproduce these results locally:
+The per-scenario summary is particularly revealing. In the latest artifact, the
+hardest negative classes are:
+
+- `privacy-resistance:tor` with average score `82.02`
+- `privacy-resistance:resistant-browser` with average score `72.00`
+- `commodity-collision:public-terminal` with average score `72.00`
+- `commodity-collision:iphone-defaults` with average score `66.60`
+- `commodity-collision:corporate-fleet` with average score `64.62`
+
+The hardest positive classes are:
+
+- `adversarial-perturbation:canvas-noise` with average score `92.20`
+- `adversarial-perturbation:font-randomization` with average score `92.96`
+- `privacy-resistance:canvas-defender` with average score `91.32`
+
+This matches the implementation's design intent: FP-Devicer is permissive with
+benign drift but deliberately conservative around privacy-resistant and
+collision-prone fingerprints.
+
+### 7.2.2 Scenario Snapshot
+
+The single-seed `scenarios.bench.out` file shows how the score breakdown behaves
+for individual canonical examples. A few representative rows from the current
+artifact are:
+
+- `browser-drift:minor` -> `99`
+- `browser-drift:cross-browser` -> `56`
+- `privacy-resistance:tor` -> `84`
+- `commodity-collision:corporate-fleet` -> `65`
+- `travel-network-change:timezone-travel` -> `98`
+- `environment-change:mobile-desktop` -> `40`
+
+These values are useful sanity checks because they expose borderline cases that
+aggregate metrics can obscure.
+
+### 7.2.3 Performance
+
+`performance.bench.out` currently reports:
+
++--------------------------------------+------------------+
+| Configuration                        | Mean ms per call |
++======================================+==================+
+| `calculateConfidence`                | 1.53             |
++--------------------------------------+------------------+
+| `DeviceManager.identify` in-memory   | 1.51             |
++--------------------------------------+------------------+
+| `DeviceManager.identify` SQLite mem  | 1.59             |
++--------------------------------------+------------------+
+| `DeviceManager.identify` SQLite file | 1.50             |
++--------------------------------------+------------------+
+
+The near-parity between raw scoring and `DeviceManager.identify()` should not be
+read as evidence that persistence is effectively free. It is primarily a
+consequence of the warmed dedup-cache path exercised by the benchmark loop.
+
+To reproduce the benchmark suite locally:
 
 ```bash
 npm run bench
 ```
 
-Results are written to `src/benchmarks/bench-results.json` (raw Vitest output)
-and `src/benchmarks/benchmark.out` (formatted accuracy tables).
+Artifacts are written to:
+
+- `src/benchmarks/bench-results.json`
+- `src/benchmarks/accuracy.bench.out`
+- `src/benchmarks/performance.bench.out`
+- `src/benchmarks/scenarios.bench.out`
 
 ---
 
 # 8 Testing
 
-FP-Devicer ships with a comprehensive, multi-layered test suite located under
-`src/tests/`. All tests run under [Vitest](https://vitest.dev/) and are
-organized into four distinct categories: **unit tests**, **integration tests**,
-**storage contract tests**, and **fixture-driven regression tests**. Together
-they cover every public API surface, internal library function, storage adapter
-implementation, and cross-cutting resilience concern.
+FP-Devicer's validation story is built around [Vitest](https://vitest.dev/).
+The default test configuration runs all `*.test.ts` and `*.spec.ts` files in a
+Node environment, while benchmark files `*.bench.ts` are configured separately
+and emit raw JSON to `src/benchmarks/bench-results.json`.
 
-## 8.1 Test Organization
+## 8.1 Test Topology
 
-```
-src/tests/
-├── data-generator.test.ts        # Synthetic data generator validation
-├── fixtures/
-│   └── fingerprints.ts           # Shared deterministic fingerprint fixtures
-├── core/
-│   ├── adapter-factory.test.ts   # AdapterFactory configuration-driven creation
-│   ├── device-manager.test.ts    # DeviceManager pipeline & decision logic
-│   └── plugin-registrar.test.ts  # PluginRegistrar contract & lifecycle
-├── libs/
-│   ├── comparitors.test.ts       # Built-in comparator functions
-│   ├── confidence.test.ts        # Scoring engine & blending logic
-│   ├── registry.test.ts          # Plugin registry CRUD and precedence
-│   └── tlsh.test.ts              # TLSH hashing & distance normalization
-├── storage/
-│   ├── adapter-contract.test.ts  # Shared behavioural contract for all adapters
-│   ├── inmemory-adapter.test.ts  # In-memory adapter specifics
-│   ├── postgres-adapter.test.ts  # PostgreSQL adapter specifics
-│   ├── redis-adapter.test.ts     # Redis adapter specifics
-│   └── sqlite-adapter.test.ts    # SQLite adapter specifics
-└── integration/
-    ├── api-surface.test.ts       # Public API contract & ergonomics
-    └── resilience.test.ts        # Fault tolerance & edge-case handling
-```
+The current test tree covers five practical concerns:
 
-## 8.2 Fixtures
+- library behavior under `src/tests/libs/`
+- core orchestration under `src/tests/core/`
+- storage backends under `src/tests/storage/`
+- integration and resilience under `src/tests/integration/`
+- synthetic-data and benchmark helpers in `data-generator.test.ts` and
+  `benchmarks/scenario-matrix.test.ts`
 
-`fixtures/fingerprints.ts` provides a set of deterministic, hand-authored
-`FPUserDataSet` objects shared across all unit and integration tests. Using
-static fixtures ensures that any regression in scoring output is immediately
-visible — a field change in a fixture produces a reproducible, diff-able failure
-rather than a flaky random result. Fixtures cover:
+Shared deterministic fixtures live in `src/tests/fixtures/fingerprints.ts` and
+anchor most of the scorer and `DeviceManager` assertions.
 
-- A canonical **baseline** fingerprint representing a typical desktop Chrome
-  visit.
-- **Similar variant** fingerprints with minor mutations (screen rounding, font
-  reorder, canvas micro-jitter) to verify that genuine-pair scores remain high.
-- **Dissimilar** fingerprints drawn from completely different OS/browser
-  profiles to verify that impostor-pair scores remain low.
-- **Partial / sparse** fingerprints with large numbers of `undefined` fields to
-  verify graceful degradation.
-- **Edge-case** fingerprints containing empty arrays, null-like values, and
-  maximum-entropy hash strings.
+## 8.2 Scoring and Generator Coverage
 
-## 8.3 Unit Tests
+The current scorer tests are materially richer than the previous whitepaper
+described. `libs/confidence.test.ts` verifies:
 
-### 8.3.1 Comparator Functions (`libs/comparitors.test.ts`)
+- score bounds and coarse ordering for identical, near-identical, similar, and
+  very different fixtures
+- `tlshWeight = 0` and `tlshWeight = 1` behavior
+- local weight overrides
+- `useGlobalRegistry = false`
+- every exposed breakdown dimension: `evidenceRichness`, `fieldAgreement`,
+  `structuralStability`, `entropyContribution`, `attractorRisk`,
+  `missingOneSide`, `missingBothSides`, and `computeAdaptiveStabilityWeights()`
+- alignment between `calculateScoreBreakdown(...).composite` and
+  `calculateConfidence(...)`
 
-Tests every built-in comparator exported from `src/libs/comparitors.ts` in
-isolation:
+`data-generator.test.ts` focuses on scenario semantics rather than on claiming
+global determinism. It checks browser diversity, attractor-profile generation,
+blob-shaped canvas/WebGL/audio values, mutation behavior, and the expected label
+semantics of each scenario family.
 
-- **Jaccard similarity** — verifies set intersection / union ratios for font and
-  plugin arrays, including empty-set handling (expected result: `0`) and
-  identical-set handling (expected result: `1`).
-- **Exact match** — verifies `1.0` for identical strings and `0.0` for any
-  difference, including case sensitivity.
-- **Screen similarity** — verifies tolerance for small pixel-rounding
-  differences (±1–2 px) while producing low scores for resolution changes, and
-  correct handling of missing `orientation` fields.
-- **Numeric proximity** — verifies that values within a configured step return
-  near-`1` scores and that out-of-range values degrade gracefully.
+`benchmarks/scenario-matrix.test.ts` acts as a regression gate on the canonical
+17-scenario table. It asserts that, for the single-seed matrix, same-device
+cases remain at or above `85` and different-device cases remain below `85`.
 
-Each comparator is exercised with boundary inputs (both values `undefined`, one
-value `undefined`, empty string, zero) to confirm the absence of thrown
-exceptions.
+## 8.3 DeviceManager and Adapter Coverage
 
-### 8.3.2 TLSH Hashing (`libs/tlsh.test.ts`)
+`core/device-manager.test.ts` is the largest behavioral suite in the project.
+It covers:
 
-Tests the `getHash` and `compareHashes` functions from `src/libs/tlsh.ts`:
+- new-device creation and returning-device reuse
+- confidence and `matchConfidence` persistence
+- dedup-cache hits, expiry, and explicit clearing
+- adaptive weighting on stable histories
+- post-processor enrichment and failure isolation
+- logger and metrics callbacks
+- `identifyMany()` ordering and shared-context behavior
 
-- Verifies that two calls to `getHash` with identical inputs produce identical
-  hash strings (determinism).
-- Verifies that `compareHashes` returns `1.0` when both hashes are identical and
-  a value strictly less than `1.0` for different hashes.
-- Verifies that the normalized distance is always in `[0, 1]` regardless of
-  input content or length.
-- Verifies that `getHash` applied to a canonical JSON serialization produces the
-  same result as applying it to an equivalent object serialized independently,
-  confirming key-order independence.
+`core/adapter-factory.test.ts` and `core/plugin-registrar.test.ts` cover the
+configuration and plugin lifecycle contracts exposed by the public API.
 
-### 8.3.3 Plugin Registry (`libs/registry.test.ts`)
+Storage coverage is split in two layers:
 
-Tests the global registry singleton via its full public API:
+- `storage/adapter-contract.test.ts` defines the shared behavioral contract, but
+  in the current repository it is exercised only against `InMemoryAdapter`.
+- per-adapter suites validate backend-specific behavior for in-memory, SQLite,
+  PostgreSQL, and Redis adapters.
 
-- `registerPlugin`, `registerWeight`, `registerComparator` — verifies that
-  registered values are immediately retrievable via `getWeight` and
-  `getComparator`.
-- `unregisterWeight`, `unregisterComparator` — verifies that removal causes the
-  affected path to fall back to the default weight / comparator.
-- `setDefaultWeight` — verifies that unregistered paths return the updated
-  default.
-- **Isolation** — each test resets the registry to a clean state before running
-  to prevent inter-test pollution.
-- **Precedence** — verifies the documented resolution order: caller
-  `userOptions` override registry entries, which override built-in defaults.
+The backend strategy is mixed by design:
 
-### 8.3.4 Device Manager (`core/device-manager.test.ts`)
+- SQLite uses a real test database file.
+- PostgreSQL uses mocked Drizzle primitives.
+- Redis uses a hoisted in-memory mock of the `ioredis` API.
 
-Tests the full `DeviceManager` pipeline and decision logic:
+This keeps the default suite fast while still validating query-shape logic and
+duplicate-hash handling across the supported adapters.
 
-- **Dedup cache** — a second call within `dedupWindowMs` returns the cached
-  result without a DB write.
-- **New-device minting** — when no candidate exceeds `matchThreshold`, a fresh
-  UUID is returned with `isNewDevice: true`.
-- **Returning-device matching** — a stored fingerprint exceeding the threshold
-  returns the existing `deviceId` with `isNewDevice: false`.
-- **Adaptive weighting** — verifies that a field with high historical variance
-  is down-weighted in subsequent comparisons.
-- **`enrichmentInfo` structure** — every `IdentifyResult` carries an
-  `enrichmentInfo` object with `plugins`, `details`, and `failures` arrays
-  initialized to empty values before any post-processors run.
-- **Post-processor results** — a registered `IdentifyPostProcessor` can merge
-  new fields onto the result and attach structured data under
-  `enrichmentInfo.details[name]`.
-- **Post-processor failure isolation** — a processor that throws appends an
-  entry to `enrichmentInfo.failures` and does not prevent subsequent processors
-  from running.
-- **Post-processor sequencing** — multiple processors are called in registration
-  order; each sees the `result` as mutated by all preceding processors.
-- **`use()` / `getPlugins()` / unregister** — `manager.use(plugin)` delegates to
-  `PluginRegistrar`, the plugin appears in `getPlugins()`, and the returned
-  unregister function calls the plugin's teardown and removes it from the active
-  list.
-- **Plugin `enrichmentInfo` end-to-end** — a plugin registered via `use()` that
-  returns `enrichmentInfo` has its data visible in the final `IdentifyResult`.
+## 8.4 Integration and Resilience Coverage
 
-### 8.3.5 PluginRegistrar (`core/plugin-registrar.test.ts`)
+Two integration suites round out the test matrix:
 
-Tests the `PluginRegistrar` class in isolation via a lightweight
-`DeviceManagerLike` fake:
+- `integration/api-surface.test.ts` verifies the public barrel exports, adapter
+  creation via public APIs, and a full identify/re-identify round trip.
+- `integration/resilience.test.ts` forces adapter failures, TLSH edge cases, and
+  empty-fingerprint inputs to ensure errors propagate or degrade safely.
 
-- **`registerWith` invocation** — `register()` calls `plugin.registerWith` with
-  the provided manager instance exactly once.
-- **Invalid plugin validation** — passing an object whose `registerWith` is not
-  a function throws `"Invalid plugin: Missing 'registerWith' method."`
-- **Teardown on unregister** — the returned unregister function calls the
-  teardown returned by `registerWith`.
-- **Active plugin enumeration** — `getRegisteredPlugins()` returns the active
-  set; after unregistering, the plugin no longer appears.
-- **Multiple plugins** — registering two plugins and unregistering one leaves
-  the other active.
+This matters because FP-Devicer is middleware. It must behave predictably not
+only when the fingerprint is well-formed, but also when storage systems fail or
+the input is sparse.
 
-### 8.3.6 Confidence Scoring (`libs/confidence.test.ts`)
+## 8.5 Infrastructure Notes
 
-Tests `calculateConfidence` and `createConfidenceCalculator` against the shared
-fixtures:
+The current validation setup has a few practical caveats that are worth stating
+explicitly:
 
-- **Identical inputs** produce a score of `100`.
-- **Completely unrelated inputs** produce a score at or near `0`.
-- **Similar variants** (minor mutations) produce scores above the recommended
-  operating threshold of `60`.
-- **Custom weight overrides** shift scores in the expected direction (increasing
-  the weight of a mutated field lowers the score; decreasing it raises the
-  score).
-- **`tlshWeight: 0`** disables TLSH blending and produces a score driven
-  entirely by structural comparison, verified by comparing against a manually
-  computed expected value.
-- **`tlshWeight: 1`** produces a score driven entirely by TLSH, verified
-  similarly.
-- **`maxDepth`** is respected — recursion is capped and does not throw for
-  deeply nested objects.
-- **`useGlobalRegistry: false`** causes registry entries to be ignored, verified
-  by registering a custom comparator that would otherwise affect the score.
+- `npm test` passed locally during this re-evaluation.
+- The same run emitted an `ioredis` `ECONNREFUSED 127.0.0.1:6379` warning,
+  because part of the adapter-factory smoke coverage instantiates a real Redis
+  adapter even when no Redis server is running. The warning is noisy but did not
+  fail the suite.
+- Benchmarks are not part of `npm test`; they must be run separately with
+  `npm run bench`.
+- The benchmark suite itself also encodes lightweight correctness gates, such as
+  the `eer <= 0.08` assertion in `accuracy.bench.ts`.
 
-### 8.3.7 Synthetic Data Generator (`data-generator.test.ts`)
-
-Tests `generateFingerprint`, `mutate`, and `createAttractorFingerprint` from
-`src/benchmarks/data-generator.ts`:
-
-- Verifies that two calls with the same seed produce bit-for-bit identical
-  fingerprints (LCG determinism).
-- Verifies that two calls with different seeds produce different fingerprints.
-- Verifies that `mutate` at level `none` returns a fingerprint equal to the
-  base.
-- Verifies that `mutate` at levels `low` through `high` returns a fingerprint
-  that differs from the base in at least one field but shares enough structure
-  to score above `60` when compared against it.
-- Verifies that `createAttractorFingerprint` sets the `isAttractor` flag and
-  produces a fingerprint within the expected common-hardware value pools.
-
-## 8.4 Storage Tests
-
-### 8.4.1 Shared Adapter Contract (`storage/adapter-contract.test.ts`)
-
-A single parameterized test suite is executed against every adapter
-implementation. This approach ensures that all adapters exhibit identical
-observable behaviour regardless of their underlying persistence mechanism. The
-contract tests cover:
-
-- **`init()`** — adapter can be initialized without errors; calling `init()`
-  twice is idempotent.
-- **`save()` + `getAllFingerprints()`** — a saved snapshot is retrievable and
-  its fields match what was passed to `save`.
-- **`findCandidates()`** — a saved fingerprint is returned as a candidate when
-  queried with a sufficiently similar fingerprint; an entirely dissimilar
-  fingerprint is not returned.
-- **`getHistory()`** — multiple saves for the same `deviceId` are all returned
-  by `getHistory`, ordered with the most recent first, and the result is limited
-  to the requested count.
-- **`linkToUser()`** — after linking, `getHistory` returns snapshots that carry
-  the associated `userId`.
-- **`deleteOldSnapshots()`** — snapshots older than the supplied retention
-  window are removed; newer snapshots are retained.
-- **`close()`** — completes without throwing when the adapter has been
-  initialized and when it has not.
-
-### 8.4.2 Per-Adapter Specialization Tests
-
-Each adapter's dedicated test file extends the shared contract with
-backend-specific concerns:
-
-**In-Memory** (`inmemory-adapter.test.ts`) : Verifies that the `Map`-backed
-store is empty on construction, that data does not persist after the adapter
-object is garbage-collected, and that concurrent `save` calls do not corrupt the
-internal state.
-
-**SQLite** (`sqlite-adapter.test.ts`) : Verifies schema creation on first
-`init()`, that the `fingerprints` table uses the expected column layout, that
-the candidate pre-filter `WHERE` clause correctly limits returned rows, and that
-the `:memory:` path and a real file path both work correctly.
-
-**PostgreSQL** (`postgres-adapter.test.ts`) : Verifies that the Drizzle ORM
-schema migration runs cleanly, that JSON-operator candidate queries return
-results consistent with the contract expectations, and that the connection is
-properly released on `close()`. These tests require a live PostgreSQL instance
-and are skipped automatically when the `TEST_POSTGRES_URL` environment variable
-is absent.
-
-**Redis** (`redis-adapter.test.ts`) : Verifies that snapshots are serialized to
-and deserialized from Redis hashes without data loss, that TTL-based expiry is
-configured correctly, and that `close()` disconnects the client. These tests
-require a live Redis instance and are skipped automatically when
-`TEST_REDIS_URL` is absent.
-
-## 8.5 Integration Tests
-
-### 8.5.1 API Surface (`integration/api-surface.test.ts`)
-
-Exercises the full public API as a consumer would use it, without mocking any
-internal modules:
-
-- `calculateConfidence` is importable and callable with no configuration.
-- `createConfidenceCalculator` returns a stateful calculator that produces
-  consistent results across multiple calls.
-- `DeviceManager` constructed with an in-memory adapter completes a full
-  `identify` round-trip and returns a well-formed `IdentifyResult`.
-- A device re-identified with the same fingerprint within `dedupWindowMs`
-  returns a cached result with `isNewDevice: false` and the same `deviceId`.
-- A fingerprint that does not match any stored candidate returns
-  `isNewDevice: true` and mints a new UUID.
-- `AdapterFactory.create` resolves the correct adapter class for each supported
-  type string (`"inmemory"`, `"sqlite"`, `"postgres"`, `"redis"`).
-- All exported types (`FPUserDataSet`, `StorageAdapter`, `IdentifyResult`,
-  `ComparisonOptions`, etc.) are present on the module namespace.
-
-### 8.5.2 Resilience (`integration/resilience.test.ts`)
-
-Verifies fault-tolerance and edge-case handling throughout the pipeline:
-
-- **Empty fingerprint objects** (`{}`) do not throw; they return a score of `0`
-  from `calculateConfidence` and are assigned a new device ID by
-  `DeviceManager`.
-- **`null` / `undefined` field values** within an otherwise valid fingerprint do
-  not throw and are treated as absent fields.
-- **Adapter `findCandidates` returning an empty array** causes `DeviceManager`
-  to mint a new device ID rather than throwing.
-- **Adapter `save` throwing** is caught and surfaced as a structured error log
-  entry via the injected `Logger` rather than an unhandled rejection.
-- **Deeply nested objects** beyond `maxDepth` are truncated rather than
-  triggering a stack overflow.
-- **Very large fingerprints** (hundreds of fields) complete in under the
-  sub-millisecond latency budget verified by the performance benchmarks.
-- **Concurrent `identify` calls** for the same fingerprint hash within the dedup
-  window all return the same `deviceId` without race conditions.
-- **Registry state isolation** — modifications made to the global registry
-  during one test do not leak into subsequent tests.
-
-## 8.6 Running the Test Suite
+## 8.6 Running the Suite
 
 ```bash
-# Run all tests once
+# Run tests
 npm test
 
-# Run in watch mode during development
+# Watch mode
 npm run test:watch
 
-# Run with coverage report
+# Coverage
 npm run test:coverage
-```
 
-Storage adapter tests that require external services use environment variables
-to configure connection strings. When the variables are absent the tests are
-skipped cleanly rather than failing:
-
-```bash
-# Run with PostgreSQL and Redis adapters included
-TEST_POSTGRES_URL=postgresql://localhost/fp_test \
-TEST_REDIS_URL=redis://localhost:6379 \
-npm test
+# Benchmarks
+npm run bench
 ```
 
 ---
@@ -1660,6 +1404,10 @@ Community contributions are welcome. Possible future directions include:
 
 See `license.txt` in the repository root. FP-Devicer is released under a
 permissive open-source license.
+
+# 13 Acknowledgements
+
+Special thanks to Scott VanRavenswaay for advisory on certain technical challenges and architectural decisions, and to the open-source community (particularly GitHub) for their pull requests and issues.
 
 ```
 ```
