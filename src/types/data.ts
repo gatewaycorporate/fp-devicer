@@ -78,6 +78,31 @@ export type FPDataSet<T extends Record<string, any> = FPUserDataSet> = T;
 export type Comparator = (value1: any, value2: any, path?: string) => number; // 0.0–1.0 similarity
 
 /**
+ * Field-level stability map used to adapt scoring weights over historical
+ * fingerprint windows.
+ */
+export interface FieldStabilityMap {
+  [path: string]: number;
+}
+
+/**
+ * Multi-dimensional explanation of a fingerprint comparison result.
+ *
+ * All values are normalised to the range `[0, 100]`.
+ */
+export interface ScoreBreakdown {
+  deviceSimilarity: number;
+  evidenceRichness: number;
+  fieldAgreement: number;
+  structuralStability: number;
+  entropyContribution: number;
+  attractorRisk: number;
+  missingOneSide: number;
+  missingBothSides: number;
+  composite: number;
+}
+
+/**
  * Configuration options for {@link createConfidenceCalculator}.
  * All properties are optional; unset values fall back to global registry
  * defaults or built-in defaults.
@@ -87,6 +112,8 @@ export interface ComparisonOptions {
   weights?: Record<string, number>;
   /** Custom similarity functions (your plugin system) */
   comparators?: Record<string, Comparator>;
+  /** Optional field-level stability map used to adapt dimension weights. */
+  stabilities?: FieldStabilityMap;
   /** Fallback weight for any field without an explicit weight */
   defaultWeight?: number;
   /** How much weight to give the TLSH hash component (0–1) */

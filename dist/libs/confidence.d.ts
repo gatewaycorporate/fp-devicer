@@ -1,4 +1,4 @@
-import { FPDataSet, ComparisonOptions } from "../types/data.js";
+import { FPDataSet, ComparisonOptions, FieldStabilityMap, ScoreBreakdown } from "../types/data.js";
 /**
  * Baseline field weights used when neither the global registry nor a local
  * override provides a weight for a given path. Higher numbers cause a field
@@ -8,46 +8,27 @@ import { FPDataSet, ComparisonOptions } from "../types/data.js";
  * weights by scaling these defaults against observed per-field signal stability.
  */
 export declare const DEFAULT_WEIGHTS: Record<string, number>;
+type DimensionWeights = Record<Exclude<keyof ScoreBreakdown, "composite">, number>;
+export declare function computeEvidenceRichness(data: FPDataSet): number;
+export declare function computeFieldAgreement(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): number;
+export declare function computeStructuralStability(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): number;
+export declare function computeEntropyContribution(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): number;
+export declare function computeAttractorRisk(data: FPDataSet): number;
+export declare function computeMissingOneSide(data1: FPDataSet, data2: FPDataSet): number;
+export declare function computeMissingBothSides(data1: FPDataSet, data2: FPDataSet): number;
+export declare function computeAdaptiveStabilityWeights(stabilities?: FieldStabilityMap): DimensionWeights;
+export declare function calculateScoreBreakdown(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): ScoreBreakdown;
 /**
  * Factory that creates a stateless fingerprint confidence calculator.
  *
- * The returned object exposes a single `calculateConfidence(data1, data2)`
- * method that blends two complementary scoring strategies:
- *
- * 1. **Structural score** – recursive field-by-field comparison using
- *    weighted-average similarity. Each field can have a custom
- *    {@link Comparator} and weight, sourced from the global registry and/or
- *    the local `userOptions`.
- * 2. **TLSH fuzzy score** – a locality-sensitive hash distance that captures
- *    holistic similarity across the whole dataset, independent of individual
- *    field comparators.
- *
- * The two scores are blended: `final = structural * (1 - tlshWeight) + tlsh * tlshWeight`.
- *
- * Options resolution order (highest priority first):
- * - `userOptions.weights` / `userOptions.comparators` (local overrides)
- * - Built-in `DEFAULT_WEIGHTS`
- * - Global registry (when `useGlobalRegistry` is `true`)
- * - Hardcoded fallbacks
+ * The returned object exposes `calculateConfidence(data1, data2)` and
+ * `calculateScoreBreakdown(data1, data2)` methods.
  *
  * @param userOptions - Optional configuration overrides.
- * @returns An object with a `calculateConfidence` method.
- *
- * @example
- * ```ts
- * const calculator = createConfidenceCalculator({ tlshWeight: 0.2 });
- * const score = calculator.calculateConfidence(fp1, fp2); // 0-100
- * ```
+ * @returns Calculator methods for confidence scoring.
  */
 export declare function createConfidenceCalculator(userOptions?: ComparisonOptions): {
-    /**
-     * Compare two fingerprint datasets and return a confidence score.
-     *
-     * @param data1 - Reference (stored) fingerprint.
-     * @param data2 - Incoming fingerprint to compare against.
-     * @returns An integer score in `[0, 100]` where `100` = exact match.
-     *   Returns `0` on unexpected errors.
-     */
+    calculateScoreBreakdown(data1: FPDataSet, data2: FPDataSet): ScoreBreakdown;
     calculateConfidence(data1: FPDataSet, data2: FPDataSet): number;
 };
 /**
@@ -61,4 +42,5 @@ export declare function createConfidenceCalculator(userOptions?: ComparisonOptio
  * @returns Confidence score in `[0, 100]`.
  */
 export declare const calculateConfidence: (data1: FPDataSet, data2: FPDataSet) => number;
+export {};
 //# sourceMappingURL=confidence.d.ts.map

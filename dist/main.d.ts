@@ -1,7 +1,7 @@
-export { FPUserDataSet, FPDataSet } from "./types/data.js";
+export { FPUserDataSet, FPDataSet, FieldStabilityMap, ScoreBreakdown } from "./types/data.js";
 export { getHash, compareHashes } from "./libs/tlsh.js";
 export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage.js";
-export { calculateConfidence, createConfidenceCalculator } from "./libs/confidence.js";
+export { calculateConfidence, createConfidenceCalculator, calculateScoreBreakdown, computeAdaptiveStabilityWeights, computeAttractorRisk, computeEntropyContribution, computeEvidenceRichness, computeFieldAgreement, computeMissingBothSides, computeMissingOneSide, computeStructuralStability } from "./libs/confidence.js";
 export { registerComparator, registerWeight, registerPlugin, unregisterComparator, unregisterWeight, setDefaultWeight, clearRegistry, initializeDefaultRegistry } from "./libs/registry.js";
 export { createInMemoryAdapter } from "./libs/adapters/inmemory.js";
 export { createSqliteAdapter } from "./libs/adapters/sqlite.js";

@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { generateDataset, createBaseFingerprint, mutate } from '../benchmarks/data-generator';
+import {
+  createBaseFingerprint,
+  generateAdversarialPerturbation,
+  generateBrowserDrift,
+  generateCommodityCollision,
+  generateDataset,
+  generateEnvironmentChange,
+  generatePrivacyResistance,
+  generateTravelNetworkChange,
+  mutate,
+} from '../benchmarks/data-generator';
 
 // Test browser diversity
 
@@ -42,5 +52,92 @@ describe('Data Generator', () => {
     expect(mutatedLow).not.toEqual(fp);
     expect(mutatedMedium).not.toEqual(fp);
     expect(mutatedHigh).not.toEqual(fp);
+  });
+
+  it('should make extreme mutations deterministic for the same source fingerprint', () => {
+    const fp = createBaseFingerprint(42);
+    const mutatedExtremeA = mutate(fp, 'extreme');
+    const mutatedExtremeB = mutate(fp, 'extreme');
+
+    expect(mutatedExtremeA).toEqual(mutatedExtremeB);
+    expect(mutatedExtremeA).not.toEqual(fp);
+  });
+
+  it('should generate browser drift scenarios with expected browser changes', () => {
+    const minor = generateBrowserDrift(10, 'minor');
+    const crossBrowser = generateBrowserDrift(11, 'cross-browser');
+
+    expect(minor.expectedSameDevice).toBe(true);
+    expect(minor.fp1.platform).toBe(minor.fp2.platform);
+    expect(minor.fp1.userAgent).not.toBe(minor.fp2.userAgent);
+
+    expect(crossBrowser.expectedSameDevice).toBe(false);
+    expect(crossBrowser.fp2.userAgent).toContain('Firefox');
+  });
+
+  it('should generate environment change scenarios with dock and mobile-desktop transitions', () => {
+    const dock = generateEnvironmentChange(20, 'external-dock');
+    const mobileDesktop = generateEnvironmentChange(21, 'mobile-desktop');
+
+    expect(dock.expectedSameDevice).toBe(true);
+    expect(dock.fp1.screen?.width).not.toBe(dock.fp2.screen?.width);
+
+    expect(mobileDesktop.expectedSameDevice).toBe(false);
+    expect(mobileDesktop.fp2.platform).toBe('iPhone');
+  });
+
+  it('should generate privacy resistance scenarios with reduced entropy signals', () => {
+    const tor = generatePrivacyResistance(30, 'tor');
+    const resistant = generatePrivacyResistance(31, 'resistant-browser');
+    const defender = generatePrivacyResistance(32, 'canvas-defender');
+
+    expect(tor.expectedSameDevice).toBe(false);
+    expect(tor.fp1.userAgent).toContain('Firefox/115.0');
+
+    expect(resistant.fp1.canvas).toBeUndefined();
+    expect(resistant.fp2.webgl).toBeUndefined();
+
+    expect(defender.expectedSameDevice).toBe(true);
+    expect(defender.fp1.canvas).not.toBe(defender.fp2.canvas);
+  });
+
+  it('should generate adversarial perturbation scenarios with deterministic field changes', () => {
+    const noise = generateAdversarialPerturbation(40, 'canvas-noise');
+    const fonts = generateAdversarialPerturbation(41, 'font-randomization');
+    const uaRotation = generateAdversarialPerturbation(42, 'ua-rotation');
+
+    expect(noise.expectedSameDevice).toBe(true);
+    expect(noise.fp1.webgl).not.toBe(noise.fp2.webgl);
+
+    expect(fonts.fp1.fonts).not.toEqual(fonts.fp2.fonts);
+    expect(fonts.fp2.plugins).toEqual([]);
+
+    expect(uaRotation.fp2.userAgent).toContain('Firefox/126.0');
+  });
+
+  it('should generate travel and network scenarios without changing device identity expectation', () => {
+    const travel = generateTravelNetworkChange(50, 'timezone-travel');
+    const vpn = generateTravelNetworkChange(51, 'vpn-activation');
+
+    expect(travel.expectedSameDevice).toBe(true);
+    expect(travel.fp1.timezone).not.toBe(travel.fp2.timezone);
+
+    expect(vpn.expectedSameDevice).toBe(true);
+    expect(vpn.fp1).toEqual(vpn.fp2);
+  });
+
+  it('should generate commodity collision scenarios that emulate shared fleet defaults', () => {
+    const corporate = generateCommodityCollision(60, 'corporate-fleet');
+    const iphone = generateCommodityCollision(61, 'iphone-defaults');
+    const terminal = generateCommodityCollision(62, 'public-terminal');
+
+    expect(corporate.expectedSameDevice).toBe(false);
+    expect(corporate.fp1.canvas).toBe(corporate.fp2.canvas);
+
+    expect(iphone.fp1.platform).toBe('iPhone');
+    expect(iphone.fp1.screen).toEqual(iphone.fp2.screen);
+
+    expect(terminal.fp1.userAgent).toContain('PublicTerminal/1.0');
+    expect(terminal.expectedSameDevice).toBe(false);
   });
 });

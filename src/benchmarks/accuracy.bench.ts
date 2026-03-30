@@ -1,17 +1,31 @@
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'node:url';
 import { bench, describe } from 'vitest';
-import type { LabeledFingerprint } from './data-generator.js';
 import { calculateConfidence } from '../libs/confidence.js';
-import { generateDataset } from './data-generator.js';
-import { calculateMetrics, dbscanMetrics } from './metrics.js';
+import {
+  generateAdversarialPerturbation,
+  generateBrowserDrift,
+  generateCommodityCollision,
+  generateEnvironmentChange,
+  generatePrivacyResistance,
+  generateTravelNetworkChange,
+} from './data-generator.js';
+import { calculateMetrics } from './metrics.js';
 
-const dataset: LabeledFingerprint[] = generateDataset(2000, 5);
+interface ScoredPair {
+  score: number;
+  sameDevice: boolean;
+  isAttractor: boolean;
+  scenario: string;
+}
 
-const groups = new Map<string, LabeledFingerprint[]>();
-for (const item of dataset) {
-  if (!groups.has(item.deviceLabel)) groups.set(item.deviceLabel, []);
-  groups.get(item.deviceLabel)!.push(item);
+interface ScenarioSummary {
+  scenario: string;
+  sameDevice: string;
+  count: number;
+  avgScore: number;
+  minScore: number;
+  maxScore: number;
 }
 
 function formatTable(data: Record<string, unknown>[]): string {
@@ -32,76 +46,90 @@ function formatTable(data: Record<string, unknown>[]): string {
   return `${header}\n${sep}\n${body}\n`;
 }
 
-const devices = Array.from(groups.keys());
-const scoredPairs: { score: number; sameDevice: boolean; isAttractor: boolean }[] = [];
+const scoredPairs: ScoredPair[] = [];
+
+const scenarioSeeds = Array.from({ length: 50 }, (_, index) => 1000 + index * 17);
+
+function isAttractorScenario(label: string): boolean {
+  return label.startsWith('privacy-resistance:') || label.startsWith('commodity-collision:');
+}
+
+function buildScenarioBatch(seed: number) {
+  return [
+    generateBrowserDrift(seed + 1, 'minor'),
+    generateBrowserDrift(seed + 2, 'major'),
+    generateBrowserDrift(seed + 3, 'cross-browser'),
+    generateEnvironmentChange(seed + 4, 'home-office'),
+    generateEnvironmentChange(seed + 5, 'external-dock'),
+    generateEnvironmentChange(seed + 6, 'mobile-desktop'),
+    generatePrivacyResistance(seed + 7, 'tor'),
+    generatePrivacyResistance(seed + 8, 'resistant-browser'),
+    generatePrivacyResistance(seed + 9, 'canvas-defender'),
+    generateAdversarialPerturbation(seed + 10, 'canvas-noise'),
+    generateAdversarialPerturbation(seed + 11, 'font-randomization'),
+    generateAdversarialPerturbation(seed + 12, 'ua-rotation'),
+    generateTravelNetworkChange(seed + 13, 'timezone-travel'),
+    generateTravelNetworkChange(seed + 14, 'vpn-activation'),
+    generateCommodityCollision(seed + 15, 'corporate-fleet'),
+    generateCommodityCollision(seed + 16, 'iphone-defaults'),
+    generateCommodityCollision(seed + 17, 'public-terminal'),
+  ];
+}
 
 function generatePairs() {
   scoredPairs.length = 0;
-  for (let i = 0; i < 2500; i++) {
-
-    const dev = devices[i % devices.length];
-    const samples = groups.get(dev)!;
-    if (samples.length < 2) continue;
-    const idx1 = i % samples.length;
-    const idx2 = (idx1 + 1 + i) % samples.length;
-    const a = samples[idx1];
-    const b = samples[idx2];
-    scoredPairs.push({
-      score: calculateConfidence(a.data, b.data),
-      sameDevice: true,
-      isAttractor: a.isAttractor || b.isAttractor,
-    });
-
-    const dev2 = devices[(i + 1) % devices.length];
-    const c = groups.get(dev2)![i % groups.get(dev2)!.length];
-    const d = groups.get(dev)![(idx1 + 3) % samples.length];
-
-    const useCrossBrowser = (i % 10) < 3;
-    if (useCrossBrowser && samples.length >= 2) {
-      const idx3 = (idx1 + Math.floor(samples.length / 2)) % samples.length;
-      const crossA = samples[idx3];
-      const sortedBySize = [...devices].sort(
-        (x, y) => groups.get(y)!.length - groups.get(x)!.length
-      );
-      const attractorDev = sortedBySize[i % Math.max(1, Math.ceil(sortedBySize.length * 0.1))];
-      const attractorSamples = groups.get(attractorDev)!;
-      const attractorSample = attractorSamples[i % attractorSamples.length];
-      const crossB = attractorDev !== dev
-        ? attractorSample
-        : groups.get(dev2)![i % groups.get(dev2)!.length];
+  for (const seed of scenarioSeeds) {
+    for (const pair of buildScenarioBatch(seed)) {
       scoredPairs.push({
-        score: calculateConfidence(crossA.data, crossB.data),
-        sameDevice: false,
-        isAttractor: crossA.isAttractor || crossB.isAttractor,
+        score: calculateConfidence(pair.fp1, pair.fp2),
+        sameDevice: pair.expectedSameDevice,
+        isAttractor: isAttractorScenario(pair.label),
+        scenario: pair.label,
       });
     }
-
-    scoredPairs.push({
-      score: calculateConfidence(c.data, d.data),
-      sameDevice: false,
-      isAttractor: c.isAttractor || d.isAttractor,
-    });
   }
+}
+
+function buildScenarioSummary(): ScenarioSummary[] {
+  return Array.from(
+    scoredPairs.reduce((acc, pair) => {
+      const current = acc.get(pair.scenario) ?? {
+        scenario: pair.scenario,
+        sameDevice: pair.sameDevice ? 'same-device' : 'different-device',
+        count: 0,
+        avgScore: 0,
+        minScore: Number.POSITIVE_INFINITY,
+        maxScore: Number.NEGATIVE_INFINITY,
+      };
+
+      current.count += 1;
+      current.avgScore += pair.score;
+      current.minScore = Math.min(current.minScore, pair.score);
+      current.maxScore = Math.max(current.maxScore, pair.score);
+      acc.set(pair.scenario, current);
+      return acc;
+    }, new Map<string, ScenarioSummary>()).values()
+  )
+    .map((row) => ({
+      ...row,
+      avgScore: row.avgScore / row.count,
+    }))
+    .sort((a, b) => a.avgScore - b.avgScore);
 }
 
 // Generate pairs synchronously at module load — beforeAll is not reliable in bench workers
 generatePairs();
 
 // Compute metrics and write file once at module load — outside the bench hot loop
-// so DBSCAN (O(n²)) doesn't run on every warmup/iteration
 {
   const results = calculateMetrics(scoredPairs);
   const best = results.reduce((a, b) => (a.f1 > b.f1 ? a : b));
-  const dbscan = dbscanMetrics(scoredPairs, 0.05, 3);
-  const dbscanSummary = [
-    {
-      totalPairs: scoredPairs.length,
-      clusters: dbscan.clusters.length,
-      noisePoints: dbscan.noise.length,
-      clusteredPoints: dbscan.clusters.reduce((sum, c) => sum + c.length, 0),
-      largestCluster: dbscan.clusters.reduce((max, c) => Math.max(max, c.length), 0),
-    },
-  ];
+  const scenarioSummary = buildScenarioSummary();
+  const scenarioCentroids = scenarioSummary.map((row) => ({
+    score: row.avgScore,
+    sameDevice: row.sameDevice === 'same-device',
+    isAttractor: isAttractorScenario(row.scenario),
+  }));
 
   const outPath = fileURLToPath(new URL('./accuracy.bench.out', import.meta.url));
   const output = [
@@ -109,14 +137,14 @@ generatePairs();
     formatTable(results as unknown as Record<string, unknown>[]),
     `Best threshold: ${best.threshold} | F1: ${best.f1.toFixed(3)} | EER: ${best.eer.toFixed(3)}`,
     '',
-    '--- DBSCAN Summary ---',
-    formatTable(dbscanSummary as unknown as Record<string, unknown>[]),
+    '--- Scenario Summary ---',
+    formatTable(scenarioSummary as unknown as Record<string, unknown>[]),
   ].join('\n');
   writeFileSync(outPath, output);
 }
 
 describe('Accuracy & Robustness', () => {
-  bench('full accuracy evaluation (2000 devices, 5000 pairs)', () => {
+  bench('scenario-driven accuracy evaluation', () => {
     const results = calculateMetrics(scoredPairs);
     const best = results.reduce((a, b) => (a.f1 > b.f1 ? a : b));
     if (best.eer > 0.08) {

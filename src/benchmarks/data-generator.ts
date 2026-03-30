@@ -8,6 +8,13 @@ export interface LabeledFingerprint {
 	isAttractor: boolean;	// whether this fingerprint belongs to an "attractor" device (one of the most common profiles)
 }
 
+export interface ScenarioPair {
+  label: string;
+  fp1: FPDataSet;
+  fp2: FPDataSet;
+  expectedSameDevice: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Seeded PRNG – LCG (fast, deterministic, no external deps)
 // ---------------------------------------------------------------------------
@@ -48,6 +55,94 @@ function simpleHash(str: string): string {
     hash = hash & hash;
   }
   return (hash >>> 0).toString(36);
+}
+
+function replaceMajorVersion(input: string | undefined, nextVersion: number, family = 'Chrome'): string | undefined {
+  if (!input) return input;
+  const pattern = new RegExp(`${family}\\/(\\d+)`, 'i');
+  return input.replace(pattern, `${family}/${nextVersion}`);
+}
+
+function cloneFingerprint<T extends FPDataSet>(fingerprint: T): T {
+  return structuredClone(fingerprint);
+}
+
+function createTorFingerprint(seed: number): FPDataSet {
+  const rng = makePrng(seed ^ 0x10203040);
+  return {
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; rv:115.0) Gecko/20100101 Firefox/115.0',
+    platform: 'Win32',
+    timezone: 'UTC',
+    language: 'en-US',
+    languages: ['en-US', 'en'],
+    cookieEnabled: true,
+    doNotTrack: '1',
+    product: 'Gecko',
+    productSub: '20100101',
+    vendor: '',
+    vendorSub: '',
+    appName: 'Netscape',
+    appVersion: '5.0 (Windows)',
+    appCodeName: 'Mozilla',
+    appMinorVersion: '0',
+    buildID: '20240101',
+    hardwareConcurrency: 8,
+    deviceMemory: 8,
+    screen: {
+      width: 1000,
+      height: 1000,
+      colorDepth: 24,
+      pixelDepth: 24,
+      orientation: { type: 'landscape-primary', angle: 0 },
+    },
+    fonts: ['Arial', 'Times New Roman'],
+    plugins: [],
+    mimeTypes: [],
+    canvas: simpleHash(`tor-canvas-${rng.int(0, 2)}`),
+    webgl: simpleHash(`tor-webgl-${rng.int(0, 2)}`),
+    audio: simpleHash(`tor-audio-${rng.int(0, 2)}`),
+    highEntropyValues: {
+      architecture: 'x64',
+      bitness: '64',
+      brands: [{ brand: 'Firefox', version: '115' }],
+      mobile: false,
+      platform: 'Windows',
+      platformVersion: '10.0.0',
+      uaFullVersion: '115.0.0',
+    },
+  };
+}
+
+function createPrivacyResistantFingerprint(seed: number): FPDataSet {
+  const rng = makePrng(seed ^ 0x50505050);
+  return {
+    ...createTorFingerprint(seed),
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) PrivacyBrowser/1.0 Safari/537.36',
+    platform: 'Linux x86_64',
+    language: 'en-US',
+    fonts: ['Arial', 'Noto Sans'],
+    canvas: undefined,
+    webgl: undefined,
+    audio: undefined,
+    hardwareConcurrency: 4,
+    deviceMemory: 4,
+    screen: {
+      width: 1366,
+      height: 768,
+      colorDepth: 24,
+      pixelDepth: 24,
+      orientation: { type: 'landscape-primary', angle: 0 },
+    },
+    highEntropyValues: {
+      architecture: 'x64',
+      bitness: '64',
+      brands: [{ brand: 'PrivacyBrowser', version: `${rng.int(1, 2)}` }],
+      mobile: false,
+      platform: 'Linux',
+      platformVersion: '6.0.0',
+      uaFullVersion: '1.0.0',
+    },
+  };
 }
 
 /**
@@ -644,7 +739,9 @@ export function createAttractorFingerprint(seed: number): FPDataSet {
  */
 export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' | 'high' | 'extreme'): FPDataSet {
   const mutated = structuredClone(fp);
-  // Non-deterministic noise so repeated calls on the same base diverge
+  // Low/medium/high mutations intentionally include session noise so repeated
+  // calls on the same base can diverge. Extreme mutations are deterministic so
+  // tests can rely on a stable clearly-different profile.
   switch (mutationLevel) {
     case 'none':
       break;
@@ -737,9 +834,10 @@ export function mutate(fp: FPDataSet, mutationLevel: 'none' | 'low' | 'medium' |
     }
 
     case 'extreme': {
-      // Completely different device profile
-      const newSeed  = Math.floor(Math.random() * 1_000_000) + 50_000;
-      const newBase  = createBaseFingerprint(newSeed);
+      // Derive a stable far-away fingerprint from the original profile.
+      const fingerprintSeed = parseInt(simpleHash(JSON.stringify(fp)), 36);
+      const newSeed = 50_000 + (fingerprintSeed % 1_000_000);
+      const newBase = createBaseFingerprint(newSeed);
       return newBase;
     }
   }
@@ -792,4 +890,202 @@ export function generateDataset(numDevices = 1000, sessionsPerDevice = 5): Label
     }
   }
   return dataset;
+}
+
+export function generateBrowserDrift(
+  seed: number,
+  level: 'minor' | 'major' | 'cross-browser'
+): ScenarioPair {
+  const base = createBaseFingerprint(seed);
+  const drifted = cloneFingerprint(base);
+  const rng = makePrng(seed ^ 0x11111111);
+
+  if (level === 'minor') {
+    drifted.userAgent = replaceMajorVersion(base.userAgent, 124 + rng.int(1, 2));
+    drifted.appVersion = replaceMajorVersion(base.appVersion, 124 + rng.int(1, 2));
+    drifted.highEntropyValues = {
+      ...drifted.highEntropyValues,
+      uaFullVersion: `124.0.${rng.int(6000, 6999)}.${rng.int(100, 200)}`,
+    };
+    return { label: 'browser-drift:minor', fp1: base, fp2: drifted, expectedSameDevice: true };
+  }
+
+  if (level === 'major') {
+    drifted.userAgent = replaceMajorVersion(base.userAgent, 130 + rng.int(0, 3));
+    drifted.appVersion = replaceMajorVersion(base.appVersion, 130 + rng.int(0, 3));
+    drifted.plugins = [{ name: 'Chrome PDF Viewer', description: 'Portable Document Format' }];
+    drifted.mimeTypes = [{ type: 'application/pdf', description: 'Portable Document Format', suffixes: 'pdf' }];
+    drifted.fonts = [...(base.fonts ?? []).slice(0, 8), 'Fira Code'];
+    return { label: 'browser-drift:major', fp1: base, fp2: drifted, expectedSameDevice: true };
+  }
+
+  const crossBrowser = createBaseFingerprint(seed + 9000);
+  crossBrowser.platform = base.platform;
+  crossBrowser.screen = base.screen!;
+  crossBrowser.hardwareConcurrency = base.hardwareConcurrency;
+  crossBrowser.deviceMemory = base.deviceMemory;
+  crossBrowser.userAgent = `Mozilla/5.0 (${base.platform || 'X11'}) Gecko/20100101 Firefox/${rng.int(122, 128)}.0`;
+  crossBrowser.vendor = '';
+  crossBrowser.product = 'Gecko';
+  crossBrowser.productSub = '20100101';
+  return { label: 'browser-drift:cross-browser', fp1: base, fp2: crossBrowser, expectedSameDevice: false };
+}
+
+export function generateEnvironmentChange(
+  seed: number,
+  scenario: 'home-office' | 'external-dock' | 'mobile-desktop'
+): ScenarioPair {
+  const base = createBaseFingerprint(seed);
+  const changed = cloneFingerprint(base);
+
+  if (scenario === 'home-office') {
+    changed.timezone = base.timezone;
+    changed.language = base.language;
+    changed.languages = [...(base.languages ?? [])];
+    return { label: 'environment-change:home-office', fp1: base, fp2: changed, expectedSameDevice: true };
+  }
+
+  if (scenario === 'external-dock') {
+    changed.screen = {
+      ...base.screen!,
+      width: 2560,
+      height: 1440,
+      orientation: { type: 'landscape-primary', angle: 0 },
+    };
+    return { label: 'environment-change:external-dock', fp1: base, fp2: changed, expectedSameDevice: true };
+  }
+
+  const mobile = createBaseFingerprint(seed + 7000);
+  mobile.platform = 'iPhone';
+  mobile.screen = {
+    width: 390,
+    height: 844,
+    colorDepth: 24,
+    pixelDepth: 24,
+    orientation: { type: 'portrait-primary', angle: 0 },
+  };
+  mobile.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+  mobile.vendor = 'Apple Computer, Inc.';
+  mobile.hardwareConcurrency = 4;
+  mobile.deviceMemory = 4;
+  return { label: 'environment-change:mobile-desktop', fp1: base, fp2: mobile, expectedSameDevice: false };
+}
+
+export function generatePrivacyResistance(
+  seed: number,
+  type: 'tor' | 'resistant-browser' | 'canvas-defender'
+): ScenarioPair {
+  if (type === 'tor') {
+    const torA = createTorFingerprint(seed);
+    const torB = createTorFingerprint(seed + 1);
+    return { label: 'privacy-resistance:tor', fp1: torA, fp2: torB, expectedSameDevice: false };
+  }
+
+  if (type === 'resistant-browser') {
+    const left = createPrivacyResistantFingerprint(seed);
+    const right = createPrivacyResistantFingerprint(seed + 1);
+    return { label: 'privacy-resistance:resistant-browser', fp1: left, fp2: right, expectedSameDevice: false };
+  }
+
+  const base = createBaseFingerprint(seed);
+  const defended = cloneFingerprint(base);
+  defended.canvas = simpleHash(`${base.canvas}-defended`);
+  defended.webgl = simpleHash(`${base.webgl}-defended`);
+  return { label: 'privacy-resistance:canvas-defender', fp1: base, fp2: defended, expectedSameDevice: true };
+}
+
+export function generateAdversarialPerturbation(
+  seed: number,
+  type: 'canvas-noise' | 'font-randomization' | 'ua-rotation'
+): ScenarioPair {
+  const base = createBaseFingerprint(seed);
+  const changed = cloneFingerprint(base);
+
+  if (type === 'canvas-noise') {
+    changed.canvas = simpleHash(`${base.canvas}-noise`);
+    changed.webgl = simpleHash(`${base.webgl}-noise`);
+    return { label: 'adversarial-perturbation:canvas-noise', fp1: base, fp2: changed, expectedSameDevice: true };
+  }
+
+  if (type === 'font-randomization') {
+    changed.fonts = [...(base.fonts ?? [])].reverse();
+    changed.plugins = [];
+    changed.mimeTypes = [];
+    return { label: 'adversarial-perturbation:font-randomization', fp1: base, fp2: changed, expectedSameDevice: true };
+  }
+
+  changed.userAgent = 'Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/126.0';
+  changed.appVersion = '5.0 (X11) Gecko/20100101 Firefox/126.0';
+  changed.vendor = '';
+  changed.product = 'Gecko';
+  changed.productSub = '20100101';
+  return { label: 'adversarial-perturbation:ua-rotation', fp1: base, fp2: changed, expectedSameDevice: true };
+}
+
+export function generateTravelNetworkChange(
+  seed: number,
+  type: 'timezone-travel' | 'vpn-activation'
+): ScenarioPair {
+  const base = createBaseFingerprint(seed);
+  const changed = cloneFingerprint(base);
+
+  if (type === 'timezone-travel') {
+    changed.timezone = base.timezone === 'Europe/London' ? 'Asia/Tokyo' : 'Europe/London';
+    return { label: 'travel-network-change:timezone-travel', fp1: base, fp2: changed, expectedSameDevice: true };
+  }
+
+  return { label: 'travel-network-change:vpn-activation', fp1: base, fp2: changed, expectedSameDevice: true };
+}
+
+export function generateCommodityCollision(
+  seed: number,
+  type: 'corporate-fleet' | 'iphone-defaults' | 'public-terminal'
+): ScenarioPair {
+  if (type === 'corporate-fleet') {
+    const left = createAttractorFingerprint(seed);
+    const right = createAttractorFingerprint(seed + 1);
+    left.canvas = 'fleet-canvas';
+    left.webgl = 'fleet-webgl';
+    left.audio = 'fleet-audio';
+    right.canvas = 'fleet-canvas';
+    right.webgl = 'fleet-webgl';
+    right.audio = 'fleet-audio';
+    return { label: 'commodity-collision:corporate-fleet', fp1: left, fp2: right, expectedSameDevice: false };
+  }
+
+  if (type === 'iphone-defaults') {
+    const left = createBaseFingerprint(seed);
+    const right = createBaseFingerprint(seed + 1);
+    left.platform = 'iPhone';
+    right.platform = 'iPhone';
+    left.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+    right.userAgent = left.userAgent;
+    left.language = 'en-US';
+    right.language = 'en-US';
+    left.languages = ['en-US', 'en'];
+    right.languages = ['en-US', 'en'];
+    left.screen = {
+      width: 390,
+      height: 844,
+      colorDepth: 24,
+      pixelDepth: 24,
+      orientation: { type: 'portrait-primary', angle: 0 },
+    };
+    right.screen = left.screen!;
+    left.canvas = 'iphone-default-canvas';
+    left.webgl = 'iphone-default-webgl';
+    left.audio = 'iphone-default-audio';
+    right.canvas = left.canvas;
+    right.webgl = left.webgl;
+    right.audio = left.audio;
+    return { label: 'commodity-collision:iphone-defaults', fp1: left, fp2: right, expectedSameDevice: false };
+  }
+
+  const left = createPrivacyResistantFingerprint(seed);
+  const right = createPrivacyResistantFingerprint(seed + 1);
+  left.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) PublicTerminal/1.0';
+  left.platform = 'Win32';
+  right.userAgent = left.userAgent;
+  right.platform = left.platform;
+  return { label: 'commodity-collision:public-terminal', fp1: left, fp2: right, expectedSameDevice: false };
 }
