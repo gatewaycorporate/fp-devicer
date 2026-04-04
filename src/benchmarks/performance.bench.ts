@@ -3,6 +3,7 @@ import { calculateConfidence } from '../libs/confidence.js';
 import { DeviceManager } from '../core/DeviceManager.js';
 import { createInMemoryAdapter } from '../libs/adapters/inmemory.js';
 import { createSqliteAdapter } from '../libs/adapters/sqlite.js';
+import { createLshIndex, buildLshIndex } from '../libs/lsh-index.js';
 
 import { generateDataset } from './data-generator.js';
 import type { FPDataSet } from '../types/data.js';
@@ -104,5 +105,26 @@ describe('Performance', () => {
     bench('DeviceManager.identify (SQLite file-based)', async () => {
       await sqliteFileManager.identify(base, { userId: 'bench' });
     }, { time: 6000, iterations: 50 });
+  });
+
+  // ── LSH index ──
+  describe('LshIndex', () => {
+    const lshDataset = generateDataset(500);
+    const lshEntries = lshDataset.map((d) => ({ deviceId: d.deviceLabel, fingerprint: d.data }));
+    const populatedIndex = buildLshIndex(lshEntries);
+    const queryFP: FPDataSet = lshDataset[0].data;
+
+    bench('buildLshIndex (500 fingerprints)', () => {
+      buildLshIndex(lshEntries);
+    }, { time: 3000, iterations: 10 });
+
+    bench('LshIndex.query (500-entry index)', () => {
+      populatedIndex.query(queryFP);
+    }, { time: 3000, iterations: 100 });
+
+    bench('LshIndex.add (single fingerprint)', () => {
+      const idx = createLshIndex();
+      idx.add('bench_device', queryFP);
+    }, { time: 3000, iterations: 100 });
   });
 });

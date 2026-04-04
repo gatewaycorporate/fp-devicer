@@ -1,6 +1,22 @@
-export { FPUserDataSet, FPDataSet, FieldStabilityMap, ScoreBreakdown } from "./types/data.js";
+export { FPUserDataSet, FPDataSet, FieldStabilityMap, ScoreBreakdown, AttractorModel } from "./types/data.js";
 export { getHash, compareHashes } from "./libs/tlsh.js";
 export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage.js";
+export { DriftReport, SuspiciousField, DriftPatternFlag, DriftAnalysisOptions } from "./types/drift.js";
+export { IdentityEdge, RelatedDevice } from "./types/identity-graph.js";
+export { computeDeviceDrift } from "./libs/drift.js";
+export { IdentityGraph, subnetKey, jaccardSimilarity } from "./libs/identity-graph.js";
+export {
+    DefaultAttractorModel,
+    FrequencyTableAttractorModel,
+    FrequencyTable,
+    createFrequencyTableAttractorModel,
+} from "./libs/attractor-model.js";
+export {
+    LshIndex,
+    LshOptions,
+    createLshIndex,
+    buildLshIndex,
+} from "./libs/lsh-index.js";
 export {
     calculateConfidence,
     createConfidenceCalculator,
@@ -12,7 +28,10 @@ export {
     computeFieldAgreement,
     computeMissingBothSides,
     computeMissingOneSide,
-    computeStructuralStability
+    computeStructuralStability,
+    computeTemporalDecayFactor,
+    DEFAULT_DECAY_HALF_LIFE_MS,
+    DEFAULT_WEIGHTS,
 } from "./libs/confidence.js";
 export {
     registerComparator,

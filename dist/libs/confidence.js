@@ -1,6 +1,27 @@
 import { compareHashes, getHash, canonicalizedStringify } from "./tlsh.js";
 import { getGlobalRegistry } from "./registry.js";
 /**
+ * Default half-life for the temporal decay curve.
+ * A candidate snapshot that is exactly this old will have its decayable
+ * dimension weights scaled to `e^-1 ≈ 0.368`.
+ */
+export const DEFAULT_DECAY_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/**
+ * Compute the exponential temporal decay factor for a snapshot of the given age.
+ *
+ * Returns `1.0` for a fresh snapshot (age ≤ 0) and approaches `0` as the
+ * snapshot ages. The formula is `e^(-snapshotAgeMs / halfLifeMs)`.
+ *
+ * @param snapshotAgeMs  - Age of the snapshot in milliseconds.
+ * @param halfLifeMs     - Half-life in milliseconds (default: {@link DEFAULT_DECAY_HALF_LIFE_MS}).
+ * @returns A decay factor in `(0, 1]`.
+ */
+export function computeTemporalDecayFactor(snapshotAgeMs, halfLifeMs = DEFAULT_DECAY_HALF_LIFE_MS) {
+    if (snapshotAgeMs <= 0)
+        return 1.0;
+    return Math.exp(-snapshotAgeMs / halfLifeMs);
+}
+/**
  * Baseline field weights used when neither the global registry nor a local
  * override provides a weight for a given path. Higher numbers cause a field
  * to have a larger influence on the final confidence score.
@@ -300,26 +321,37 @@ export function computeAdaptiveStabilityWeights(stabilities = {}) {
 export function calculateScoreBreakdown(data1, data2, options = {}) {
     try {
         const context = createScoringContext(options);
+        // Temporal decay factor — 1.0 for fresh snapshots, decays toward 0 for old ones.
+        const decayFactor = options.snapshotAgeMs != null
+            ? computeTemporalDecayFactor(options.snapshotAgeMs, options.decayHalfLifeMs ?? DEFAULT_DECAY_HALF_LIFE_MS)
+            : 1.0;
+        const attractorModelFn = options.attractorModel
+            ? (d) => Math.max(0, Math.min(100, options.attractorModel.score(d)))
+            : computeAttractorRisk;
         const deviceSimilarity = context.calculateDeviceSimilarity(data1, data2);
         const evidenceRichness = clampScore((computeEvidenceRichness(data1) + computeEvidenceRichness(data2)) / 2);
         const fieldAgreement = computeFieldAgreement(data1, data2, options);
         const structuralStability = computeStructuralStability(data1, data2, options);
         const entropyContribution = computeEntropyContribution(data1, data2, options);
-        const attractorRisk = clampScore((computeAttractorRisk(data1) + computeAttractorRisk(data2)) / 2);
+        const attractorRisk = clampScore((attractorModelFn(data1) + attractorModelFn(data2)) / 2);
         const missingOneSide = computeMissingOneSide(data1, data2);
         const missingBothSides = computeMissingBothSides(data1, data2);
         const adaptiveWeights = computeAdaptiveStabilityWeights(options.stabilities);
         const positiveWeights = {
             deviceSimilarity: 0.62,
+            // fieldAgreement is less valuable against an old snapshot — agreement
+            // with stale data may just reflect an attractor profile, not a genuine match.
+            fieldAgreement: 0.18 * (0.5 + 0.5 * decayFactor),
             evidenceRichness: 0.06,
-            fieldAgreement: 0.18,
             structuralStability: 0.08,
             entropyContribution: 0.06,
         };
         const negativeWeights = {
             attractorRisk: 0.55,
-            mismatch: 0.08,
-            lowSimilarity: 0.16,
+            // Mismatch and low-similarity penalties are relaxed for old snapshots:
+            // legitimate device evolution is expected over time.
+            mismatch: 0.08 * decayFactor,
+            lowSimilarity: 0.16 * decayFactor,
             missingOneSide: 0.02,
             missingBothSides: 0.01,
         };
@@ -343,8 +375,14 @@ export function calculateScoreBreakdown(data1, data2, options = {}) {
             ? clampScore((((positiveTotal - negativeTotal) / positiveMax) * 100) + calibrationOffset)
             : deviceSimilarity;
         if (canonicalizedStringify(data1) !== canonicalizedStringify(data2)) {
-            const nonExactCeiling = Math.max(95, Math.min(99, deviceSimilarity + 12));
-            composite = Math.min(composite, nonExactCeiling);
+            // Non-exact ceiling: baseline is [95, 99], pulled toward a lower bound of
+            // 70 as the snapshot ages. This prevents stale-match false positives where
+            // old generic snapshots receive an inflated ceiling.
+            const rawCeiling = Math.max(95, Math.min(99, deviceSimilarity + 12));
+            const nonExactCeiling = decayFactor >= 1.0
+                ? rawCeiling
+                : Math.round(rawCeiling * (0.5 + 0.5 * decayFactor) + 70 * 0.5 * (1 - decayFactor));
+            composite = Math.min(composite, Math.max(70, nonExactCeiling));
         }
         if (canonicalizedStringify(data1) === canonicalizedStringify(data2) && attractorRisk < 70) {
             composite = 100;

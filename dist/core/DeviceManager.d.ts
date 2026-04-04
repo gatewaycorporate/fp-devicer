@@ -1,5 +1,9 @@
 import type { StorageAdapter } from "../types/storage.js";
 import type { FPDataSet } from "../types/data.js";
+import type { DriftAnalysisOptions, DriftReport } from "../types/drift.js";
+import type { RelatedDevice } from "../types/identity-graph.js";
+import type { LshOptions } from "../libs/lsh-index.js";
+import { IdentityGraph } from "../libs/identity-graph.js";
 import { ObservabilityOptions } from "../types/observability.js";
 import { DeviceManagerPlugin } from "./PluginRegistrar.js";
 export interface IdentifyEnrichmentInfo {
@@ -81,6 +85,19 @@ export declare class DeviceManager {
      * Keyed by the TLSH hash of the incoming fingerprint.
      */
     private dedupCache;
+    /** Cross-device identity graph, updated on every identify call. */
+    private readonly identityGraph;
+    /**
+     * Recent mapping from IP `/24` subnet → list of device IDs seen from that
+     * subnet. Used to add shared-IP-subnet identity edges.
+     */
+    private readonly subnetDevices;
+    /**
+     * Optional LSH candidate index populated by {@link buildLshIndex}.
+     * When present, `identify()` merges LSH-retrieved candidates with those
+     * returned by the storage adapter's built-in pre-filter.
+     */
+    private lshIndex?;
     /**
      * @param adapter - Storage backend used for all persistence operations.
      * @param context - Optional tuning parameters and observability overrides.
@@ -181,5 +198,71 @@ export declare class DeviceManager {
      *   current metrics implementation does not expose a summary.
      */
     getMetricsSummary(): Record<string, any> | null;
+    /**
+     * Analyse how anomalous an incoming fingerprint is relative to a known
+     * device's historical baseline.
+     *
+     * For each tracked fingerprint field, a z-score analog is computed as
+     * `deviation / (1 – historicalStability + ε)`. Fields that have been
+     * historically stable yet are now different receive a high z-score and are
+     * listed in `DriftReport.suspiciousFields`. The aggregate `driftScore` is a
+     * weighted average of all per-field z-scores, normalised to `[0, 100]`.
+     *
+     * A `DriftReport` is classified into one of four patterns:
+     * - `NORMAL_AGING`        – score < 30; expected gradual change
+     * - `INCREMENTAL_DRIFT`   – score 30–54; broad multi-field change
+     * - `ABRUPT_CHANGE`       – score 55–74; concentrated in few fields
+     * - `CANONICAL_INJECTION` – score ≥ 75 + high attractor risk; evasion signal
+     *
+     * @param deviceId  - The stable device identifier to measure against.
+     * @param incoming  - The new fingerprint to evaluate.
+     * @param options   - Optional overrides for window size and z-score threshold.
+     * @returns A {@link DriftReport}, or `null` if no history exists for the device.
+     */
+    analyzeDeviceDrift(deviceId: string, incoming: FPDataSet, options?: DriftAnalysisOptions): Promise<DriftReport | null>;
+    /**
+     * Return the list of devices that are related to `deviceId` via the
+     * in-process identity graph, sorted by descending edge weight.
+     *
+     * Edges are built from two signal types observed during `identify()` calls:
+     * - **shared-ip-subnet**: two devices seen from the same IPv4 `/24` subnet.
+     * - **font-overlap**: two distinct devices with ≥ 80 % Jaccard font
+     *   similarity in a session where they were both scored but only one matched.
+     *
+     * @param deviceId - The device to look up.
+     * @returns        An array of {@link RelatedDevice}, or an empty array if
+     *                 no edges are known for this device.
+     */
+    findRelatedDevices(deviceId: string): RelatedDevice[];
+    /**
+     * Return the internal {@link IdentityGraph} instance.
+     *
+     * Useful for inspecting raw edges, serialising graph state, or pruning
+     * stale edges via {@link IdentityGraph.prune}.
+     */
+    getIdentityGraph(): IdentityGraph;
+    /**
+     * Build (or rebuild) the in-memory LSH candidate index from all snapshots
+     * currently held by the storage adapter.
+     *
+     * When the index is present, every {@link identify} call merges LSH-derived
+     * candidates with those returned by the adapter's own pre-filter, giving a
+     * higher recall for devices whose similarity is concentrated in set-valued
+     * fields (`fonts`, `plugins`, `mimeTypes`, `languages`) that the adapter
+     * pre-filter may not consider.
+     *
+     * The method subscribes to O(n) storage reads; avoid calling it on very
+     * large datasets without pagination/sampling.  The index is not kept in
+     * sync automatically — call `buildLshIndex` again after significant dataset
+     * growth, or after bulk imports.
+     *
+     * @param options - Optional LSH tuning parameters.
+     */
+    buildLshIndex(options?: LshOptions): Promise<void>;
+    /**
+     * Return the number of devices currently indexed in the LSH index, or
+     * `undefined` if {@link buildLshIndex} has not yet been called.
+     */
+    getLshIndexSize(): number | undefined;
 }
 //# sourceMappingURL=DeviceManager.d.ts.map

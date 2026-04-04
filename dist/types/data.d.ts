@@ -85,6 +85,22 @@ export interface FieldStabilityMap {
     [path: string]: number;
 }
 /**
+ * Pluggable attractor-risk model, used to replace the built-in heuristic
+ * with a frequency table derived from actual traffic.
+ *
+ * @see {@link createFrequencyTableAttractorModel} for a factory that builds a
+ *   model from observed platform/resolution/language/browser frequency data.
+ */
+export interface AttractorModel {
+    /**
+     * Score the given fingerprint on the attractor-risk axis.
+     * @param fp - The fingerprint to evaluate.
+     * @returns A normalised risk score in `[0, 100]` where `100` is the
+     *   most-generic, collision-prone profile possible.
+     */
+    score(fp: FPDataSet): number;
+}
+/**
  * Multi-dimensional explanation of a fingerprint comparison result.
  *
  * All values are normalised to the range `[0, 100]`.
@@ -120,5 +136,21 @@ export interface ComparisonOptions {
     maxDepth?: number;
     /** Whether this calculator should use the global registry (default: true) */
     useGlobalRegistry?: boolean;
+    /**
+     * Age of the stored snapshot being compared, in milliseconds.
+     * When provided, temporal decay is applied: old volatile-signal agreement
+     * contributes less to the positive score, and mismatches against old
+     * snapshots are penalised less. Defaults to `0` (no decay).
+     */
+    snapshotAgeMs?: number;
+    /**
+     * Half-life for the exponential temporal decay curve, in milliseconds.
+     * A snapshot whose age equals `decayHalfLifeMs` will have its decayable
+     * dimension weights scaled by `e^-1 ≈ 0.368`.
+     * Defaults to {@link DEFAULT_DECAY_HALF_LIFE_MS} (30 days).
+     */
+    decayHalfLifeMs?: number;
+    /** Custom attractor risk model. If omitted, the built-in heuristic is used. */
+    attractorModel?: AttractorModel;
 }
 //# sourceMappingURL=data.d.ts.map

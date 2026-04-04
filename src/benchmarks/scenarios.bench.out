@@ -1,4 +1,4 @@
---- Scenario Benchmark Metrics (2026-03-30T00:59:44.190Z) ---
+--- Scenario Benchmark Metrics (2026-04-04T16:01:07.657Z) ---
 Scenario                                    | Expected         | Score  | DeviceSimilarity | FieldAgreement | AttractorRisk | MissingOneSide
 --------------------------------------------+------------------+--------+------------------+----------------+---------------+---------------
 browser-drift:minor                         | same-device      | 99.00  | 98.00            | 92.00          | 33.00         | 0.00          

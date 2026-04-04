@@ -1,8 +1,8 @@
 ---
 title: "FP-Devicer: Open-Source Digital Fingerprinting Middleware"
-subtitle: "Technical Whitepaper — Version 1.7.0+"
+subtitle: "Technical Whitepaper — Version 2.0.0"
 author: "Gateway Corporate Solutions LLC"
-date: "March 2026"
+date: "April 2026"
 lang: en-US
 table-of-contents: true
 toc-depth: 3
@@ -32,6 +32,14 @@ system for production-grade device identification, snapshot persistence,
 deduplication, adaptive weighting based on historical signal stability, and
 structured observability.
 
+Version 2.0.0 extends the engine with five additional capabilities:
+**temporal signal decay** (confidence fades gracefully as stored snapshots age),
+**distribution-based drift analysis** (per-device anomaly scoring to detect abrupt fingerprint replacement),
+a **cross-device identity graph** (in-memory
+edge graph that links devices sharing IP subnets or font sets),
+a **pluggable attractor risk model** (operator-supplied population frequency tables replace hardcoded heuristics),
+and an **LSH candidate index** (MinHash Locality-Sensitive Hashing over set-valued fields for sub-linear candidate retrieval at scale).
+
 Key design goals:
 
 - Near-universal server compatibility (Express, Fastify, Deno/Oak, etc.)
@@ -41,7 +49,7 @@ Key design goals:
   scoring latency on commodity development hardware
 - Multiple storage backends: in-memory, SQLite, PostgreSQL, and Redis
 
-The codebase (~2,500 lines of clean TypeScript) is modular, well-tested,
+The codebase (~3,200 lines of clean TypeScript) is modular, well-tested,
 benchmarked, and documented via TypeDoc. It pairs naturally with the companion
 client-side collector **FP-Snatch** for a complete end-to-end fingerprinting
 solution.
@@ -322,6 +330,12 @@ suggests those signals are volatile.
 stabilities from recent snapshots and scales `DEFAULT_WEIGHTS` before scoring a
 candidate's latest history entry.
 
+`DeviceManager` also computes the age of the most-recent snapshot and passes it
+to the scorer as `snapshotAgeMs`, enabling **temporal signal decay** (see
+Section 4.7). The two modulations are complementary: field-stability
+down-weights volatile *fields* while temporal decay down-weights old
+*snapshots*.
+
 ### 4.2.5 Options Resolution Order
 
 When `createConfidenceCalculator()` builds its context, the current resolution
@@ -347,10 +361,13 @@ interface ComparisonOptions {
 	weights?: Record<string, number>;
 	comparators?: Record<string, Comparator>;
 	stabilities?: FieldStabilityMap;
-	defaultWeight?: number; // default: 5
-	tlshWeight?: number; // default: 0.30
-	maxDepth?: number; // default: 5
-	useGlobalRegistry?: boolean; // default: true
+	defaultWeight?: number;        // default: 5
+	tlshWeight?: number;           // default: 0.30
+	maxDepth?: number;             // default: 5
+	useGlobalRegistry?: boolean;   // default: true
+	snapshotAgeMs?: number;        // age of candidate snapshot in ms (enables temporal decay)
+	decayHalfLifeMs?: number;      // decay half-life; default: 30 days
+	attractorModel?: AttractorModel; // custom attractor risk model (see Section 4.10)
 }
 ```
 
@@ -409,11 +426,15 @@ with a complete fingerprint matching pipeline:
 
 2. Candidate pre-filtering — calls `adapter.findCandidates(incoming, minScore)`
    to retrieve a small set of stored device snapshots that are broadly similar
-   to the incoming data.
+   to the incoming data. If an **LSH candidate index** has been built via
+   `buildLshIndex()`, its query result is merged in to augment the adapter's
+   structural pre-filter with set-similarity candidates (see Section 4.11).
 
-3. Adaptive weighting — for each candidate, `DeviceManager` calls
-   `adapter.getHistory(deviceId, limit=5)` and measures how stable each tracked
-   field has been across recent history.
+3. Adaptive weighting & temporal decay — for each candidate, `DeviceManager`
+   calls `adapter.getHistory(deviceId, limit=5)` and measures how stable each
+   tracked field has been across recent history. It also computes the age of the
+   most-recent snapshot and passes it as `snapshotAgeMs` to the scorer,
+   enabling temporal decay (see Section 4.7).
 
 4. Full confidence scoring — each candidate is scored against its most recent
    snapshot using a scorer whose field weights have been scaled by those
@@ -424,6 +445,10 @@ with a complete fingerprint matching pipeline:
 
 6. Persistence — the incoming fingerprint is saved via `adapter.save()` as a
    new snapshot associated with the resolved device ID.
+
+6a. Identity graph update — the resolved device ID is linked to any recently-
+    active device sharing the same IPv4 `/24` subnet, and to any non-matched
+    scored candidate with ≥ 80 % font Jaccard similarity (see Section 4.9).
 
 7. Observability — structured log entries are emitted via the injected
    `Logger`. Metrics are recorded via the injected `Metrics` instance.
@@ -665,6 +690,278 @@ const adapter = AdapterFactory.create("sqlite", {
 });
 ```
 
+## 4.7 Temporal Signal Decay
+
+Every stored snapshot has a `timestamp`. The further in the past a snapshot was
+recorded, the less confidently it should anchor a match. Temporal signal decay
+models this by attenuating the positive-contribution weights of the scoring
+engine as a function of snapshot age.
+
+### 4.7.1 Decay Factor
+
+`computeTemporalDecayFactor(snapshotAgeMs, halfLifeMs?)` computes an
+exponential decay factor:
+
+$$
+\lambda = e^{-t \;/\; t_{1/2}}
+$$
+
+where $t$ is `snapshotAgeMs` and $t_{1/2}$ is `decayHalfLifeMs` (default:
+`DEFAULT_DECAY_HALF_LIFE_MS` = 30 days). The factor is in $(0,1]$, approaching
+1 for fresh snapshots and 0 for very old ones.
+
+### 4.7.2 Effect on Scoring
+
+The factor is wired into `calculateScoreBreakdown` via
+`ComparisonOptions.snapshotAgeMs`:
+
+- The `fieldAgreement` positive weight is scaled by `(0.5 + 0.5 × λ)`,
+  preserving at least half its contribution even for stale snapshots.
+- The `mismatch` and `lowSimilarity` negative weights are scaled by `λ`,
+  fully relaxing those penalties for very old snapshots where some divergence is
+  expected.
+- The non-exact ceiling interpolates toward a floor of 70 for old snapshots,
+  preventing stale-match inflation.
+
+`DeviceManager` computes `snapshotAgeMs = Date.now() − history[0].timestamp`
+automatically and passes it into the per-candidate scorer on every
+identification call.
+
+### 4.7.3 API
+
+```typescript
+import { computeTemporalDecayFactor, DEFAULT_DECAY_HALF_LIFE_MS } from "devicer.js";
+
+// Manual factor computation
+const factor = computeTemporalDecayFactor(ageMs, DEFAULT_DECAY_HALF_LIFE_MS);
+
+// Override via ComparisonOptions
+const calculator = createConfidenceCalculator({
+    snapshotAgeMs:  45 * 24 * 60 * 60 * 1000, // 45 days
+    decayHalfLifeMs: 14 * 24 * 60 * 60 * 1000, // 14-day half-life
+});
+```
+
+## 4.8 Distribution-Based Drift Analysis
+
+Normal device evolution (browser updates, font installations) produces gradual,
+coherent changes across individual fields. Abrupt whole-fingerprint replacement
+— the hallmark of canonical injection attacks — produces sudden, broad
+divergence across many fields simultaneously. Drift analysis detects this
+pattern by comparing an incoming fingerprint against the full stored history of
+a verified device.
+
+### 4.8.1 Algorithm
+
+`computeDeviceDrift(incoming, history, options?)` is a pure function that:
+
+1. Sorts history newest-first.
+2. Computes `fieldStability[field]` — the average pairwise similarity between
+   consecutive snapshots in the history window.
+3. Computes `fieldDeviation[field]` — the average dissimilarity between the
+   incoming fingerprint and every historical snapshot.
+4. Derives a z-score analog per field:
+   `z = deviation / (1 − stability + 0.05)`, capped at 5.0.
+5. Aggregates into `driftScore ∈ [0, 100]` via a weighted sum normalized by the
+   maximum possible z-contribution.
+6. Classifies the result into one of four `DriftPatternFlag` values.
+
+### 4.8.2 Pattern Flags
+
++------------------------+-----------------------------------------------------------+
+| Flag                   | Condition                                                 |
++========================+===========================================================+
+| `NORMAL_AGING`         | `driftScore < 30`                                         |
++------------------------+-----------------------------------------------------------+
+| `INCREMENTAL_DRIFT`    | `30 ≤ driftScore < 55`                                    |
++------------------------+-----------------------------------------------------------+
+| `ABRUPT_CHANGE`        | `55 ≤ driftScore < 75`, or `driftScore ≥ 55` with ≤ 3    |
+|                        | suspicious fields                                         |
++------------------------+-----------------------------------------------------------+
+| `CANONICAL_INJECTION`  | `driftScore ≥ 75` and `attractorRisk ≥ 50`               |
++------------------------+-----------------------------------------------------------+
+
+### 4.8.3 API
+
+```typescript
+import { computeDeviceDrift } from "devicer.js";
+
+// Pure-function usage
+const report = computeDeviceDrift(incomingFP, historicalSnapshots);
+// report: { driftScore, patternFlag, suspiciousFields, fieldStability, fieldDeviation }
+
+// Via DeviceManager (loads history automatically)
+const report = await manager.analyzeDeviceDrift(deviceId, incomingFP);
+if (report?.patternFlag === "CANONICAL_INJECTION") {
+    // flag for manual review or block the request
+}
+```
+
+## 4.9 Cross-Device Identity Graph
+
+Multiple distinct browser profiles can originate from the same physical person
+or automated system. The identity graph tracks probabilistic relationships
+between device IDs, enabling downstream applications to detect account-sharing,
+multi-browser users, and coordinated bot networks.
+
+### 4.9.1 Data Model
+
+`IdentityGraph` maintains a symmetric edge set keyed by a canonical pair
+`"${min(a,b)}||${max(a,b)}"`. Each `IdentityEdge` carries:
+
+- `weight ∈ (0, 0.97]` — blend score reinforced on each observation:
+  `weight = min(0.97, existing + newWeight × 0.5)`
+- `reasons` — deduplicated list of signal types that contributed the edge
+- `firstSeen`, `lastSeen`, `occurrences` — for freshness-based pruning
+
+### 4.9.2 Automatic Edge Detection in `DeviceManager`
+
+`DeviceManager` builds edges automatically during `identify()` from two signal
+types:
+
+1. **Shared IP subnet** — two devices seen from the same IPv4 `/24` block are
+   linked with initial weight 0.4. The per-subnet device list is bounded to 200
+   entries.
+2. **Font overlap** — among non-matched scored candidates, any device whose
+   font set has Jaccard similarity ≥ 0.80 with the incoming fingerprint is
+   linked with weight `jaccard × 0.3`.
+
+### 4.9.3 API
+
+```typescript
+// Related device lookup
+const related = manager.findRelatedDevices("dev_abc");
+// → [{ deviceId, weight, reasons, firstSeen, lastSeen, occurrences }, …]
+
+// Raw graph access
+const graph = manager.getIdentityGraph();
+graph.prune(30 * 24 * 60 * 60 * 1000); // evict edges older than 30 days
+const edge = graph.getEdge("dev_abc", "dev_xyz");
+
+// Utility functions
+import { jaccardSimilarity, subnetKey } from "devicer.js";
+```
+
+## 4.10 Learned Attractor Model
+
+The built-in `computeAttractorRisk` heuristic scores how common a fingerprint
+profile is relative to a set of hardcoded popular configurations. In production,
+the most common profiles differ by deployment context. The pluggable
+`AttractorModel` interface allows operators to substitute a model calibrated to
+their actual traffic.
+
+### 4.10.1 Interface
+
+```typescript
+export interface AttractorModel {
+    score(fp: FPDataSet): number; // returns an integer in [0, 100]
+}
+```
+
+Any object implementing this interface can be passed as
+`ComparisonOptions.attractorModel`. `calculateScoreBreakdown` calls
+`model.score(fp)` in place of `computeAttractorRisk`; if no model is provided,
+the built-in heuristic is used.
+
+### 4.10.2 Built-In Implementations
+
+`DefaultAttractorModel` wraps `computeAttractorRisk` exactly, useful when
+mixing default and custom models in the same application.
+
+`FrequencyTableAttractorModel` (factory: `createFrequencyTableAttractorModel`)
+accepts a `FrequencyTable` that maps platform names, resolution strings,
+language tags, browser keyword substrings, and hardware profiles to their
+observed frequency `[0, 1]` in the operator's traffic. Each signal dimension is
+scored against the table; dimensions absent from the table fall back to the
+built-in heuristic for that signal. The aggregate is a weighted average of
+per-dimension frequencies, normalized to `[0, 100]`.
+
+### 4.10.3 API
+
+```typescript
+import { createFrequencyTableAttractorModel, createConfidenceCalculator } from "devicer.js";
+
+const model = createFrequencyTableAttractorModel({
+    platforms:        { "Win32": 0.72, "MacIntel": 0.18 },
+    resolutions:      { "1920x1080": 0.48, "2560x1440": 0.22 },
+    languages:        { "en-US": 0.68 },
+    browserFamilies:  { "chrome": 0.60, "safari": 0.22 },
+    hardwareProfiles: [{ concurrency: 8, memory: 8, frequency: 0.45 }],
+});
+
+const calculator = createConfidenceCalculator({ attractorModel: model });
+const score = calculator.calculateConfidence(fp1, fp2);
+```
+
+## 4.11 LSH Candidate Index
+
+The storage adapters' `findCandidates()` implementations pre-filter by
+structural signals (screen dimensions, platform, hardware concurrency). This
+misses cases where two fingerprints agree on set-valued fields (`fonts`,
+`plugins`, `mimeTypes`, `languages`) but differ on structural ones. The LSH
+candidate index fills this gap using Locality-Sensitive Hashing over token sets.
+
+### 4.11.1 Algorithm
+
+`LshIndex` uses MinHash with configurable `numHashes` (default 128) and
+`numBands` (default 16, yielding 8 rows/band). The Jaccard similarity threshold
+at which two fingerprints become near-certain band-bucket collisions is
+approximately:
+
+$$
+t \approx \left(\frac{1}{B}\right)^{1/r}
+$$
+
+where $B$ is the number of bands and $r$ is rows-per-band. With defaults
+($B = 16$, $r = 8$): $t \approx 0.50$.
+
+Token extraction prefixes tokens by field (`f:Arial`, `p:PDF Reader`,
+`mt:application/pdf`, `l:en-US`) so that tokens from different fields never
+collide in the shared MinHash universe.
+
+### 4.11.2 DeviceManager Integration
+
+When an `LshIndex` is present, `identify()` merges the LSH candidate set with
+the adapter's own pre-filter output. All unique device IDs are then submitted to
+the full confidence-scoring pass. The index is **not** updated on every
+`identify()` call; it is rebuilt on demand via `DeviceManager.buildLshIndex()`.
+
+### 4.11.3 API
+
+```typescript
+import { createLshIndex, buildLshIndex } from "devicer.js";
+
+// Build index from adapter state (one-time or periodic rebuild)
+await manager.buildLshIndex({ numHashes: 128, numBands: 16 });
+console.log(manager.getLshIndexSize()); // number of indexed devices
+
+// Standalone usage
+const index = buildLshIndex(entries); // entries: { deviceId, fingerprint }[]
+const candidates = index.query(incomingFP); // string[] of candidate device IDs
+index.add("dev_new", newFP);
+index.remove("dev_old");
+index.clear();
+```
+
+### 4.11.4 Benchmark Characteristics
+
+With default parameters (128 hashes, 16 bands) and 500 indexed fingerprints,
+the benchmark runner reports:
+
++----------------------------------+-------------------+
+| Operation                        | Throughput        |
++==================================+===================+
+| `LshIndex.query`                 | ~187,000 ops/s    |
++----------------------------------+-------------------+
+| `LshIndex.add` (single)          | ~183,000 ops/s    |
++----------------------------------+-------------------+
+| `buildLshIndex` (500 fps)        | ~95 ops/s         |
++----------------------------------+-------------------+
+
+`query` and `add` are fast enough to be entirely in the noise of a single
+`identify()` call. `buildLshIndex` is intended as an offline or periodic
+operation, not a per-request one.
+
 ---
 
 # 5 Code Paths & Sequence Diagrams
@@ -714,11 +1011,15 @@ HTTP Request
   │       ├─► adapter.findCandidates(incoming, candidateMinScore)
   │       │       └─► returns [ candidate₁, candidate₂, ... ]
   │       │
+  │       ├─► [if lshIndex] lshIndex.query(incoming)
+  │       │       └─► merge extra candidates not in adapter result
+  │       │
   │       ├─► for each candidate:
   │       │       ├─► adapter.getHistory(candidate.deviceId, 5)
   │       │       ├─► computeFieldStabilities(history)
   │       │       ├─► scale DEFAULT_WEIGHTS by stability
-  │       │       ├─► createConfidenceCalculator({ weights: adaptiveWeights })
+  │       │       ├─► snapshotAgeMs = now − history[0].timestamp
+  │       │       ├─► createConfidenceCalculator({ weights: adaptiveWeights, snapshotAgeMs })
   │       │       └─► calculator.calculateConfidence(incoming, latestSnapshot)
   │       │
   │       ├─► select bestMatch (highest score)
@@ -731,6 +1032,8 @@ HTTP Request
   │       ├─► adapter.save({ deviceId, fingerprint: incoming,
   │       │                 signalsHash, matchConfidence, ... })
   │       ├─► dedupCache.set(dedupKey, baseResult, dedupWindowMs)
+  │       │
+  │       ├─► identityGraph.addEdge(subnet signal, font-overlap signal)
   │       │
   │       ├─► for each identifyPostProcessor [plugin]:
   │       │       ├─► processor({ incoming, context, result, baseResult,
@@ -980,7 +1283,7 @@ latency, not cold-start matching against a large candidate set.
 ## 7.2 Current Benchmark Outputs
 
 The following values are from the benchmark artifacts generated from the current
-repository state on March 30, 2026.
+repository state on April 4, 2026.
 
 ### 7.2.1 Accuracy
 
@@ -1158,6 +1461,33 @@ The backend strategy is mixed by design:
 
 This keeps the default suite fast while still validating query-shape logic and
 duplicate-hash handling across the supported adapters.
+
+Version 2.0.0 adds five new test modules under `src/tests/libs/`:
+
++----------------------------------+-------+-------------------------------------------+
+| File                             | Tests | Coverage                                  |
++==================================+=======+===========================================+
+| `temporal-decay.test.ts`         |   17  | `computeTemporalDecayFactor`, decay        |
+|                                  |       | integration in `calculateScoreBreakdown`, |
+|                                  |       | fresh-snapshot regression                 |
++----------------------------------+-------+-------------------------------------------+
+| `drift.test.ts`                  |   20  | `computeDeviceDrift` pure function and    |
+|                                  |       | `DeviceManager.analyzeDeviceDrift`        |
++----------------------------------+-------+-------------------------------------------+
+| `identity-graph.test.ts`         |   25  | `IdentityGraph` unit, `subnetKey`,        |
+|                                  |       | `jaccardSimilarity`, DeviceManager        |
+|                                  |       | integration (subnet + font edges)         |
++----------------------------------+-------+-------------------------------------------+
+| `attractor-model.test.ts`        |   15  | `DefaultAttractorModel`,                  |
+|                                  |       | `FrequencyTableAttractorModel`, factory,  |
+|                                  |       | integration with `calculateScoreBreakdown`|
++----------------------------------+-------+-------------------------------------------+
+| `lsh-index.test.ts`              |   23  | `createLshIndex`, `buildLshIndex`, LSH    |
+|                                  |       | similarity behavior, DeviceManager        |
+|                                  |       | integration                               |
++----------------------------------+-------+-------------------------------------------+
+
+These bring the total test count to **292** (up from 207 at v1.7.0).
 
 ## 8.4 Integration and Resilience Coverage
 
@@ -1380,11 +1710,14 @@ hosted at [cicis.info](https://cicis.info).
 
 # 11 Conclusion & Future Work
 
-FP-Devicer delivers production-grade, open-source device intelligence with
-unmatched extensibility and accuracy for its class. Its hybrid
-structural-plus-TLSH scoring, adaptive per-device stability weighting,
-multi-backend persistence options, and zero-dependency observability interfaces
-set it apart from simpler fingerprint hash libraries.
+FP-Devicer v2.0.0 delivers production-grade, open-source device intelligence
+with unmatched extensibility and accuracy for its class. Its hybrid
+structural-plus-TLSH scoring, adaptive per-device stability weighting, temporal
+signal decay, distribution-based drift detection, cross-device identity
+graphing, pluggable attractor risk models, and sub-linear LSH candidate
+retrieval set it apart from simpler fingerprint hash libraries. Multi-backend
+persistence and zero-dependency observability interfaces ensure it integrates
+cleanly into any production stack.
 
 The library is suitable for a wide range of use cases: account security and
 fraud detection, analytics de-duplication, personalisation without cookies, and
@@ -1397,6 +1730,8 @@ Community contributions are welcome. Possible future directions include:
 - Machine-learning-assisted comparator parameter tuning
 - Browser extension support for richer signal collection
 - Differential privacy mechanisms for privacy-preserving fingerprinting
+- Periodic LSH index auto-rebuild triggered by adapter snapshot count growth
+- Persistence for `IdentityGraph` state across process restarts
 
 ---
 
