@@ -1,4 +1,4 @@
-export { FPUserDataSet, FPDataSet, FieldStabilityMap, ScoreBreakdown, AttractorModel } from "./types/data.js";
+export { FPUserDataSet, FPDataSet, FieldStabilityMap, ScoreBreakdown, AttractorModel, MouseBehaviorMetrics, KeyboardBehaviorMetrics, ScrollBehaviorMetrics, SessionTimingMetrics, BehavioralMetrics, } from "./types/data.js";
 export { getHash, compareHashes } from "./libs/tlsh.js";
 export { StorageAdapter, StoredFingerprint, DeviceMatch } from "./types/storage.js";
 export { DriftReport, SuspiciousField, DriftPatternFlag, DriftAnalysisOptions } from "./types/drift.js";

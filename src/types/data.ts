@@ -3,6 +3,48 @@
  * Encompasses navigator properties, screen metrics, installed plugins,
  * font enumeration, and high-entropy client hints.
  */
+export interface MouseBehaviorMetrics {
+  sampleCount: number;
+  avgVelocityPxMs: number;
+  velocityStdDev: number;
+  straightnessRatio: number;
+  avgAcceleration: number;
+  hasMovement: boolean;
+}
+
+export interface KeyboardBehaviorMetrics {
+  keystrokeCount: number;
+  avgDwellMs: number;
+  dwellStdDev: number;
+  avgFlightMs: number;
+  flightStdDev: number;
+  estimatedWpm: number;
+}
+
+export interface ScrollBehaviorMetrics {
+  eventCount: number;
+  avgVelocityPxMs: number;
+  velocityStdDev: number;
+  directionChangeCount: number;
+  totalDistancePx: number;
+}
+
+export interface SessionTimingMetrics {
+  sessionDurationMs: number;
+  timeToFirstInteractionMs: number | null;
+  interactionEventCount: number;
+  touchEventCount: number;
+}
+
+export interface BehavioralMetrics {
+  mouse?: MouseBehaviorMetrics;
+  keyboard?: KeyboardBehaviorMetrics;
+  scroll?: ScrollBehaviorMetrics;
+  session: SessionTimingMetrics;
+  collectionDurationMs: number;
+  hasTouchEvents: boolean;
+}
+
 export interface FPUserDataSet {
   userAgent?: string;
   platform?: string;
@@ -55,6 +97,7 @@ export interface FPUserDataSet {
     platformVersion?: string;
     uaFullVersion?: string;
   };
+  behavioralMetrics?: BehavioralMetrics;
 }
 
 /**
