@@ -1,4 +1,5 @@
 import { compareHashes, getHash, canonicalizedStringify } from "./tlsh.js";
+import { toComparableFingerprint } from "./fingerprint-hash.js";
 import { getGlobalRegistry } from "./registry.js";
 /**
  * Default half-life for the temporal decay curve.
@@ -320,6 +321,8 @@ export function computeAdaptiveStabilityWeights(stabilities = {}) {
 }
 export function calculateScoreBreakdown(data1, data2, options = {}) {
     try {
+        const comparableData1 = toComparableFingerprint(data1);
+        const comparableData2 = toComparableFingerprint(data2);
         const context = createScoringContext(options);
         // Temporal decay factor — 1.0 for fresh snapshots, decays toward 0 for old ones.
         const decayFactor = options.snapshotAgeMs != null
@@ -328,14 +331,14 @@ export function calculateScoreBreakdown(data1, data2, options = {}) {
         const attractorModelFn = options.attractorModel
             ? (d) => Math.max(0, Math.min(100, options.attractorModel.score(d)))
             : computeAttractorRisk;
-        const deviceSimilarity = context.calculateDeviceSimilarity(data1, data2);
-        const evidenceRichness = clampScore((computeEvidenceRichness(data1) + computeEvidenceRichness(data2)) / 2);
-        const fieldAgreement = computeFieldAgreement(data1, data2, options);
-        const structuralStability = computeStructuralStability(data1, data2, options);
-        const entropyContribution = computeEntropyContribution(data1, data2, options);
-        const attractorRisk = clampScore((attractorModelFn(data1) + attractorModelFn(data2)) / 2);
-        const missingOneSide = computeMissingOneSide(data1, data2);
-        const missingBothSides = computeMissingBothSides(data1, data2);
+        const deviceSimilarity = context.calculateDeviceSimilarity(comparableData1, comparableData2);
+        const evidenceRichness = clampScore((computeEvidenceRichness(comparableData1) + computeEvidenceRichness(comparableData2)) / 2);
+        const fieldAgreement = computeFieldAgreement(comparableData1, comparableData2, options);
+        const structuralStability = computeStructuralStability(comparableData1, comparableData2, options);
+        const entropyContribution = computeEntropyContribution(comparableData1, comparableData2, options);
+        const attractorRisk = clampScore((attractorModelFn(comparableData1) + attractorModelFn(comparableData2)) / 2);
+        const missingOneSide = computeMissingOneSide(comparableData1, comparableData2);
+        const missingBothSides = computeMissingBothSides(comparableData1, comparableData2);
         const adaptiveWeights = computeAdaptiveStabilityWeights(options.stabilities);
         const positiveWeights = {
             deviceSimilarity: 0.62,
@@ -374,7 +377,7 @@ export function calculateScoreBreakdown(data1, data2, options = {}) {
         let composite = positiveMax > 0
             ? clampScore((((positiveTotal - negativeTotal) / positiveMax) * 100) + calibrationOffset)
             : deviceSimilarity;
-        if (canonicalizedStringify(data1) !== canonicalizedStringify(data2)) {
+        if (canonicalizedStringify(comparableData1) !== canonicalizedStringify(comparableData2)) {
             // Non-exact ceiling: baseline is [95, 99], pulled toward a lower bound of
             // 70 as the snapshot ages. This prevents stale-match false positives where
             // old generic snapshots receive an inflated ceiling.
@@ -384,7 +387,7 @@ export function calculateScoreBreakdown(data1, data2, options = {}) {
                 : Math.round(rawCeiling * (0.5 + 0.5 * decayFactor) + 70 * 0.5 * (1 - decayFactor));
             composite = Math.min(composite, Math.max(70, nonExactCeiling));
         }
-        if (canonicalizedStringify(data1) === canonicalizedStringify(data2) && attractorRisk < 70) {
+        if (canonicalizedStringify(comparableData1) === canonicalizedStringify(comparableData2) && attractorRisk < 70) {
             composite = 100;
         }
         return {

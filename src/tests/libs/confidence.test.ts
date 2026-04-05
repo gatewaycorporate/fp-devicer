@@ -273,4 +273,92 @@ describe('Score breakdown dimensions', () => {
 			calculateConfidence(fpIdentical, fpVerySimilar)
 		);
 	});
+
+	it('treats fingerprints that differ only in behavioralMetrics as an exact match', () => {
+		const baseline = calculateScoreBreakdown(fpIdentical, fpIdentical);
+		const first: FPUserDataSet = {
+			...fpIdentical,
+			behavioralMetrics: {
+				mouse: {
+					sampleCount: 12,
+					avgVelocityPxMs: 0.9,
+					velocityStdDev: 0.15,
+					straightnessRatio: 0.72,
+					avgAcceleration: 0.04,
+					hasMovement: true,
+				},
+				keyboard: {
+					keystrokeCount: 8,
+					avgDwellMs: 110,
+					dwellStdDev: 18,
+					avgFlightMs: 72,
+					flightStdDev: 14,
+					estimatedWpm: 46,
+				},
+				scroll: {
+					eventCount: 4,
+					avgVelocityPxMs: 1.4,
+					velocityStdDev: 0.3,
+					directionChangeCount: 1,
+					totalDistancePx: 420,
+				},
+				session: {
+					sessionDurationMs: 2100,
+					timeToFirstInteractionMs: 350,
+					interactionEventCount: 14,
+					touchEventCount: 0,
+				},
+				collectionDurationMs: 1800,
+				hasTouchEvents: false,
+			},
+		};
+		const second: FPUserDataSet = {
+			...fpIdentical,
+			behavioralMetrics: {
+				mouse: {
+					sampleCount: 24,
+					avgVelocityPxMs: 1.6,
+					velocityStdDev: 0.42,
+					straightnessRatio: 0.41,
+					avgAcceleration: 0.11,
+					hasMovement: true,
+				},
+				keyboard: {
+					keystrokeCount: 16,
+					avgDwellMs: 145,
+					dwellStdDev: 33,
+					avgFlightMs: 98,
+					flightStdDev: 21,
+					estimatedWpm: 63,
+				},
+				scroll: {
+					eventCount: 9,
+					avgVelocityPxMs: 2.3,
+					velocityStdDev: 0.66,
+					directionChangeCount: 4,
+					totalDistancePx: 1130,
+				},
+				session: {
+					sessionDurationMs: 5400,
+					timeToFirstInteractionMs: 880,
+					interactionEventCount: 31,
+					touchEventCount: 0,
+				},
+				collectionDurationMs: 4200,
+				hasTouchEvents: false,
+			},
+		};
+
+		const breakdown = calculateScoreBreakdown(first, second);
+
+		expect(breakdown.deviceSimilarity).toBe(100);
+		expect(breakdown.fieldAgreement).toBe(100);
+		expect(breakdown.structuralStability).toBe(100);
+		expect(breakdown.entropyContribution).toBe(100);
+		expect(breakdown.missingOneSide).toBe(baseline.missingOneSide);
+		expect(breakdown.missingBothSides).toBe(baseline.missingBothSides);
+		expect(breakdown.attractorRisk).toBe(baseline.attractorRisk);
+		expect(breakdown.composite).toBe(100);
+		expect(calculateConfidence(first, second)).toBe(100);
+	});
 });
