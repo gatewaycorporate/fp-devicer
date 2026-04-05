@@ -37,7 +37,7 @@ export class DeviceManager {
     identifyPostProcessors = [];
     pluginRegistrar = new PluginRegistrar();
     /**
-     * Cache entry for the deduplication window (feature #8).
+      * Cache entry for the deduplication window.
      * Keyed by the TLSH hash of the incoming fingerprint.
      */
     dedupCache = new Map();
@@ -135,6 +135,16 @@ export class DeviceManager {
         }
         return { result, logMeta };
     }
+    /**
+     * Register a named post-processor that runs after the core identify decision.
+     *
+     * Processors are executed in registration order. The returned teardown function
+     * unregisters only this exact `(name, processor)` pair.
+     *
+     * @param name - Stable plugin name used for enrichment and log metadata.
+     * @param processor - Callback that can enrich the identify result.
+     * @returns A function that unregisters the processor.
+     */
     registerIdentifyPostProcessor(name, processor) {
         this.identifyPostProcessors.push({ name, processor });
         return () => {
@@ -221,7 +231,7 @@ export class DeviceManager {
     async identify(incoming, context) {
         const start = performance.now();
         const fingerprintHash = getFingerprintHash(incoming);
-        // --- #8 Dedup cache check ---
+        // Dedup cache check.
         const dedupWindowMs = this.context.dedupWindowMs;
         const cacheKey = fingerprintHash ?? null;
         let baseResult = null;
@@ -241,7 +251,7 @@ export class DeviceManager {
             const adapterCandidates = await this.adapter.findCandidates(incoming, this.context.candidateMinScore, 100);
             // 1b. LSH candidate augmentation — merge any extra device IDs surfaced by
             //     the LSH index (set-similarity over fonts/plugins/mimeTypes/languages)
-            //     that the adapter's pre-filter may have missed.
+            //     that the adapter pre-filter may have missed.
             let candidates = adapterCandidates;
             if (this.lshIndex) {
                 const adapterIds = new Set(adapterCandidates.map((c) => c.deviceId));

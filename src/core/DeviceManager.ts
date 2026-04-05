@@ -14,34 +14,55 @@ import { Logger, Metrics, ObservabilityOptions } from "../types/observability.js
 import { defaultLogger, defaultMetrics } from "../libs/default-observability.js";
 import { PluginRegistrar, DeviceManagerPlugin } from "./PluginRegistrar.js";
 
+/** Plugin-provided enrichment metadata merged into the final identify result. */
 export interface IdentifyEnrichmentInfo {
+  /** Ordered list of plugins that successfully contributed to the result. */
   plugins: string[];
+  /** Per-plugin structured enrichment payloads exposed to callers. */
   details: Record<string, Record<string, unknown>>;
+  /** Non-fatal plugin failures captured during post-processing. */
   failures: Array<{ plugin: string; message: string }>;
 }
 
+/** Per-request metadata forwarded through the identification pipeline. */
 export type IdentifyContext = Record<string, unknown> & {
+  /** Optional application-level user identifier to associate with the snapshot. */
   userId?: string;
+  /** Optional client IP address stored with the snapshot and exposed to plugins. */
   ip?: string;
 };
 
+/** Inputs supplied to an identify post-processor after the core match decision. */
 export interface IdentifyPostProcessorPayload {
+  /** Incoming fingerprint being identified. */
   incoming: FPDataSet;
+  /** Original request context passed to {@link DeviceManager.identify}. */
   context?: IdentifyContext;
+  /** Mutable result as enriched by previously executed post-processors. */
   result: IdentifyResult;
+  /** Core identify result before any plugin-specific enrichment is applied. */
   baseResult: IdentifyResult;
+  /** Whether the request was satisfied from the dedup cache. */
   cacheHit: boolean;
+  /** Number of candidate devices considered during the matching pass. */
   candidatesCount: number;
+  /** Whether the request matched an existing device rather than creating a new one. */
   matched: boolean;
+  /** End-to-end identify latency in milliseconds. */
   durationMs: number;
 }
 
+/** Optional changes a post-processor can contribute to the identify result. */
 export interface IdentifyPostProcessorResult {
+  /** Partial result fields to merge into the final identify response. */
   result?: Record<string, unknown>;
+  /** Structured plugin-specific enrichment details attached under the plugin name. */
   enrichmentInfo?: Record<string, unknown>;
+  /** Additional structured fields included in observability logs. */
   logMeta?: Record<string, unknown>;
 }
 
+/** Callback contract for plugins that enrich identify results after matching. */
 export type IdentifyPostProcessor = (
   payload: IdentifyPostProcessorPayload
 ) => Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void;
@@ -94,7 +115,7 @@ export class DeviceManager {
   private readonly pluginRegistrar = new PluginRegistrar();
 
   /**
-   * Cache entry for the deduplication window (feature #8).
+    * Cache entry for the deduplication window.
    * Keyed by the TLSH hash of the incoming fingerprint.
    */
   private dedupCache = new Map<string, { result: IdentifyResult; expiresAt: number }>();
@@ -216,6 +237,16 @@ export class DeviceManager {
     return { result, logMeta };
   }
 
+  /**
+   * Register a named post-processor that runs after the core identify decision.
+   *
+   * Processors are executed in registration order. The returned teardown function
+   * unregisters only this exact `(name, processor)` pair.
+   *
+   * @param name - Stable plugin name used for enrichment and log metadata.
+   * @param processor - Callback that can enrich the identify result.
+   * @returns A function that unregisters the processor.
+   */
   registerIdentifyPostProcessor(name: string, processor: IdentifyPostProcessor): () => void {
     this.identifyPostProcessors.push({ name, processor });
     return () => {
@@ -309,7 +340,7 @@ export class DeviceManager {
     const start = performance.now();
     const fingerprintHash = getFingerprintHash(incoming);
 
-    // --- #8 Dedup cache check ---
+    // Dedup cache check.
     const dedupWindowMs = this.context.dedupWindowMs!;
     const cacheKey = fingerprintHash ?? null;
     let baseResult: IdentifyResult | null = null;
@@ -332,7 +363,7 @@ export class DeviceManager {
 
       // 1b. LSH candidate augmentation — merge any extra device IDs surfaced by
       //     the LSH index (set-similarity over fonts/plugins/mimeTypes/languages)
-      //     that the adapter's pre-filter may have missed.
+      //     that the adapter pre-filter may have missed.
       let candidates = adapterCandidates;
       if (this.lshIndex) {
         const adapterIds = new Set(adapterCandidates.map((c) => c.deviceId));

@@ -1,78 +1,131 @@
-/**
- * Raw browser fingerprint data collected from a user's device.
- * Encompasses navigator properties, screen metrics, installed plugins,
- * font enumeration, and high-entropy client hints.
- */
+/** Aggregated pointer-movement metrics captured during fingerprint collection. */
 export interface MouseBehaviorMetrics {
+  /** Total pointer samples included in the aggregate. */
   sampleCount: number;
+  /** Mean pointer velocity in pixels per millisecond. */
   avgVelocityPxMs: number;
+  /** Standard deviation of pointer velocity samples. */
   velocityStdDev: number;
+  /** Path efficiency ratio where values closer to `1` are straighter. */
   straightnessRatio: number;
+  /** Mean pointer acceleration across the sampled movement events. */
   avgAcceleration: number;
+  /** Whether any pointer movement was observed at all. */
   hasMovement: boolean;
 }
 
+/** Aggregate keystroke timing metrics derived from keyboard interactions. */
 export interface KeyboardBehaviorMetrics {
+  /** Number of keystrokes captured in the sample window. */
   keystrokeCount: number;
+  /** Average key dwell time in milliseconds. */
   avgDwellMs: number;
+  /** Standard deviation of dwell times. */
   dwellStdDev: number;
+  /** Average flight time between key presses in milliseconds. */
   avgFlightMs: number;
+  /** Standard deviation of flight times. */
   flightStdDev: number;
+  /** Estimated typing speed in words per minute. */
   estimatedWpm: number;
 }
 
+/** Summary statistics for scroll behavior recorded during collection. */
 export interface ScrollBehaviorMetrics {
+  /** Number of scroll events observed. */
   eventCount: number;
+  /** Average scroll velocity in pixels per millisecond. */
   avgVelocityPxMs: number;
+  /** Standard deviation of scroll velocity. */
   velocityStdDev: number;
+  /** Number of direction reversals across the sample window. */
   directionChangeCount: number;
+  /** Total scroll distance accumulated in pixels. */
   totalDistancePx: number;
 }
 
+/** Timing metrics that describe session duration and interaction cadence. */
 export interface SessionTimingMetrics {
+  /** Total session duration in milliseconds. */
   sessionDurationMs: number;
+  /** Delay until the first interaction, or `null` when no interaction occurred. */
   timeToFirstInteractionMs: number | null;
+  /** Count of interaction events captured during the session. */
   interactionEventCount: number;
+  /** Count of touch-specific events captured during the session. */
   touchEventCount: number;
 }
 
+/** Optional behavioral signals collected alongside the static browser fingerprint. */
 export interface BehavioralMetrics {
+  /** Pointer movement metrics when mouse or trackpad input was observed. */
   mouse?: MouseBehaviorMetrics;
+  /** Keyboard timing metrics when key events were observed. */
   keyboard?: KeyboardBehaviorMetrics;
+  /** Scroll interaction metrics when scrolling occurred. */
   scroll?: ScrollBehaviorMetrics;
+  /** Session-level timing metrics, always present when behavioral collection ran. */
   session: SessionTimingMetrics;
+  /** Total time spent collecting behavioral signals, in milliseconds. */
   collectionDurationMs: number;
+  /** Whether touch events were observed during collection. */
   hasTouchEvents: boolean;
 }
 
+/**
+ * Raw browser fingerprint data collected from a user's device.
+ * Encompasses navigator properties, screen metrics, installed plugins,
+ * rendering fingerprints, and optional behavioral signals.
+ */
 export interface FPUserDataSet {
+  /** Full browser user-agent string. */
   userAgent?: string;
+  /** Navigator platform value. */
   platform?: string;
+  /** IANA time zone or equivalent browser-reported time zone. */
   timezone?: string;
+  /** Primary browser language. */
   language?: string;
+  /** Ordered browser language preferences. */
   languages?: string[];
+  /** Whether cookies are enabled in the browser. */
   cookieEnabled?: boolean;
+  /** Browser do-not-track preference. */
   doNotTrack?: string | boolean;
+  /** Number of logical CPU cores reported by the browser. */
   hardwareConcurrency?: number;
+  /** Approximate device memory as reported by client hints or navigator APIs. */
   deviceMemory?: number | string;
+  /** Navigator product token. */
   product?: string;
+  /** Navigator productSub token. */
   productSub?: string;
+  /** Browser vendor string. */
   vendor?: string;
+  /** Browser vendorSub string. */
   vendorSub?: string;
+  /** Navigator appName value. */
   appName?: string;
+  /** Navigator appVersion value. */
   appVersion?: string;
+  /** Navigator appCodeName value. */
   appCodeName?: string;
+  /** Legacy browser app minor version when available. */
   appMinorVersion?: string;
+  /** Firefox-style build identifier when available. */
   buildID?: string;
+  /** Installed browser plugins with names and descriptions. */
   plugins?: {
     name: string;
     description: string;
   }[];
+  /** Registered MIME types exposed by the browser plugin system. */
   mimeTypes?: {
     type: string;
     suffixes: string;
     description: string;
   }[];
+  /** Screen geometry and orientation metadata. */
   screen?: {
     width: number;
     height: number;
@@ -83,10 +136,15 @@ export interface FPUserDataSet {
       angle: number;
     };
   };
+  /** Enumerated font family names available to the page. */
   fonts?: string[];
+	/** Canvas rendering fingerprint. */
 	canvas?: string;
+	/** WebGL rendering fingerprint. */
 	webgl?: string;
+	/** Audio fingerprint derived from a deterministic render pipeline. */
 	audio?: string;
+  /** High-entropy client hints and related browser-identifying signals. */
   highEntropyValues?: {
     architecture?: string;
     bitness?: string;
@@ -97,6 +155,7 @@ export interface FPUserDataSet {
     platformVersion?: string;
     uaFullVersion?: string;
   };
+  /** Optional interactive behavior metrics collected during the session. */
   behavioralMetrics?: BehavioralMetrics;
 }
 
@@ -125,6 +184,7 @@ export type Comparator = (value1: any, value2: any, path?: string) => number; //
  * fingerprint windows.
  */
 export interface FieldStabilityMap {
+  /** Stability score in `[0, 1]` for the field at the given dot-path. */
   [path: string]: number;
 }
 

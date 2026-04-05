@@ -7,7 +7,8 @@ import { getStoredFingerprintHash } from "../fingerprint-hash.js";
  * `Map`. All data is lost when the process exits.
  *
  * Intended for **testing and development only**. Because there is no
- * persistence layer, `linkToUser` and `deleteOldSnapshots` are no-ops.
+ * persistence layer, `linkToUser` is a no-op and `deleteOldSnapshots`
+ * prunes in-memory history without tracking a deleted-row count.
  *
  * @returns A fully initialised (eager) `StorageAdapter` instance.
  *
@@ -70,7 +71,7 @@ export function createInMemoryAdapter(): StorageAdapter {
       return matches.sort((a, b) => b.confidence - a.confidence);
     },
     async linkToUser() {
-      // In-memory stub: no-op since we don't have a real DB to update. In production, this would update all snapshots for the deviceId to set userId.
+      // This adapter only stores fingerprint history in memory.
     },
     async deleteOldSnapshots(olderThanDays: number) {
 			store.forEach((history, deviceId) => {
@@ -83,7 +84,7 @@ export function createInMemoryAdapter(): StorageAdapter {
 				}
 			});
       rebuildHashIndex();
-			return 0; // Return 0 since we're not tracking individual deletions in this stub.
+      return 0; // Snapshot pruning is applied, but deleted-row counts are not tracked.
 		},
 		async getAllFingerprints() {
 			const allFingerprints: StoredFingerprint[] = [];
@@ -94,5 +95,3 @@ export function createInMemoryAdapter(): StorageAdapter {
 		}
   };
 }
-
-// Usage: const adapter = createInMemoryAdapter();

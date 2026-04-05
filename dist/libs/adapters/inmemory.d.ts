@@ -4,7 +4,8 @@ import type { StorageAdapter } from "../../types/storage.js";
  * `Map`. All data is lost when the process exits.
  *
  * Intended for **testing and development only**. Because there is no
- * persistence layer, `linkToUser` and `deleteOldSnapshots` are no-ops.
+ * persistence layer, `linkToUser` is a no-op and `deleteOldSnapshots`
+ * prunes in-memory history without tracking a deleted-row count.
  *
  * @returns A fully initialised (eager) `StorageAdapter` instance.
  *

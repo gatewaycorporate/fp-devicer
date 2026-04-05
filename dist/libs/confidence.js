@@ -188,10 +188,20 @@ function createScoringContext(userOptions = {}) {
         calculateDeviceSimilarity,
     };
 }
+/**
+ * Measure how much usable fingerprint data is present in a single snapshot.
+ *
+ * The score is the percentage of modeled top-level fields that are populated.
+ */
 export function computeEvidenceRichness(data) {
     const presentCount = FIELD_PATHS.filter((field) => isPresent(data[field])).length;
     return clampScore((presentCount / FIELD_PATHS.length) * 100);
 }
+/**
+ * Measure how many comparable fields agree strongly between two fingerprints.
+ *
+ * A field is counted as matching when its similarity score is at least `0.9`.
+ */
 export function computeFieldAgreement(data1, data2, options = {}) {
     const context = createScoringContext(options);
     let comparable = 0;
@@ -208,6 +218,12 @@ export function computeFieldAgreement(data1, data2, options = {}) {
     }
     return comparable > 0 ? clampScore((matching / comparable) * 100) : 50;
 }
+/**
+ * Score agreement across the subset of fields considered structurally stable.
+ *
+ * This emphasizes properties such as screen characteristics, CPU concurrency,
+ * memory, platform, and high-entropy client hints.
+ */
 export function computeStructuralStability(data1, data2, options = {}) {
     const context = createScoringContext(options);
     let totalWeight = 0;
@@ -223,6 +239,9 @@ export function computeStructuralStability(data1, data2, options = {}) {
     }
     return totalWeight > 0 ? clampScore((matchedWeight / totalWeight) * 100) : 50;
 }
+/**
+ * Score agreement across high-entropy rendering signals such as canvas, WebGL, and audio.
+ */
 export function computeEntropyContribution(data1, data2, options = {}) {
     const context = createScoringContext(options);
     let totalWeight = 0;
@@ -238,6 +257,12 @@ export function computeEntropyContribution(data1, data2, options = {}) {
     }
     return totalWeight > 0 ? clampScore((matchedWeight / totalWeight) * 100) : 50;
 }
+/**
+ * Estimate how generic and collision-prone a fingerprint appears to be.
+ *
+ * Higher scores indicate common platform/language/browser combinations and a
+ * lack of distinctive rendering signals.
+ */
 export function computeAttractorRisk(data) {
     let matchedSignals = 0;
     const maxSignals = 6;
@@ -269,6 +294,7 @@ export function computeAttractorRisk(data) {
     }
     return clampScore((matchedSignals / maxSignals) * 100);
 }
+/** Return the percentage of modeled fields that are present on only one side of the comparison. */
 export function computeMissingOneSide(data1, data2) {
     let oneSideMissing = 0;
     for (const field of FIELD_PATHS) {
@@ -280,6 +306,7 @@ export function computeMissingOneSide(data1, data2) {
     }
     return clampScore((oneSideMissing / FIELD_PATHS.length) * 100);
 }
+/** Return the percentage of modeled fields that are absent from both fingerprints. */
 export function computeMissingBothSides(data1, data2) {
     let missingBoth = 0;
     for (const field of FIELD_PATHS) {
@@ -291,6 +318,12 @@ export function computeMissingBothSides(data1, data2) {
     }
     return clampScore((missingBoth / FIELD_PATHS.length) * 100);
 }
+/**
+ * Derive per-dimension scaling factors from historical field stabilities.
+ *
+ * Stable devices keep full weight across all dimensions, while volatile devices
+ * down-weight dimensions that rely on unstable fields.
+ */
 export function computeAdaptiveStabilityWeights(stabilities = {}) {
     if (!Object.keys(stabilities).length) {
         return {
@@ -319,6 +352,18 @@ export function computeAdaptiveStabilityWeights(stabilities = {}) {
         missingBothSides: 1,
     };
 }
+/**
+ * Compute the full multi-dimensional score breakdown for two fingerprints.
+ *
+ * The breakdown combines structural similarity, evidence richness, agreement on
+ * stable and high-entropy fields, attractor risk, missing-data penalties, and
+ * optional temporal decay based on snapshot age.
+ *
+ * @param data1 - Incoming or reference fingerprint.
+ * @param data2 - Candidate fingerprint to compare against.
+ * @param options - Comparison overrides including weights, comparators, stabilities, and decay settings.
+ * @returns Normalized component scores plus the final `composite` confidence score.
+ */
 export function calculateScoreBreakdown(data1, data2, options = {}) {
     try {
         const comparableData1 = toComparableFingerprint(data1);

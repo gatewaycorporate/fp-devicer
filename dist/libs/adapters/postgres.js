@@ -31,7 +31,7 @@ const fingerprintsTable = pgTable("fingerprints", {
  * ```
  */
 export function createPostgresAdapter(dbUrlOrClient) {
-    const db = drizzle(dbUrlOrClient); // works for both SQLite & Postgres
+    const db = drizzle(dbUrlOrClient);
     const findExistingSnapshotIdByHash = async (signalsHash) => {
         const rows = await db.select().from(fingerprintsTable);
         for (const row of rows) {
@@ -64,7 +64,6 @@ export function createPostgresAdapter(dbUrlOrClient) {
                 deviceId: snapshot.deviceId,
                 data: snapshot.fingerprint,
                 timestamp: snapshot.timestamp instanceof Date ? snapshot.timestamp.toISOString() : snapshot.timestamp,
-                // ...other fields
             });
             return id;
         },
@@ -84,20 +83,19 @@ export function createPostgresAdapter(dbUrlOrClient) {
             }));
         },
         async findCandidates(query, minConfidence, limit = 20) {
-            // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.
-            // This is a simplified example. In production, you'd want to optimize this with proper indexing and maybe a more efficient search strategy.
-            // Pre-filter by hardware signals in SQL
+            // Pre-filter by hardware/platform signals in SQL before running
+            // the full confidence calculation in process.
             const prelim = await db.select().from(fingerprintsTable).where(sql `(json_extract(data, '$.deviceMemory') = ${query.deviceMemory}
 					OR json_extract(data, '$.hardwareConcurrency') = ${query.hardwareConcurrency}
 					OR json_extract(data, '$.platform') = ${query.platform})`);
-            // Further narrow to rows where canvas OR webgl also matches (in-process)
+            // Prefer rows that also agree on higher-entropy canvas or WebGL data.
             const filtered = prelim.filter(row => {
                 const fp = row.data;
                 return (query.canvas && fp?.canvas === query.canvas) ||
                     (query.webgl && fp?.webgl === query.webgl);
             });
-            // Fall back to full prelim set if no biometric signals matched
-            // (e.g. first session where canvas/webgl are not yet known)
+            // Keep the broader SQL-filtered pool when those stronger signals are
+            // unavailable or do not match yet.
             const pool = filtered.length > 0 ? filtered : prelim;
             const candidates = [];
             for (const row of pool) {
@@ -114,7 +112,7 @@ export function createPostgresAdapter(dbUrlOrClient) {
             return candidates.slice(0, limit);
         },
         async linkToUser() {
-            // This method would require a user management system to link deviceIds to userIds. Implementation would depend on your specific user schema and requirements.
+            // User-device relationships are not persisted by this schema.
         },
         async deleteOldSnapshots(olderThanDays) {
             const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();

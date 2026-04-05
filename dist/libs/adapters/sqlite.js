@@ -30,7 +30,7 @@ const fingerprintsTable = sqliteTable("fingerprints", {
  * ```
  */
 export function createSqliteAdapter(dbUrlOrClient) {
-    const db = drizzle(dbUrlOrClient); // works for both SQLite & Postgres
+    const db = drizzle(dbUrlOrClient);
     const findExistingSnapshotIdByHash = async (signalsHash) => {
         const rows = await db.select().from(fingerprintsTable);
         for (const row of rows) {
@@ -63,7 +63,6 @@ export function createSqliteAdapter(dbUrlOrClient) {
                 deviceId: snapshot.deviceId,
                 data: snapshot.fingerprint,
                 timestamp: snapshot.timestamp instanceof Date ? snapshot.timestamp.toISOString() : snapshot.timestamp,
-                // ...other fields
             });
             return id;
         },
@@ -83,18 +82,19 @@ export function createSqliteAdapter(dbUrlOrClient) {
             }));
         },
         async findCandidates(query, minConfidence, limit = 20) {
-            // Pre-filter by hardware signals in SQL
+            // Pre-filter by hardware/platform signals in SQL before running
+            // the full confidence calculation in process.
             const prelim = await db.select().from(fingerprintsTable).where(sql `(json_extract(data, '$.deviceMemory') = ${query.deviceMemory}
 					OR json_extract(data, '$.hardwareConcurrency') = ${query.hardwareConcurrency}
 					OR json_extract(data, '$.platform') = ${query.platform})`);
-            // Further narrow to rows where canvas OR webgl also matches (in-process)
+            // Prefer rows that also agree on higher-entropy canvas or WebGL data.
             const filtered = prelim.filter(row => {
                 const fp = row.data;
                 return (query.canvas && fp?.canvas === query.canvas) ||
                     (query.webgl && fp?.webgl === query.webgl);
             });
-            // Fall back to full prelim set if no biometric signals matched
-            // (e.g. first session where canvas/webgl are not yet known)
+            // Keep the broader SQL-filtered pool when those stronger signals are
+            // unavailable or do not match yet.
             const pool = filtered.length > 0 ? filtered : prelim;
             const candidates = [];
             for (const row of pool) {

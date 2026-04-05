@@ -25,7 +25,7 @@ const { MockRedis, clearRedis, getHashes } = vi.hoisted(() => {
 
 	// ── Mock Redis class ─────────────────────────────────────────────────────
 	// Implements the subset of the ioredis API used by createRedisAdapter:
-	//   sadd, multi (hset / expire / exec), hvals, smembers, sinter,
+	//   sadd, multi (hset / set / expire / exec), hvals, smembers, sinter,
 	//   pipeline (get / hvals / exec), hset, scanStream, quit.
 	class MockRedis {
 		constructor(_url?: string) {}
@@ -43,18 +43,12 @@ const { MockRedis, clearRedis, getHashes } = vi.hoisted(() => {
 					ops.push(() => {
 						if (!_hashes.has(key)) _hashes.set(key, new Map());
 						_hashes.get(key)!.set(field, value);
-						// Mirror the fingerprint to fp:latest:<key> so that
-						// findCandidates' pipeline.get(`fp:latest:${deviceKey}`) finds it.
-						// The adapter stores the full StoredFingerprint JSON in the hash,
-						// but findCandidates treats the retrieved value as FPUserDataSet,
-						// so we extract just the fingerprint part.
-						try {
-							const parsed = JSON.parse(value);
-							const fpData = parsed.fingerprint ?? parsed;
-							_strings.set(`fp:latest:${key}`, JSON.stringify(fpData));
-						} catch {
-							_strings.set(`fp:latest:${key}`, value);
-						}
+					});
+					return chain;
+				},
+				set: (key: string, value: string) => {
+					ops.push(() => {
+						_strings.set(key, value);
 					});
 					return chain;
 				},
@@ -183,7 +177,7 @@ describe('RedisAdapter', () => {
 		const candidates = await adapter.findCandidates(fpIdentical, 70, 5);
 
 		expect(candidates.length).toBeGreaterThan(0);
-		expect(candidates[0].deviceId).toBe(`fp:device:${devA}`);
+		expect(candidates[0].deviceId).toBe(devA);
 		expect(candidates[0].confidence).toBeGreaterThanOrEqual(90); // identical fingerprint
 		for (let i = 1; i < candidates.length; i++) {
 			expect(candidates[i].confidence).toBeLessThanOrEqual(candidates[i - 1].confidence);
@@ -203,8 +197,26 @@ describe('RedisAdapter', () => {
 
 		const candidates = await adapter.findCandidates(fpIdentical, 70, 5);
 
-		// Only devA's key should survive the set intersection
-		expect(candidates.every(c => c.deviceId === `fp:device:${devA}`)).toBe(true);
+		// Only devA should survive the set intersection
+		expect(candidates.every(c => c.deviceId === devA)).toBe(true);
+	});
+
+	it('findCandidates reads the persisted latest snapshot cache', async () => {
+		const deviceId = 'dev_latest';
+		const timestamp = new Date('2026-02-02T10:00:00.000Z');
+
+		await adapter.save({ id: randomUUID(), deviceId, timestamp, fingerprint: fpIdentical });
+
+		const candidates = await adapter.findCandidates(fpIdentical, 70, 5);
+
+		expect(candidates).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					deviceId,
+					lastSeen: timestamp,
+				}),
+			]),
+		);
 	});
 
 	it('deleteOldSnapshots is a no-op (TTL-based expiry)', async () => {

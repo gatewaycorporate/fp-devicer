@@ -10,11 +10,13 @@ import { getStoredFingerprintHash } from "../fingerprint-hash.js";
  * **Key schema**
  * - `fp:device:<deviceId>` — Hash mapping snapshot IDs to serialised
  *   {@link StoredFingerprint} JSON. Keys expire after 90 days.
- * - `fp:latest:<deviceId>` — Stores the most-recent fingerprint JSON for
- *   fast candidate retrieval.
+ * - `fp:latest:<deviceId>` — Cached copy of the most recent snapshot for
+ *   candidate scoring.
+ * - `idx:devices` — Set of device IDs used for full-store enumeration during
+ *   deduplication and exports.
  * - `idx:platform:<value>`, `idx:deviceMemory:<value>`,
  *   `idx:hardwareConcurrency:<value>` — Secondary index sets used for
- *   O(1) candidate pre-filtering via `SINTER`.
+ *   coarse candidate pre-filtering via `SMEMBERS` / `SINTER`.
  *
  * `deleteOldSnapshots` is a no-op; TTL-based expiry handles retention.
  *
@@ -30,12 +32,19 @@ import { getStoredFingerprintHash } from "../fingerprint-hash.js";
  */
 export function createRedisAdapter(redisUrl?: string): StorageAdapter {
   const redis = new (Redis as any)(redisUrl || "redis://localhost:6379");
+  const ttlSeconds = 60 * 60 * 24 * 90;
+
+	const deviceKey = (deviceId: string): string => `fp:device:${deviceId}`;
+	const latestKey = (deviceId: string): string => `fp:latest:${deviceId}`;
 
 	const parseStoredFingerprint = (value: string): StoredFingerprint | null => {
 		try {
 			const parsed = JSON.parse(value);
 			if (parsed && typeof parsed === "object" && "fingerprint" in parsed && "deviceId" in parsed) {
-				return parsed as StoredFingerprint;
+				return {
+					...(parsed as StoredFingerprint),
+					timestamp: new Date((parsed as StoredFingerprint).timestamp),
+				};
 			}
 		} catch {
 			return null;
@@ -44,14 +53,14 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
 	};
 
 	const readAllFingerprints = async (): Promise<StoredFingerprint[]> => {
-		const deviceKeys = await redis.smembers('idx:devices');
+		const deviceIds = await redis.smembers('idx:devices');
 		const allFingerprints: StoredFingerprint[] = [];
-		if (!deviceKeys.length) {
+		if (!deviceIds.length) {
 			return allFingerprints;
 		}
 
 		const pipeline = redis.pipeline();
-		deviceKeys.forEach((key: string) => pipeline.hvals(key));
+		deviceIds.forEach((deviceId: string) => pipeline.hvals(deviceKey(deviceId)));
 		const results = await pipeline.exec();
 		results.forEach(([err, raw]: [Error | null, string[]]) => {
 			if (err) return;
@@ -79,32 +88,36 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
 				}
 			}
 
-      const key = `fp:device:${snapshot.deviceId}`;
+			const key = deviceKey(snapshot.deviceId);
+			const latestSnapshotKey = latestKey(snapshot.deviceId);
 			const storedSnapshot = signalsHash && snapshot.signalsHash !== signalsHash
 				? { ...snapshot, signalsHash }
 				: snapshot;
-			await redis.sadd('idx:devices', key);
-			await redis.sadd(`idx:platform:${snapshot.fingerprint.platform}`, key);
-			await redis.sadd(`idx:deviceMemory:${snapshot.fingerprint.deviceMemory}`, key);
-			await redis.sadd(`idx:hardwareConcurrency:${snapshot.fingerprint.hardwareConcurrency}`, key);
+			await redis.sadd('idx:devices', snapshot.deviceId);
+			await redis.sadd(`idx:platform:${snapshot.fingerprint.platform}`, snapshot.deviceId);
+			await redis.sadd(`idx:deviceMemory:${snapshot.fingerprint.deviceMemory}`, snapshot.deviceId);
+			await redis.sadd(`idx:hardwareConcurrency:${snapshot.fingerprint.hardwareConcurrency}`, snapshot.deviceId);
       await redis
         .multi()
 				.hset(key, storedSnapshot.id, JSON.stringify(storedSnapshot))
-        .expire(key, 60 * 60 * 24 * 90) // 90-day TTL
+				.set(latestSnapshotKey, JSON.stringify(storedSnapshot))
+				.expire(key, ttlSeconds)
+				.expire(latestSnapshotKey, ttlSeconds)
         .exec();
 			return storedSnapshot.id;
     },
     async getHistory(deviceId, limit = 50) {
-      const key = `fp:device:${deviceId}`;
+      const key = deviceKey(deviceId);
       const raw = await redis.hvals(key);
 			return raw
-				.slice(0, limit)
 				.map((value: string) => parseStoredFingerprint(value))
-				.filter((snapshot: StoredFingerprint | null): snapshot is StoredFingerprint => snapshot !== null);
+				.filter((snapshot: StoredFingerprint | null): snapshot is StoredFingerprint => snapshot !== null)
+				.sort((a: StoredFingerprint, b: StoredFingerprint) => b.timestamp.getTime() - a.timestamp.getTime())
+				.slice(0, limit);
     },
     async findCandidates(query, minConfidence, limit = 20) {
-      // Preselect candidates based on quick checks (e.g., deviceMemory, hardwareConcurrency, platform) if those are part of the fingerprint, then calculate confidence for those candidates.
-			// This is a simplified example. In production, you'd want to optimize this with proper indexing and maybe a more efficient search strategy.
+			// Narrow the search with low-cost hardware/platform indexes before
+			// running full confidence scoring on the remaining candidates.
 			const indexKeys: string[] = [];
 
 			if (query.platform) {
@@ -119,7 +132,7 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
 
 			if (indexKeys.length === 0) return [];
 
-			// ←←← THIS IS THE FAST FILTER ←←←
+			// Intersect the secondary indexes to keep the candidate pool small.
 			let deviceIds: string[];
 			if (indexKeys.length === 1) {
 				deviceIds = await redis.smembers(indexKeys[0]);
@@ -127,16 +140,15 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
 				deviceIds = await redis.sinter(...indexKeys); // set intersection
 			}
 
-			// Optional: early limit to avoid fetching too many
+			// Over-fetch slightly because confidence scoring may drop candidates.
 			deviceIds = deviceIds.slice(0, limit * 2); // we may drop some after real scoring
 
 			if (deviceIds.length === 0) return [];
 
-			// Now do the real scoring ONLY on the pre-filtered candidates (very few)
+			// Score only the pre-filtered candidates.
 			const pipeline = redis.pipeline();
 			for (const deviceId of deviceIds) {
-				// Get the latest snapshot (assuming you store latest as a JSON key)
-				pipeline.get(`fp:latest:${deviceId}`);
+				pipeline.get(latestKey(deviceId));
 			}
 			const results = await pipeline.exec();
 
@@ -146,29 +158,29 @@ export function createRedisAdapter(redisUrl?: string): StorageAdapter {
 				const raw = results?.[i]?.[1] as string | null;
 				if (!raw) continue;
 
-				const storedData: FPUserDataSet = JSON.parse(raw);
+				const storedSnapshot = parseStoredFingerprint(raw);
+				if (!storedSnapshot) continue;
+
+				const storedData: FPUserDataSet = storedSnapshot.fingerprint;
 				const score = calculateConfidence(query, storedData);
 
 				if (score >= minConfidence) {
-					const lastSeenRaw = (storedData as any).lastSeen ?? (storedData as any).timestamp ?? Date.now();
 					candidates.push({
 						deviceId: deviceIds[i],
 						confidence: score,
-						lastSeen: new Date(lastSeenRaw)
+						lastSeen: storedSnapshot.timestamp
 					});
 				}
-
-				if (candidates.length >= limit) break;
 			}
 
-			// Return sorted by confidence (same as in-memory adapter)
-			return candidates.sort((a, b) => b.confidence - a.confidence);
+			// Highest-confidence matches should be returned first.
+			return candidates.sort((a, b) => b.confidence - a.confidence).slice(0, limit);
     },
     async linkToUser(deviceId, userId) {
       await redis.hset(`fp:device:${deviceId}`, "userId", userId);
     },
     async deleteOldSnapshots(olderThanDays) {
-      // This is a no-op since we set TTL on keys, but you could also implement a scan + delete here if needed
+			// Retention is handled by the per-device TTL set during writes.
       return 0;
     },
 		async getAllFingerprints() {

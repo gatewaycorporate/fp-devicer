@@ -5,11 +5,13 @@ import type { StorageAdapter } from "../../types/storage.js";
  * **Key schema**
  * - `fp:device:<deviceId>` — Hash mapping snapshot IDs to serialised
  *   {@link StoredFingerprint} JSON. Keys expire after 90 days.
- * - `fp:latest:<deviceId>` — Stores the most-recent fingerprint JSON for
- *   fast candidate retrieval.
+ * - `fp:latest:<deviceId>` — Cached copy of the most recent snapshot for
+ *   candidate scoring.
+ * - `idx:devices` — Set of device IDs used for full-store enumeration during
+ *   deduplication and exports.
  * - `idx:platform:<value>`, `idx:deviceMemory:<value>`,
  *   `idx:hardwareConcurrency:<value>` — Secondary index sets used for
- *   O(1) candidate pre-filtering via `SINTER`.
+ *   coarse candidate pre-filtering via `SMEMBERS` / `SINTER`.
  *
  * `deleteOldSnapshots` is a no-op; TTL-based expiry handles retention.
  *
