@@ -1,9 +1,7 @@
 # FP-Devicer
 
-## Developed by Gateway Corporate Solutions LLC
-
 FP-Devicer is a digital fingerprinting middleware library designed for ease of
-use and near-universal compatibility with servers.
+use and near-universal compatibility with servers. Developed by [Gateway Corporate Solutions](https://gatewaycorporate.org).
 
 ## Usage
 
