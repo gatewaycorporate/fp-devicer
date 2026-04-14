@@ -1,6 +1,7 @@
 import { calculateConfidence, calculateScoreBreakdown } from '../libs/confidence.js';
 import {
 	ScenarioPair,
+	generateMetaDockAntiFingerprint,
 	generateAdversarialPerturbation,
 	generateBrowserDrift,
 	generateCommodityCollision,
@@ -42,6 +43,8 @@ export function buildScenarioPairsForSeed(seed: number): ScenarioPair[] {
 		generateCommodityCollision(seed + 15, 'corporate-fleet'),
 		generateCommodityCollision(seed + 16, 'iphone-defaults'),
 		generateCommodityCollision(seed + 17, 'public-terminal'),
+		generateMetaDockAntiFingerprint(seed + 18, 'metadock-balanced'),
+		generateMetaDockAntiFingerprint(seed + 19, 'metadock-max'),
 	];
 }
 

@@ -5,14 +5,14 @@ describe('Scenario benchmark helpers', () => {
 	it('buildScenarioPairs returns the full scenario matrix', () => {
 		const pairs = buildScenarioPairs();
 
-		expect(pairs).toHaveLength(17);
+		expect(pairs).toHaveLength(19);
 		expect(new Set(pairs.map((pair) => pair.label)).size).toBe(pairs.length);
 	});
 
 	it('buildScenarioBenchRows computes comparable score rows for each pair', () => {
 		const rows = buildScenarioBenchRows();
 
-		expect(rows).toHaveLength(17);
+		expect(rows).toHaveLength(19);
 		for (const row of rows) {
 			expect(row.score).toBeGreaterThanOrEqual(0);
 			expect(row.score).toBeLessThanOrEqual(100);

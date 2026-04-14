@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { bench, describe } from 'vitest';
 import { calculateConfidence } from '../libs/confidence.js';
 import {
+  generateMetaDockAntiFingerprint,
   generateAdversarialPerturbation,
   generateBrowserDrift,
   generateCommodityCollision,
@@ -48,7 +49,7 @@ function formatTable(data: Record<string, unknown>[]): string {
 
 const scoredPairs: ScoredPair[] = [];
 
-const scenarioSeeds = Array.from({ length: 50 }, (_, index) => 1000 + index * 17);
+const scenarioSeeds = Array.from({ length: 50 }, (_, index) => 1000 + index * 19);
 
 function isAttractorScenario(label: string): boolean {
   return label.startsWith('privacy-resistance:') || label.startsWith('commodity-collision:');
@@ -73,6 +74,8 @@ function buildScenarioBatch(seed: number) {
     generateCommodityCollision(seed + 15, 'corporate-fleet'),
     generateCommodityCollision(seed + 16, 'iphone-defaults'),
     generateCommodityCollision(seed + 17, 'public-terminal'),
+    generateMetaDockAntiFingerprint(seed + 18, 'metadock-balanced'),
+    generateMetaDockAntiFingerprint(seed + 19, 'metadock-max'),
   ];
 }
 

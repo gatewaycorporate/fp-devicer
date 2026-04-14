@@ -994,6 +994,56 @@ export function generatePrivacyResistance(
   return { label: 'privacy-resistance:canvas-defender', fp1: base, fp2: defended, expectedSameDevice: true };
 }
 
+function tweakMetaDockVersions(fp: FPDataSet, majorVersion: number, buildSeed: number): void {
+  const buildRng = makePrng(buildSeed);
+  fp.userAgent = replaceMajorVersion(fp.userAgent, majorVersion) ?? fp.userAgent;
+  fp.appVersion = replaceMajorVersion(fp.appVersion, majorVersion) ?? fp.appVersion;
+  if (fp.highEntropyValues) {
+    fp.highEntropyValues = {
+      ...fp.highEntropyValues,
+      uaFullVersion: `${majorVersion}.0.${buildRng.int(5000, 6999)}.${buildRng.int(100, 200)}`,
+      brands: [
+        { brand: 'Chromium', version: String(majorVersion) },
+        { brand: 'Google Chrome', version: String(majorVersion) },
+        { brand: 'Not-A.Brand', version: String(buildRng.int(8, 99)) },
+      ],
+    };
+  }
+}
+
+export function generateMetaDockAntiFingerprint(
+  seed: number,
+  preset: 'metadock-balanced' | 'metadock-max'
+): ScenarioPair {
+  const base = createBaseFingerprint(seed);
+  const spoofed = cloneFingerprint(base);
+  const rng = makePrng(seed ^ 0x4d455441);
+
+  if (preset === 'metadock-balanced') {
+    spoofed.canvas = simpleHash(`${base.canvas}-metadock-balanced-${rng.int(10, 99)}`);
+    spoofed.webgl = base.webgl;
+    spoofed.plugins = [...(base.plugins ?? [])];
+    spoofed.mimeTypes = [...(base.mimeTypes ?? [])];
+    return { label: 'antifingerprint:metadock-balanced', fp1: base, fp2: spoofed, expectedSameDevice: true };
+  }
+
+  const fontRng = makePrng(seed ^ 0x0f0f0f0f);
+  const currentFonts = new Set(base.fonts ?? []);
+  const candidateFonts = FONT_POOL.filter((font) => !currentFonts.has(font));
+
+  const targetCount = Math.max(4, Math.min(base.fonts?.length ?? 8, candidateFonts.length));
+
+  spoofed.canvas = simpleHash(`${base.canvas}-metadock-max-${rng.int(1000, 9999)}`);
+  spoofed.webgl = simpleHash(`${base.webgl}-metadock-max-${rng.int(1000, 9999)}`);
+  spoofed.audio = base.audio;
+  spoofed.fonts = fontRng.shuffle(candidateFonts).slice(0, targetCount);
+  spoofed.plugins = [];
+  spoofed.mimeTypes = [];
+  tweakMetaDockVersions(spoofed, 124 + rng.int(0, 1), seed ^ 0x4d415858);
+  spoofed.doNotTrack = '1';
+  return { label: 'antifingerprint:metadock-max', fp1: base, fp2: spoofed, expectedSameDevice: true };
+}
+
 export function generateAdversarialPerturbation(
   seed: number,
   type: 'canvas-noise' | 'font-randomization' | 'ua-rotation'
@@ -1008,9 +1058,15 @@ export function generateAdversarialPerturbation(
   }
 
   if (type === 'font-randomization') {
-    changed.fonts = [...(base.fonts ?? [])].reverse();
-    changed.plugins = [];
-    changed.mimeTypes = [];
+    const fontRng = makePrng(seed ^ 0x0f0f0f0f);
+		const currentFonts = new Set(base.fonts ?? []);
+		const candidateFonts = FONT_POOL.filter((font) => !currentFonts.has(font));
+
+		const targetCount = Math.max(4, Math.min(base.fonts?.length ?? 8, candidateFonts.length));
+		changed.fonts = fontRng.shuffle(candidateFonts).slice(0, targetCount);
+		changed.plugins = [];
+		changed.mimeTypes = [];
+
     return { label: 'adversarial-perturbation:font-randomization', fp1: base, fp2: changed, expectedSameDevice: true };
   }
 

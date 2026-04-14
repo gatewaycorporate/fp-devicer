@@ -1,4 +1,4 @@
---- Scenario Benchmark Metrics (2026-04-04T16:01:07.657Z) ---
+--- Scenario Benchmark Metrics (2026-04-14T14:56:27.213Z) ---
 Scenario                                    | Expected         | Score  | DeviceSimilarity | FieldAgreement | AttractorRisk | MissingOneSide
 --------------------------------------------+------------------+--------+------------------+----------------+---------------+---------------
 browser-drift:minor                         | same-device      | 99.00  | 98.00            | 92.00          | 33.00         | 0.00          
@@ -11,10 +11,12 @@ privacy-resistance:tor                      | different-device | 84.00  | 94.00 
 privacy-resistance:resistant-browser        | different-device | 72.00  | 100.00           | 100.00         | 83.00         | 0.00          
 privacy-resistance:canvas-defender          | same-device      | 97.00  | 85.00            | 84.00          | 17.00         | 0.00          
 adversarial-perturbation:canvas-noise       | same-device      | 91.00  | 82.00            | 91.00          | 33.00         | 0.00          
-adversarial-perturbation:font-randomization | same-device      | 88.00  | 79.00            | 100.00         | 50.00         | 8.00          
+adversarial-perturbation:font-randomization | same-device      | 87.00  | 78.00            | 96.00          | 50.00         | 8.00          
 adversarial-perturbation:ua-rotation        | same-device      | 99.00  | 89.00            | 91.00          | 25.00         | 4.00          
 travel-network-change:timezone-travel       | same-device      | 98.00  | 97.00            | 88.00          | 50.00         | 0.00          
 travel-network-change:vpn-activation        | same-device      | 100.00 | 100.00           | 100.00         | 50.00         | 0.00          
 commodity-collision:corporate-fleet         | different-device | 65.00  | 80.00            | 88.00          | 83.00         | 0.00          
 commodity-collision:iphone-defaults         | different-device | 66.00  | 69.00            | 63.00          | 67.00         | 4.00          
 commodity-collision:public-terminal         | different-device | 72.00  | 100.00           | 100.00         | 83.00         | 0.00          
+antifingerprint:metadock-balanced           | same-device      | 92.00  | 90.00            | 96.00          | 50.00         | 0.00          
+antifingerprint:metadock-max                | same-device      | 78.00  | 67.00            | 73.00          | 33.00         | 0.00          
