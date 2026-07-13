@@ -15,15 +15,31 @@ function extractTokens(fp) {
     }
     const plugins = fp.plugins;
     if (Array.isArray(plugins)) {
-        for (const p of plugins)
-            if (typeof p === "string" && p)
+        for (const p of plugins) {
+            if (typeof p === "string" && p) {
                 tokens.add(`p:${p}`);
+                continue;
+            }
+            if (p && typeof p === "object") {
+                const name = p.name;
+                if (typeof name === "string" && name)
+                    tokens.add(`p:${name}`);
+            }
+        }
     }
     const mimeTypes = fp.mimeTypes;
     if (Array.isArray(mimeTypes)) {
-        for (const m of mimeTypes)
-            if (typeof m === "string" && m)
+        for (const m of mimeTypes) {
+            if (typeof m === "string" && m) {
                 tokens.add(`mt:${m}`);
+                continue;
+            }
+            if (m && typeof m === "object") {
+                const type = m.type;
+                if (typeof type === "string" && type)
+                    tokens.add(`mt:${type}`);
+            }
+        }
     }
     const languages = fp.languages;
     if (Array.isArray(languages)) {

@@ -1,9 +1,5 @@
 /**
- * Compute a character-level similarity score between two strings using a
- * simplified Levenshtein-inspired distance.
- *
- * The distance counts differing prefix characters and the absolute length
- * difference, then normalises over the longer string's length.
+ * Compute a normalized Levenshtein similarity score between two strings.
  *
  * @param a - First string.
  * @param b - Second string.
@@ -13,29 +9,82 @@
 export function levenshteinSimilarity(a: string, b: string): number {
   if (a === b) return 1;
   if (!a || !b) return 0;
-  const maxLen = Math.max(a.length, b.length);
-  let distance = Math.abs(a.length - b.length);
-  const minLen = Math.min(a.length, b.length);
-  for (let i = 0; i < minLen; i++) {
-    if (a[i] !== b[i]) distance++;
+
+  const lenA = a.length;
+  const lenB = b.length;
+  const maxLen = Math.max(lenA, lenB);
+
+  // Two-row dynamic programming keeps memory usage linear.
+  let previousRow = new Array<number>(lenB + 1);
+  let currentRow = new Array<number>(lenB + 1);
+
+  for (let j = 0; j <= lenB; j++) {
+    previousRow[j] = j;
   }
+
+  for (let i = 1; i <= lenA; i++) {
+    currentRow[0] = i;
+    for (let j = 1; j <= lenB; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const deletion = previousRow[j] + 1;
+      const insertion = currentRow[j - 1] + 1;
+      const substitution = previousRow[j - 1] + cost;
+      currentRow[j] = Math.min(deletion, insertion, substitution);
+    }
+
+    const swap = previousRow;
+    previousRow = currentRow;
+    currentRow = swap;
+  }
+
+  const distance = previousRow[lenB];
   return Math.max(0, 1 - distance / maxLen);
+}
+
+function stableObjectStringify(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableObjectStringify(entry)).join(",")}]`;
+  }
+
+  const valueType = typeof value;
+  if (valueType === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const body = keys
+      .map((key) => `${JSON.stringify(key)}:${stableObjectStringify(record[key])}`)
+      .join(",");
+    return `{${body}}`;
+  }
+
+  if (valueType === "string") return `s:${value as string}`;
+  if (valueType === "number") {
+    const n = value as number;
+    return Number.isNaN(n) ? "n:NaN" : `n:${n}`;
+  }
+  if (valueType === "boolean") return `b:${value as boolean}`;
+  if (valueType === "undefined") return "u:";
+  if (valueType === "bigint") return `bi:${String(value)}`;
+  if (valueType === "symbol") return `sym:${String(value)}`;
+
+  return `x:${String(value)}`;
 }
 
 /**
  * Compute the Jaccard similarity coefficient between two arrays.
  *
- * Both inputs are coerced into sets. Empty arrays on both sides yield `1`
- * (identical empty sets). If only one side is empty the result is `0`.
+ * Both inputs are coerced into sets. Empty arrays on both sides yield `0`
+ * because missing evidence should not count as a positive match. If only one
+ * side is empty the result is also `0`.
  *
  * @param a - First array (non-array values are treated as an empty array).
  * @param b - Second array.
  * @returns Jaccard index in `[0, 1]`: `|A ∩ B| / |A ∪ B|`.
  */
 export function jaccardSimilarity(a: unknown, b: unknown): number {
-  const setA = new Set<unknown>(Array.isArray(a) ? a : []);
-  const setB = new Set<unknown>(Array.isArray(b) ? b : []);
-  if (setA.size === 0 && setB.size === 0) return 1;
+  const setA = new Set<string>((Array.isArray(a) ? a : []).map((item) => stableObjectStringify(item)));
+  const setB = new Set<string>((Array.isArray(b) ? b : []).map((item) => stableObjectStringify(item)));
+  if (setA.size === 0 && setB.size === 0) return 0;
   let intersection = 0;
   for (const item of setA) {
     if (setB.has(item)) intersection++;

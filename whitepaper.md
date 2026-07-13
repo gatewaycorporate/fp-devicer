@@ -1,8 +1,8 @@
 ---
 title: "FP-Devicer: Open-Source Digital Fingerprinting Middleware"
-subtitle: "Technical Whitepaper — Version 2.0.0"
+subtitle: "Technical Whitepaper — Version 2.0.3"
 author: "Gateway Corporate Solutions LLC"
-date: "April 2026"
+date: "July 2026"
 lang: en-US
 table-of-contents: true
 toc-depth: 3
@@ -32,7 +32,7 @@ system for production-grade device identification, snapshot persistence,
 deduplication, adaptive weighting based on historical signal stability, and
 structured observability.
 
-Version 2.0.0 extends the engine with five additional capabilities:
+Version 2.0.3 extends the engine with five additional capabilities:
 **temporal signal decay** (confidence fades gracefully as stored snapshots age),
 **distribution-based drift analysis** (per-device anomaly scoring to detect abrupt fingerprint replacement),
 a **cross-device identity graph** (in-memory
@@ -49,7 +49,7 @@ Key design goals:
   scoring latency on commodity development hardware
 - Multiple storage backends: in-memory, SQLite, PostgreSQL, and Redis
 
-The codebase (~3,200 lines of clean TypeScript) is modular, well-tested,
+The codebase is modular, well-tested,
 benchmarked, and documented via TypeDoc. It pairs naturally with the companion
 client-side collector **FP-Snatch** for a complete end-to-end fingerprinting
 solution.
@@ -341,9 +341,9 @@ down-weights volatile *fields* while temporal decay down-weights old
 When `createConfidenceCalculator()` builds its context, the current resolution
 order is:
 
-1. `userOptions.weights` and `userOptions.comparators`
-2. built-in `DEFAULT_WEIGHTS`
-3. global registry entries
+1. built-in `DEFAULT_WEIGHTS`
+2. global registry entries (when `useGlobalRegistry=true`)
+3. `userOptions.weights` and `userOptions.comparators`
 4. `defaultWeight`
 
 For `defaultWeight` itself, the fallback order is local option, then global
@@ -440,7 +440,7 @@ with a complete fingerprint matching pipeline:
    snapshot using a scorer whose field weights have been scaled by those
    stability estimates. The highest-scoring candidate becomes `bestMatch`.
 
-5. Decision — if `bestMatch.confidence > matchThreshold` (default `50`), its
+5. Decision — if `bestMatch.confidence > matchThreshold` (default `60`), its
    existing device ID is reused. Otherwise a new UUID-based device ID is minted.
 
 6. Persistence — the incoming fingerprint is saved via `adapter.save()` as a
@@ -461,7 +461,7 @@ with a complete fingerprint matching pipeline:
 
 ```typescript
 new DeviceManager(adapter, {
-  matchThreshold?: number;      // default: 50
+  matchThreshold?: number;      // default: 60
   candidateMinScore?: number;   // default: 30
   stabilityWindowSize?: number; // default: 5
   dedupWindowMs?: number;       // default: 5000
@@ -561,7 +561,6 @@ const ipManager = new IpManager({/* MaxMind DB paths, thresholds */});
 const manager = new DeviceManager(createSqliteAdapter("./fp.db"), {
 	matchThreshold: 60,
 });
-await manager.adapter.init();
 
 manager.use(ipManager);
 ```
@@ -600,7 +599,6 @@ const tlsManager = new TlsManager({/* options */});
 const manager = new DeviceManager(createSqliteAdapter("./fp.db"), {
 	matchThreshold: 60,
 });
-await manager.adapter.init();
 
 manager.use(tlsManager);
 ```
@@ -646,7 +644,7 @@ All adapters implement the `StorageAdapter` interface defined in
 +--------------------------+----------------------------------------------------------+
 | `save(snapshot)`         | Persist a new fingerprint snapshot.                      |
 +--------------------------+----------------------------------------------------------+
-| `findCandidates(fp, n)`  | Return up to `n` broadly-similar stored snapshots.       |
+| `findCandidates(fp, minConfidence, limit)`  | Return up to `limit` broadly-similar device candidates above a minimum confidence.       |
 +--------------------------+----------------------------------------------------------+
 | `getHistory(id, limit)`  | Return recent snapshots for a given device ID.           |
 +--------------------------+----------------------------------------------------------+
@@ -686,7 +684,7 @@ and instantiating adapters without importing each adapter module directly:
 
 ```typescript
 const adapter = AdapterFactory.create("sqlite", {
-	sqlite: { path: "./fingerprints.db" },
+  sqlite: { filePath: "./fingerprints.db" },
 });
 ```
 
@@ -1088,7 +1086,7 @@ const myAdapter: StorageAdapter = {
 	async init() {/* open connection, create schema */},
 	async save(snapshot: StoredFingerprint) {/* insert row */},
 	async findCandidates(fp: FPDataSet, minScore: number, limit: number) {
-		/* return StoredFingerprint[] of broadly-similar records */
+    /* return DeviceMatch[] of broadly-similar candidates */
 		return [];
 	},
 	async getHistory(deviceId: string, limit: number) {
@@ -1112,18 +1110,23 @@ telemetry to your platform (e.g., Winston, Pino, StatsD, Prometheus):
 import { createInMemoryAdapter, DeviceManager } from "devicer.js";
 
 const manager = new DeviceManager(createInMemoryAdapter(), {
-	observability: {
-		logger: {
-			info: (msg, meta) => pinoLogger.info(meta, msg),
-			warn: (msg, meta) => pinoLogger.warn(meta, msg),
-			error: (msg, meta) => pinoLogger.error(meta, msg),
-		},
-		metrics: {
-			incrementCounter: (name, value = 1) => statsd.increment(name, value),
-			recordGauge: (name, value) => statsd.gauge(name, value),
-			recordHistogram: (name, value) => statsd.histogram(name, value),
-		},
-	},
+  logger: {
+    info: (msg, meta) => pinoLogger.info(meta, msg),
+    warn: (msg, meta) => pinoLogger.warn(meta, msg),
+    error: (msg, meta) => pinoLogger.error(meta, msg),
+  },
+  metrics: {
+    incrementCounter: (name, value = 1) => statsd.increment(name, value),
+    recordGauge: (name, value) => statsd.gauge(name, value),
+    recordHistogram: (name, value) => statsd.histogram(name, value),
+    recordIdentify: (durationMs, confidence, isNewDevice, candidatesCount, matched) => {
+      statsd.histogram("identify_latency_ms", durationMs);
+      statsd.gauge("confidence", confidence);
+      if (isNewDevice) statsd.increment("new_devices");
+      if (matched) statsd.increment("matches_total");
+      statsd.gauge("candidates_per_identify", candidatesCount);
+    },
+  },
 });
 ```
 
@@ -1219,12 +1222,12 @@ The scenario matrix contains 17 labeled cases:
 - travel/network change: `timezone-travel`, `vpn-activation`
 - commodity collision: `corporate-fleet`, `iphone-defaults`, `public-terminal`
 
-Per seed, 10 scenarios are labeled `same-device` and 7 are labeled
+Per seed, 12 scenarios are labeled `same-device` and 7 are labeled
 `different-device`. `accuracy.bench.ts` evaluates 50 seeds, so the current
 benchmark corpus is exactly:
 
-- `850` scored pairs total
-- `500` genuine pairs
+- `950` scored pairs total
+- `600` genuine pairs
 - `350` impostor pairs
 
 This is a scenario-driven regression corpus, not a general population simulator.
@@ -1282,31 +1285,31 @@ latency, not cold-start matching against a large candidate set.
 
 ## 7.2 Current Benchmark Outputs
 
-The following values are from the benchmark artifacts generated from the current
-repository state on April 4, 2026.
+The following values are from benchmark artifacts generated from the current
+repository state on July 13, 2026.
 
 ### 7.2.1 Accuracy
 
-`accuracy.bench.out` reports the best operating point at threshold `85`:
+`accuracy.bench.out` currently reports the best F1 operating point at threshold `75`:
 
 +--------------------------------+-------+
 | Metric                         | Value |
 +================================+=======+
-| Best threshold                 | 85    |
+| Best threshold                 | 75    |
 +--------------------------------+-------+
-| Precision                      | 0.996 |
+| Precision                      | 0.928 |
 +--------------------------------+-------+
-| Recall                         | 0.980 |
+| Recall                         | 0.960 |
 +--------------------------------+-------+
-| F1                             | 0.988 |
+| F1                             | 0.943 |
 +--------------------------------+-------+
-| FAR                            | 0.006 |
+| FAR                            | 0.129 |
 +--------------------------------+-------+
-| FRR                            | 0.020 |
+| FRR                            | 0.040 |
 +--------------------------------+-------+
-| `eer` proxy                    | 0.014 |
+| `eer` proxy                    | 0.089 |
 +--------------------------------+-------+
-| Attractor impostor FAR (`attr`)| 0.008 |
+| Attractor impostor FAR (`attr`)| 0.180 |
 +--------------------------------+-------+
 
 These results support a strong claim for the bundled scenario corpus, but not a
@@ -1317,17 +1320,17 @@ traffic.
 The per-scenario summary is particularly revealing. In the latest artifact, the
 hardest negative classes are:
 
-- `privacy-resistance:tor` with average score `82.02`
-- `privacy-resistance:resistant-browser` with average score `72.00`
-- `commodity-collision:public-terminal` with average score `72.00`
-- `commodity-collision:iphone-defaults` with average score `66.60`
-- `commodity-collision:corporate-fleet` with average score `64.62`
+- `privacy-resistance:tor` with average score `77.30`
+- `commodity-collision:iphone-defaults` with average score `67.52`
+- `privacy-resistance:resistant-browser` with average score `67.00`
+- `commodity-collision:public-terminal` with average score `67.00`
+- `commodity-collision:corporate-fleet` with average score `66.48`
 
 The hardest positive classes are:
 
-- `adversarial-perturbation:canvas-noise` with average score `92.20`
-- `adversarial-perturbation:font-randomization` with average score `92.96`
-- `privacy-resistance:canvas-defender` with average score `91.32`
+- `antifingerprint:metadock-max` with average score `73.96`
+- `privacy-resistance:canvas-defender` with average score `89.92`
+- `adversarial-perturbation:font-randomization` with average score `91.04`
 
 This matches the implementation's design intent: FP-Devicer is permissive with
 benign drift but deliberately conservative around privacy-resistant and
@@ -1340,29 +1343,32 @@ for individual canonical examples. A few representative rows from the current
 artifact are:
 
 - `browser-drift:minor` -> `99`
-- `browser-drift:cross-browser` -> `56`
-- `privacy-resistance:tor` -> `84`
-- `commodity-collision:corporate-fleet` -> `65`
+- `browser-drift:cross-browser` -> `54`
+- `privacy-resistance:tor` -> `80`
+- `commodity-collision:corporate-fleet` -> `70`
 - `travel-network-change:timezone-travel` -> `98`
-- `environment-change:mobile-desktop` -> `40`
+- `environment-change:mobile-desktop` -> `47`
 
 These values are useful sanity checks because they expose borderline cases that
 aggregate metrics can obscure.
 
 ### 7.2.3 Performance
 
-`performance.bench.out` currently reports:
+`performance.bench.out` in the repository currently contains an older run
+artifact, while the latest local `npm run bench` execution failed to execute
+`performance.bench.ts` because `better-sqlite3` native bindings were not found.
+The retained artifact currently reports:
 
 +--------------------------------------+------------------+
 | Configuration                        | Mean ms per call |
 +======================================+==================+
-| `calculateConfidence`                | 1.53             |
+| `calculateConfidence`                | 1.21             |
 +--------------------------------------+------------------+
-| `DeviceManager.identify` in-memory   | 1.51             |
+| `DeviceManager.identify` in-memory   | 1.47             |
 +--------------------------------------+------------------+
-| `DeviceManager.identify` SQLite mem  | 1.59             |
+| `DeviceManager.identify` SQLite mem  | 1.44             |
 +--------------------------------------+------------------+
-| `DeviceManager.identify` SQLite file | 1.50             |
+| `DeviceManager.identify` SQLite file | 1.29             |
 +--------------------------------------+------------------+
 
 The near-parity between raw scoring and `DeviceManager.identify()` should not be
@@ -1462,7 +1468,7 @@ The backend strategy is mixed by design:
 This keeps the default suite fast while still validating query-shape logic and
 duplicate-hash handling across the supported adapters.
 
-Version 2.0.0 adds five new test modules under `src/tests/libs/`:
+Version 2.0.3 includes five new test modules under `src/tests/libs/`:
 
 +----------------------------------+-------+-------------------------------------------+
 | File                             | Tests | Coverage                                  |
@@ -1487,7 +1493,7 @@ Version 2.0.0 adds five new test modules under `src/tests/libs/`:
 |                                  |       | integration                               |
 +----------------------------------+-------+-------------------------------------------+
 
-These bring the total test count to **292** (up from 207 at v1.7.0).
+These bring the total test count to **302** assertions in the current tree.
 
 ## 8.4 Integration and Resilience Coverage
 
@@ -1507,15 +1513,13 @@ the input is sparse.
 The current validation setup has a few practical caveats that are worth stating
 explicitly:
 
-- `npm test` passed locally during this re-evaluation.
-- The same run emitted an `ioredis` `ECONNREFUSED 127.0.0.1:6379` warning,
-  because part of the adapter-factory smoke coverage instantiates a real Redis
-  adapter even when no Redis server is running. The warning is noisy but did not
-  fail the suite.
+- `npm test` passed locally during this re-evaluation with `20` test files
+  passed and `1` skipped (`296` tests passed, `6` skipped).
 - Benchmarks are not part of `npm test`; they must be run separately with
   `npm run bench`.
-- The benchmark suite itself also encodes lightweight correctness gates, such as
-  the `eer <= 0.08` assertion in `accuracy.bench.ts`.
+- The benchmark suite currently fails in environments where `better-sqlite3`
+  native bindings are not available, because `performance.bench.ts` creates a
+  SQLite adapter at module load time.
 
 ## 8.6 Running the Suite
 
@@ -1583,7 +1587,6 @@ const manager = new DeviceManager(createInMemoryAdapter(), {
 	matchThreshold: 60,
 	candidateMinScore: 30,
 });
-await manager.adapter.init();
 
 const app = express();
 app.use(express.json());
@@ -1710,7 +1713,7 @@ hosted at [cicis.info](https://cicis.info).
 
 # 11 Conclusion & Future Work
 
-FP-Devicer v2.0.0 delivers production-grade, open-source device intelligence
+FP-Devicer v2.0.3 delivers production-grade, open-source device intelligence
 with unmatched extensibility and accuracy for its class. Its hybrid
 structural-plus-TLSH scoring, adaptive per-device stability weighting, temporal
 signal decay, distribution-based drift detection, cross-device identity

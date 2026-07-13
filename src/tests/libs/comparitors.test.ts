@@ -45,6 +45,14 @@ describe('levenshteinSimilarity', () => {
       expect(s).toBeLessThanOrEqual(1);
     }
   });
+
+  it('handles insertion edits without collapsing similarity', () => {
+    const score = levenshteinSimilarity(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36'
+    );
+    expect(score).toBeGreaterThan(0.95);
+  });
 });
 
 describe('jaccardSimilarity', () => {
@@ -52,8 +60,8 @@ describe('jaccardSimilarity', () => {
     expect(jaccardSimilarity(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(1);
   });
 
-  it('returns 1 when both arrays are empty', () => {
-    expect(jaccardSimilarity([], [])).toBe(1);
+  it('returns 0 when both arrays are empty', () => {
+    expect(jaccardSimilarity([], [])).toBe(0);
   });
 
   it('returns 0 when one array is empty and the other is not', () => {
@@ -71,9 +79,21 @@ describe('jaccardSimilarity', () => {
   });
 
   it('treats non-array inputs as empty arrays', () => {
-    expect(jaccardSimilarity(null, null)).toBe(1);
+    expect(jaccardSimilarity(null, null)).toBe(0);
     expect(jaccardSimilarity(null, ['a'])).toBe(0);
     expect(jaccardSimilarity('string', ['a', 'string'])).toBe(0);
+  });
+
+  it('matches structurally identical object entries', () => {
+    const left = [{ name: 'Chrome PDF Viewer', description: 'Portable Document Format' }];
+    const right = [{ description: 'Portable Document Format', name: 'Chrome PDF Viewer' }];
+    expect(jaccardSimilarity(left, right)).toBe(1);
+  });
+
+  it('does not match unrelated object entries', () => {
+    const left = [{ type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' }];
+    const right = [{ type: 'application/json', suffixes: 'json', description: 'JSON' }];
+    expect(jaccardSimilarity(left, right)).toBe(0);
   });
 });
 

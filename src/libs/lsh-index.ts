@@ -80,12 +80,32 @@ function extractTokens(fp: FPDataSet): string[] {
 
   const plugins: unknown = (fp as Record<string, unknown>).plugins;
   if (Array.isArray(plugins)) {
-    for (const p of plugins) if (typeof p === "string" && p) tokens.add(`p:${p}`);
+    for (const p of plugins) {
+      if (typeof p === "string" && p) {
+        tokens.add(`p:${p}`);
+        continue;
+      }
+
+      if (p && typeof p === "object") {
+        const name = (p as Record<string, unknown>).name;
+        if (typeof name === "string" && name) tokens.add(`p:${name}`);
+      }
+    }
   }
 
   const mimeTypes: unknown = (fp as Record<string, unknown>).mimeTypes;
   if (Array.isArray(mimeTypes)) {
-    for (const m of mimeTypes) if (typeof m === "string" && m) tokens.add(`mt:${m}`);
+    for (const m of mimeTypes) {
+      if (typeof m === "string" && m) {
+        tokens.add(`mt:${m}`);
+        continue;
+      }
+
+      if (m && typeof m === "object") {
+        const type = (m as Record<string, unknown>).type;
+        if (typeof type === "string" && type) tokens.add(`mt:${type}`);
+      }
+    }
   }
 
   const languages: unknown = (fp as Record<string, unknown>).languages;

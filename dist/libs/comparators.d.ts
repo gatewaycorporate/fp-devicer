@@ -1,9 +1,5 @@
 /**
- * Compute a character-level similarity score between two strings using a
- * simplified Levenshtein-inspired distance.
- *
- * The distance counts differing prefix characters and the absolute length
- * difference, then normalises over the longer string's length.
+ * Compute a normalized Levenshtein similarity score between two strings.
  *
  * @param a - First string.
  * @param b - Second string.
@@ -14,8 +10,9 @@ export declare function levenshteinSimilarity(a: string, b: string): number;
 /**
  * Compute the Jaccard similarity coefficient between two arrays.
  *
- * Both inputs are coerced into sets. Empty arrays on both sides yield `1`
- * (identical empty sets). If only one side is empty the result is `0`.
+ * Both inputs are coerced into sets. Empty arrays on both sides yield `0`
+ * because missing evidence should not count as a positive match. If only one
+ * side is empty the result is also `0`.
  *
  * @param a - First array (non-array values are treated as an empty array).
  * @param b - Second array.

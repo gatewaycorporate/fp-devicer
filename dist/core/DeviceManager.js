@@ -24,7 +24,7 @@ import { PluginRegistrar } from "./PluginRegistrar.js";
  *
  * @example
  * ```ts
- * const manager = new DeviceManager(adapter, { matchThreshold: 50 });
+ * const manager = new DeviceManager(adapter, { matchThreshold: 60 });
  * const result = await manager.identify(fingerprintData, { userId: 'u_123' });
  * console.log(result.deviceId, result.confidence);
  * ```
@@ -58,7 +58,7 @@ export class DeviceManager {
      * @param adapter - Storage backend used for all persistence operations.
      * @param context - Optional tuning parameters and observability overrides.
      * @param context.matchThreshold - Minimum confidence score (0–100) required
-     *   to consider two fingerprints the same device. Defaults to `50`.
+    *   to consider two fingerprints the same device. Defaults to `60`.
      * @param context.candidateMinScore - Minimum score (0–100) passed to the
      *   adapter's pre-filter step. Defaults to `30`.
      * @param context.stabilityWindowSize - Number of historical snapshots to load
@@ -73,7 +73,7 @@ export class DeviceManager {
     constructor(adapter, context = {}) {
         this.adapter = adapter;
         this.context = context;
-        this.context.matchThreshold ??= 50;
+        this.context.matchThreshold ??= 60;
         this.context.candidateMinScore ??= 30;
         this.context.stabilityWindowSize ??= 5;
         this.context.dedupWindowMs ??= 5000;

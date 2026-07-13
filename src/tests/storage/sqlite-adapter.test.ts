@@ -4,7 +4,18 @@ import type { StoredFingerprint } from '../../types/storage';
 import { randomUUID } from 'crypto';
 import { fpDifferent, fpIdentical, fpVerySimilar } from '../fixtures/fingerprints';
 
-describe('SqliteAdapter', () => {
+function isSqliteRuntimeSupported(): boolean {
+  try {
+    createSqliteAdapter(':memory:');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const describeSqlite = isSqliteRuntimeSupported() ? describe : describe.skip;
+
+describeSqlite('SqliteAdapter', () => {
   let adapter: ReturnType<typeof createSqliteAdapter>;
 
   beforeEach(async () => {

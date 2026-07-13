@@ -110,12 +110,12 @@ function computeLowSimilarityPenalty(fieldAgreement, deviceSimilarity) {
     return similarityShortfall * agreementGap;
 }
 function createScoringContext(userOptions = {}) {
-    const { weights: localWeights = {}, comparators: localComparators = {}, defaultWeight: localDefaultWeight = 5, tlshWeight = 0.3, maxDepth = 5, useGlobalRegistry = true, } = userOptions;
+    const { weights: localWeights = {}, comparators: localComparators = {}, defaultWeight: localDefaultWeight, tlshWeight = 0.3, maxDepth = 5, useGlobalRegistry = true, } = userOptions;
     const global = useGlobalRegistry
         ? getGlobalRegistry()
         : { comparators: {}, weights: {}, defaultWeight: 5 };
     const finalDefaultWeight = localDefaultWeight ?? global.defaultWeight ?? 5;
-    const mergedWeights = { ...global.weights, ...DEFAULT_WEIGHTS, ...localWeights };
+    const mergedWeights = { ...DEFAULT_WEIGHTS, ...global.weights, ...localWeights };
     const mergedComparators = { ...global.comparators, ...localComparators };
     const getComparator = (path) => mergedComparators[path] ?? exactComparator;
     const getWeight = (path) => mergedWeights[path] ?? finalDefaultWeight;
@@ -124,6 +124,12 @@ function createScoringContext(userOptions = {}) {
             return { totalWeight: 0, matchedWeight: 0 };
         if (data1 === undefined || data2 === undefined)
             return { totalWeight: 0, matchedWeight: 0 };
+        const explicitComparator = mergedComparators[path];
+        if (path && explicitComparator) {
+            const similarity = clampUnit(explicitComparator(data1, data2, path));
+            const weight = getWeight(path);
+            return { totalWeight: weight, matchedWeight: weight * similarity };
+        }
         if (typeof data1 !== "object" || data1 === null || typeof data2 !== "object" || data2 === null) {
             const comparator = getComparator(path);
             const similarity = clampUnit(comparator(data1, data2, path));

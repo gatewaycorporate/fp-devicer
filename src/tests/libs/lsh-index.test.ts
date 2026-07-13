@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
     createLshIndex,
     buildLshIndex,
+    _extractTokens,
 } from '../../libs/lsh-index.js';
 import { DeviceManager, createInMemoryAdapter } from '../../main.js';
 import { createBaseFingerprint, mutate } from '../../benchmarks/data-generator.js';
@@ -14,8 +15,8 @@ import type { StoredFingerprint } from '../../types/storage.js';
 /** Build a synthetic fingerprint that has explicit set-valued fields. */
 function makeFP(
     fonts: string[] = [],
-    plugins: string[] = [],
-    mimeTypes: string[] = [],
+    plugins: unknown[] = [],
+    mimeTypes: unknown[] = [],
     languages: string[] = []
 ): FPDataSet {
     return { fonts, plugins, mimeTypes, languages } as unknown as FPDataSet;
@@ -72,6 +73,18 @@ describe('createLshIndex – basic operations', () => {
 // ─── createLshIndex / similarity behavior ─────────────────────────────────────
 
 describe('createLshIndex – similarity queries', () => {
+    it('extracts object-typed plugin and mimeType tokens', () => {
+        const tokens = _extractTokens(makeFP(
+            [],
+            [{ name: 'PDF Reader', description: 'Portable Document Format' }],
+            [{ type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' }],
+            []
+        ));
+
+        expect(tokens).toContain('p:PDF Reader');
+        expect(tokens).toContain('mt:application/pdf');
+    });
+
     it('query returns empty array for empty token set', () => {
         const idx = createLshIndex();
         idx.add('d1', makeFP(['Arial'], [], [], []));
@@ -111,13 +124,28 @@ describe('createLshIndex – similarity queries', () => {
     it('tokens from different fields contribute independently', () => {
         const idx = createLshIndex();
         // A has plugins; B has the same plugins but via mimeTypes namespace
-        const fpA = makeFP([], ['PDF Reader', 'Flash'], [], []);
-        const fpB = makeFP([], [], ['application/pdf', 'application/x-shockwave-flash'], []);
+        const fpA = makeFP([], [
+            { name: 'PDF Reader', description: 'Portable Document Format' },
+            { name: 'Flash', description: 'Flash Player' },
+        ], [], []);
+        const fpB = makeFP([], [], [
+            { type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' },
+            { type: 'application/x-shockwave-flash', suffixes: 'swf', description: 'Flash Player' },
+        ], []);
         idx.add('d1', fpA);
         // Different fields → different namespaced tokens → low Jaccard → likely no match
         // We don't assert a specific outcome here since LSH is probabilistic,
         // but we do assert the call succeeds without throwing.
         expect(() => idx.query(fpB)).not.toThrow();
+    });
+
+    it('matches object-typed plugin and mimeType sets for equivalent fingerprints', () => {
+        const idx = createLshIndex();
+        const fpA = makeFP([], [{ name: 'Chrome PDF Viewer', description: 'Portable Document Format' }], [{ type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' }], ['en-US']);
+        const fpB = makeFP([], [{ name: 'Chrome PDF Viewer', description: 'Portable Document Format' }], [{ type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' }], ['en-US']);
+        idx.add('d1', fpA);
+        const results = idx.query(fpB);
+        expect(results).toContain('d1');
     });
 
     it('two completely disjoint fingerprints do not collide', () => {

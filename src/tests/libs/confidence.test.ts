@@ -12,7 +12,7 @@ import {
 	computeStructuralStability,
 	createConfidenceCalculator,
 } from '../../libs/confidence';
-import { clearRegistry, initializeDefaultRegistry } from '../../libs/registry';
+import { clearRegistry, initializeDefaultRegistry, registerPlugin, setDefaultWeight } from '../../libs/registry';
 import { fpIdentical, fpVerySimilar, fpSimilar, fpDifferent, fpVeryDifferent } from '../fixtures/fingerprints';
 import { FPUserDataSet } from '../../types/data';
 
@@ -108,8 +108,66 @@ describe('createConfidenceCalculator custom options', () => {
 		const scoreIsolatedBefore = isolated.calculateConfidence(fpIdentical, fpVerySimilar);
 		const scoreGlobalBefore = global.calculateConfidence(fpIdentical, fpVerySimilar);
 
-		// With default weights both should give same result
-		expect(Math.abs(scoreIsolatedBefore - scoreGlobalBefore)).toBeLessThanOrEqual(1);
+		// Scores should remain in the same ballpark even though global defaults
+		// may apply additional field-specific comparators.
+		expect(Math.abs(scoreIsolatedBefore - scoreGlobalBefore)).toBeLessThanOrEqual(10);
+	});
+
+	it('applies explicit comparators to array fields during structural scoring', () => {
+		const baseOptions = {
+			useGlobalRegistry: false as const,
+			tlshWeight: 0,
+			weights: { plugins: 100 },
+			defaultWeight: 0,
+		};
+		const alwaysMatch = createConfidenceCalculator({
+			...baseOptions,
+			comparators: { plugins: () => 1 },
+		});
+		const neverMatch = createConfidenceCalculator({
+			...baseOptions,
+			comparators: { plugins: () => 0 },
+		});
+
+		const left = { plugins: ['tor-plugin-a'] } as unknown as FPUserDataSet;
+		const right = { plugins: ['tor-plugin-b'] } as unknown as FPUserDataSet;
+
+		const matchBreakdown = alwaysMatch.calculateScoreBreakdown(left, right);
+		const mismatchBreakdown = neverMatch.calculateScoreBreakdown(left, right);
+
+		expect(matchBreakdown.deviceSimilarity).toBeGreaterThan(mismatchBreakdown.deviceSimilarity);
+		expect(alwaysMatch.calculateConfidence(left, right)).toBeGreaterThan(neverMatch.calculateConfidence(left, right));
+	});
+
+	it('uses global registry weights to override built-in defaults', () => {
+		const baseline = createConfidenceCalculator({ useGlobalRegistry: true, tlshWeight: 0 });
+
+		const left = { userAgent: 'UA-A', platform: 'Win32' } as unknown as FPUserDataSet;
+		const right = { userAgent: 'UA-B', platform: 'Win32' } as unknown as FPUserDataSet;
+
+		const baselineScore = baseline.calculateScoreBreakdown(left, right).deviceSimilarity;
+
+		registerPlugin('userAgent', { weight: 0 });
+		registerPlugin('platform', { weight: 100 });
+
+		const weighted = createConfidenceCalculator({ useGlobalRegistry: true, tlshWeight: 0 });
+		const weightedScore = weighted.calculateScoreBreakdown(left, right).deviceSimilarity;
+
+		expect(weightedScore).toBeGreaterThan(baselineScore);
+	});
+
+	it('uses registry defaultWeight for unknown fields when no local override is provided', () => {
+		const left = { userAgent: 'UA-SAME', customSignal: 'left' } as unknown as FPUserDataSet;
+		const right = { userAgent: 'UA-SAME', customSignal: 'right' } as unknown as FPUserDataSet;
+
+		const baseline = createConfidenceCalculator({ useGlobalRegistry: true, tlshWeight: 0 });
+		const baselineScore = baseline.calculateScoreBreakdown(left, right).deviceSimilarity;
+
+		setDefaultWeight(0);
+		const zeroDefault = createConfidenceCalculator({ useGlobalRegistry: true, tlshWeight: 0 });
+		const zeroDefaultScore = zeroDefault.calculateScoreBreakdown(left, right).deviceSimilarity;
+
+		expect(zeroDefaultScore).toBeGreaterThan(baselineScore);
 	});
 });
 

@@ -132,7 +132,7 @@ function createScoringContext(userOptions: ComparisonOptions = {}) {
   const {
     weights: localWeights = {},
     comparators: localComparators = {},
-    defaultWeight: localDefaultWeight = 5,
+    defaultWeight: localDefaultWeight,
     tlshWeight = 0.3,
     maxDepth = 5,
     useGlobalRegistry = true,
@@ -143,7 +143,7 @@ function createScoringContext(userOptions: ComparisonOptions = {}) {
     : { comparators: {}, weights: {}, defaultWeight: 5 };
 
   const finalDefaultWeight = localDefaultWeight ?? global.defaultWeight ?? 5;
-  const mergedWeights = { ...global.weights, ...DEFAULT_WEIGHTS, ...localWeights };
+  const mergedWeights = { ...DEFAULT_WEIGHTS, ...global.weights, ...localWeights };
   const mergedComparators = { ...global.comparators, ...localComparators };
 
   const getComparator = (path: string): Comparator => mergedComparators[path] ?? exactComparator;
@@ -157,6 +157,13 @@ function createScoringContext(userOptions: ComparisonOptions = {}) {
   ): { totalWeight: number; matchedWeight: number } {
     if (depth > maxDepth) return { totalWeight: 0, matchedWeight: 0 };
     if (data1 === undefined || data2 === undefined) return { totalWeight: 0, matchedWeight: 0 };
+
+    const explicitComparator = mergedComparators[path];
+    if (path && explicitComparator) {
+      const similarity = clampUnit(explicitComparator(data1, data2, path));
+      const weight = getWeight(path);
+      return { totalWeight: weight, matchedWeight: weight * similarity };
+    }
 
     if (typeof data1 !== "object" || data1 === null || typeof data2 !== "object" || data2 === null) {
       const comparator = getComparator(path);

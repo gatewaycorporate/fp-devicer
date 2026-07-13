@@ -1,4 +1,4 @@
---- Accuracy Metrics (2026-04-14T14:46:41.100Z) ---
+--- Accuracy Metrics (2026-07-13T04:21:17.602Z) ---
 threshold | precision | recall | f1    | far   | frr   | eer   | attr 
 ----------+-----------+--------+-------+-------+-------+-------+------
 0.000     | 0.632     | 1.000  | 0.774 | 1.000 | 0.000 | 1.000 | 1.000
@@ -7,43 +7,43 @@ threshold | precision | recall | f1    | far   | frr   | eer   | attr
 15.000    | 0.632     | 1.000  | 0.774 | 1.000 | 0.000 | 1.000 | 1.000
 20.000    | 0.632     | 1.000  | 0.774 | 1.000 | 0.000 | 1.000 | 1.000
 25.000    | 0.632     | 1.000  | 0.774 | 1.000 | 0.000 | 1.000 | 1.000
-30.000    | 0.634     | 1.000  | 0.776 | 0.991 | 0.000 | 0.991 | 1.000
-35.000    | 0.638     | 1.000  | 0.779 | 0.974 | 0.000 | 0.974 | 1.000
-40.000    | 0.644     | 1.000  | 0.783 | 0.949 | 0.000 | 0.949 | 1.000
-45.000    | 0.654     | 1.000  | 0.791 | 0.906 | 0.000 | 0.906 | 1.000
-50.000    | 0.665     | 1.000  | 0.799 | 0.863 | 0.000 | 0.863 | 1.000
-55.000    | 0.673     | 1.000  | 0.805 | 0.831 | 0.000 | 0.831 | 1.000
-60.000    | 0.690     | 1.000  | 0.817 | 0.769 | 0.000 | 0.769 | 0.992
-65.000    | 0.732     | 1.000  | 0.845 | 0.629 | 0.000 | 0.629 | 0.856
-70.000    | 0.788     | 1.000  | 0.882 | 0.460 | 0.000 | 0.460 | 0.636
-75.000    | 0.924     | 0.995  | 0.958 | 0.140 | 0.005 | 0.135 | 0.196
-80.000    | 0.944     | 0.983  | 0.963 | 0.100 | 0.017 | 0.083 | 0.140
-85.000    | 1.000     | 0.937  | 0.967 | 0.000 | 0.063 | 0.063 | 0.000
-90.000    | 1.000     | 0.822  | 0.902 | 0.000 | 0.178 | 0.178 | 0.000
-95.000    | 1.000     | 0.695  | 0.820 | 0.000 | 0.305 | 0.305 | 0.000
+30.000    | 0.632     | 1.000  | 0.775 | 0.997 | 0.000 | 0.997 | 1.000
+35.000    | 0.635     | 1.000  | 0.777 | 0.986 | 0.000 | 0.986 | 1.000
+40.000    | 0.640     | 1.000  | 0.781 | 0.963 | 0.000 | 0.963 | 1.000
+45.000    | 0.647     | 1.000  | 0.785 | 0.937 | 0.000 | 0.937 | 1.000
+50.000    | 0.660     | 1.000  | 0.795 | 0.883 | 0.000 | 0.883 | 1.000
+55.000    | 0.673     | 1.000  | 0.804 | 0.834 | 0.000 | 0.834 | 1.000
+60.000    | 0.691     | 1.000  | 0.817 | 0.766 | 0.000 | 0.766 | 0.996
+65.000    | 0.714     | 0.992  | 0.830 | 0.680 | 0.008 | 0.672 | 0.928
+70.000    | 0.895     | 0.985  | 0.938 | 0.197 | 0.015 | 0.182 | 0.264
+75.000    | 0.928     | 0.960  | 0.943 | 0.129 | 0.040 | 0.089 | 0.180
+80.000    | 0.958     | 0.912  | 0.934 | 0.069 | 0.088 | 0.020 | 0.096
+85.000    | 1.000     | 0.868  | 0.930 | 0.000 | 0.132 | 0.132 | 0.000
+90.000    | 1.000     | 0.778  | 0.875 | 0.000 | 0.222 | 0.222 | 0.000
+95.000    | 1.000     | 0.623  | 0.768 | 0.000 | 0.377 | 0.377 | 0.000
 100.000   | 1.000     | 0.175  | 0.298 | 0.000 | 0.825 | 0.825 | 0.000
 
-Best threshold: 85 | F1: 0.967 | EER: 0.063
+Best threshold: 75 | F1: 0.943 | EER: 0.089
 
 --- Scenario Summary ---
 scenario                                    | sameDevice       | count  | avgScore | minScore | maxScore
 --------------------------------------------+------------------+--------+----------+----------+---------
-environment-change:mobile-desktop           | different-device | 50.000 | 41.060   | 26.000   | 55.000  
-browser-drift:cross-browser                 | different-device | 50.000 | 58.460   | 45.000   | 71.000  
-commodity-collision:corporate-fleet         | different-device | 50.000 | 64.960   | 61.000   | 69.000  
-commodity-collision:iphone-defaults         | different-device | 50.000 | 66.020   | 56.000   | 72.000  
-privacy-resistance:resistant-browser        | different-device | 50.000 | 72.000   | 72.000   | 72.000  
-commodity-collision:public-terminal         | different-device | 50.000 | 72.000   | 72.000   | 72.000  
-privacy-resistance:tor                      | different-device | 50.000 | 80.440   | 71.000   | 84.000  
-antifingerprint:metadock-max                | same-device      | 50.000 | 85.280   | 71.000   | 97.000  
-privacy-resistance:canvas-defender          | same-device      | 50.000 | 90.780   | 75.000   | 99.000  
-adversarial-perturbation:font-randomization | same-device      | 50.000 | 92.040   | 81.000   | 99.000  
-adversarial-perturbation:canvas-noise       | same-device      | 50.000 | 92.640   | 77.000   | 99.000  
-browser-drift:major                         | same-device      | 50.000 | 95.860   | 83.000   | 99.000  
-travel-network-change:timezone-travel       | same-device      | 50.000 | 95.860   | 83.000   | 99.000  
-adversarial-perturbation:ua-rotation        | same-device      | 50.000 | 97.120   | 83.000   | 99.000  
-antifingerprint:metadock-balanced           | same-device      | 50.000 | 97.420   | 82.000   | 99.000  
-browser-drift:minor                         | same-device      | 50.000 | 97.540   | 85.000   | 99.000  
-environment-change:external-dock            | same-device      | 50.000 | 97.620   | 82.000   | 100.000 
+environment-change:mobile-desktop           | different-device | 50.000 | 44.440   | 29.000   | 58.000  
+browser-drift:cross-browser                 | different-device | 50.000 | 58.000   | 45.000   | 74.000  
+commodity-collision:corporate-fleet         | different-device | 50.000 | 66.480   | 62.000   | 72.000  
+privacy-resistance:resistant-browser        | different-device | 50.000 | 67.000   | 67.000   | 67.000  
+commodity-collision:public-terminal         | different-device | 50.000 | 67.000   | 67.000   | 67.000  
+commodity-collision:iphone-defaults         | different-device | 50.000 | 67.520   | 59.000   | 76.000  
+antifingerprint:metadock-max                | same-device      | 50.000 | 73.960   | 61.000   | 83.000  
+privacy-resistance:tor                      | different-device | 50.000 | 77.300   | 68.000   | 80.000  
+privacy-resistance:canvas-defender          | same-device      | 50.000 | 89.920   | 75.000   | 99.000  
+adversarial-perturbation:font-randomization | same-device      | 50.000 | 91.040   | 75.000   | 98.000  
+adversarial-perturbation:canvas-noise       | same-device      | 50.000 | 91.780   | 76.000   | 99.000  
+browser-drift:major                         | same-device      | 50.000 | 94.360   | 80.000   | 99.000  
+travel-network-change:timezone-travel       | same-device      | 50.000 | 95.260   | 81.000   | 99.000  
+adversarial-perturbation:ua-rotation        | same-device      | 50.000 | 95.960   | 82.000   | 99.000  
+antifingerprint:metadock-balanced           | same-device      | 50.000 | 96.360   | 82.000   | 99.000  
+browser-drift:minor                         | same-device      | 50.000 | 97.280   | 86.000   | 99.000  
+environment-change:external-dock            | same-device      | 50.000 | 97.380   | 83.000   | 100.000 
 environment-change:home-office              | same-device      | 50.000 | 100.000  | 100.000  | 100.000 
 travel-network-change:vpn-activation        | same-device      | 50.000 | 100.000  | 100.000  | 100.000 
