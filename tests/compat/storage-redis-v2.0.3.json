@@ -1,0 +1,920 @@
+{
+  "write": {
+    "backend": "redis",
+    "exposesClose": true,
+    "duplicateReturnsFirstId": true,
+    "uniqueSavedIds": 3,
+    "candidates": [
+      {
+        "deviceId": "device-beta",
+        "confidence": 67,
+        "lastSeen": "2026-09-30T00:00:00.000Z"
+      },
+      {
+        "deviceId": "device-alpha",
+        "confidence": 63,
+        "lastSeen": "2026-09-29T00:00:00.000Z"
+      }
+    ],
+    "limitedCandidates": [
+      {
+        "deviceId": "device-beta",
+        "confidence": 67,
+        "lastSeen": "2026-09-30T00:00:00.000Z"
+      }
+    ],
+    "history": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      }
+    ],
+    "limitedHistory": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      }
+    ],
+    "all": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      },
+      {
+        "label": "other",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-beta",
+        "timestamp": "2026-09-30T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "other"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "DE410BE81A147FEB905C4318A9536CAAB3272D07FDD3D7DC604433D23262796C901A52"
+      }
+    ],
+    "keys": [
+      {
+        "key": "fp:device:device-alpha",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:device:device-beta",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-alpha",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-beta",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "idx:deviceMemory:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:devices",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:hardwareConcurrency:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:platform:Linux x86_64",
+        "type": "set",
+        "expiry": "persistent"
+      }
+    ],
+    "linkedUserField": "linked-user"
+  },
+  "reopen": {
+    "backend": "redis",
+    "exposesClose": true,
+    "history": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      }
+    ],
+    "limitedHistory": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      }
+    ],
+    "all": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      },
+      {
+        "label": "other",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-beta",
+        "timestamp": "2026-09-30T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "other"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "DE410BE81A147FEB905C4318A9536CAAB3272D07FDD3D7DC604433D23262796C901A52"
+      }
+    ],
+    "keys": [
+      {
+        "key": "fp:device:device-alpha",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:device:device-beta",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-alpha",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-beta",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "idx:deviceMemory:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:devices",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:hardwareConcurrency:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:platform:Linux x86_64",
+        "type": "set",
+        "expiry": "persistent"
+      }
+    ],
+    "linkedUserField": "linked-user"
+  },
+  "prune": {
+    "backend": "redis",
+    "exposesClose": true,
+    "history": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      }
+    ],
+    "limitedHistory": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      }
+    ],
+    "all": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      },
+      {
+        "label": "other",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-beta",
+        "timestamp": "2026-09-30T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "other"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "DE410BE81A147FEB905C4318A9536CAAB3272D07FDD3D7DC604433D23262796C901A52"
+      }
+    ],
+    "deleted": 0,
+    "remaining": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      },
+      {
+        "label": "other",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-beta",
+        "timestamp": "2026-09-30T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "other"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "DE410BE81A147FEB905C4318A9536CAAB3272D07FDD3D7DC604433D23262796C901A52"
+      }
+    ],
+    "keys": [
+      {
+        "key": "fp:device:device-alpha",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:device:device-beta",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-alpha",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-beta",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "idx:deviceMemory:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:devices",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:hardwareConcurrency:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:platform:Linux x86_64",
+        "type": "set",
+        "expiry": "persistent"
+      }
+    ],
+    "linkedUserField": "linked-user"
+  },
+  "expire": {
+    "backend": "redis",
+    "exposesClose": true,
+    "history": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      }
+    ],
+    "limitedHistory": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      }
+    ],
+    "all": [
+      {
+        "label": "new",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-29T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "new"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "4B41E740316C78066F3E1BEBDA4DADD9183618366840DADAC07B57C30137734FA96806"
+      },
+      {
+        "label": "old",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-alpha",
+        "timestamp": "2026-09-01T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "old"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "5C410A3CB2217DD5BF6E1146CD769B9E7A2E29234A57C0C0B01DF9421072FD68905C83"
+      },
+      {
+        "label": "other",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-beta",
+        "timestamp": "2026-09-30T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "other"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "DE410BE81A147FEB905C4318A9536CAAB3272D07FDD3D7DC604433D23262796C901A52"
+      }
+    ],
+    "keys": [
+      {
+        "key": "fp:device:device-alpha",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:device:device-beta",
+        "type": "hash",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-alpha",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "fp:latest:device-beta",
+        "type": "string",
+        "expiry": "90-days"
+      },
+      {
+        "key": "idx:deviceMemory:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:devices",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:hardwareConcurrency:8",
+        "type": "set",
+        "expiry": "persistent"
+      },
+      {
+        "key": "idx:platform:Linux x86_64",
+        "type": "set",
+        "expiry": "persistent"
+      }
+    ],
+    "linkedUserField": "linked-user",
+    "remaining": [
+      {
+        "label": "other",
+        "keys": [
+          "deviceId",
+          "fingerprint",
+          "id",
+          "ip",
+          "matchConfidence",
+          "metadata",
+          "signalsHash",
+          "timestamp",
+          "userId"
+        ],
+        "generatedId": false,
+        "deviceId": "device-beta",
+        "timestamp": "2026-09-30T00:00:00.000Z",
+        "userId": "original-user",
+        "ip": "192.0.2.10",
+        "metadata": {
+          "fixture": "other"
+        },
+        "matchConfidence": 73,
+        "signalsHash": "DE410BE81A147FEB905C4318A9536CAAB3272D07FDD3D7DC604433D23262796C901A52"
+      }
+    ],
+    "danglingDeviceIndex": 1,
+    "candidatesAfterExpiry": [
+      {
+        "deviceId": "device-beta",
+        "confidence": 70,
+        "lastSeen": "2026-09-30T00:00:00.000Z"
+      }
+    ]
+  }
+}

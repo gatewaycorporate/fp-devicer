@@ -1,0 +1,20 @@
+[package]
+name = "devicer-node"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version = "1.88"
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+[dependencies]
+devicer-compat-v2 = { path = "../devicer-compat-v2" }
+serde_json = "=1.0.151"
+napi = { version = "=3.13.0", default-features = false, features = ["async", "napi6"] }
+napi-derive = "=3.6.9"
+
+[build-dependencies]
+napi-build = "=2.5.0"

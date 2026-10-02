@@ -1,0 +1,12 @@
+[submodule "vendor/models/AdaFace"]
+	path = vendor/models/AdaFace
+	url = https://github.com/mk-minchul/AdaFace.git
+[submodule "vendor/models/JIPNet"]
+	path = vendor/models/JIPNet
+	url = https://github.com/XiongjunGuan/JIPNet.git
+[submodule "vendor/models/DetailSemNet"]
+	path = vendor/models/DetailSemNet
+	url = https://github.com/nycu-acm/DetailSemNet_OSV.git
+[submodule "vendor/models/CVLface"]
+	path = vendor/models/CVLface
+	url = https://github.com/mk-minchul/CVLface.git

@@ -1,7 +1,6 @@
 # Devicer 3 / NEXT: compatibility, architecture, and research plan
 
-Status: proposed implementation plan; no Rust implementation or remote repository changes made.
-
+Status: implementation underway (P0 characterization, P1 bridge feasibility, P2 algorithm surfaces, P3 compatibility, P4 extensible core, P5 calibration foundation, P6 adaptation foundation, P7 domain fixtures, and the P8 exact-retrieval foundation are implemented; scale, release, and empirical research gates remain). See the [current charter](docs/next/charter.md) for verified progress and open gates. The proposed `3.0.0-rc.1` acceptance path is codified in [docs/next/rc-plan.md](docs/next/rc-plan.md). The historical baseline inspection below is retained; no remote repository changes made.
 Prepared 2026-09-30 for Samuel Roux. Repository inspected: [gatewaycorporate/fp-devicer](https://github.com/gatewaycorporate/fp-devicer). Baseline: `devicer.js@2.0.3`, commit [`62572742c9a1d920d9f91dbbb7f5dd3c38bd0fb8`](https://github.com/gatewaycorporate/fp-devicer/commit/62572742c9a1d920d9f91dbbb7f5dd3c38bd0fb8), dated 2026-07-13.
 
 ## 1. Decision and scope

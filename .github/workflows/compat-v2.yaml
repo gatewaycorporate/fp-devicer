@@ -1,0 +1,114 @@
+name: NEXT P0 Compatibility
+
+on:
+  push:
+    branches: [main, NEXT]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          targets: wasm32-unknown-unknown
+      - name: Build the portable compatibility core
+        run: cargo build --release --locked -p devicer-compat-v2 --target wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the portable loader contract
+        run: npm run bridge:portable
+
+  native-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts
+      - name: Check Rust formatting and lint
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test the isolated Rust-backed bridge against the oracle
+        run: npm run bridge:check
+
+  live-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [sqlite, postgres, redis]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Build SQLite native dependency only
+        if: matrix.backend == 'sqlite'
+        run: npm rebuild better-sqlite3
+      - name: Compare live backend behavior against the published package
+        run: npm run compat:storage -- ${{ matrix.backend }}
+      - name: Archive frozen backend contract and package inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: compat-storage-${{ matrix.backend }}
+          include-hidden-files: true
+          path: |
+            tests/compat/storage-${{ matrix.backend }}-v2.0.3.json
+            .compat-cache/devicer.js-2.0.3.tgz
+            .compat-cache/packed/devicer.js-2.0.3.tgz
+
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install locked dependencies without native build scripts
+        run: npm ci --ignore-scripts
+      - name: Check source types
+        run: npx tsc --noEmit
+      - name: Run legacy unit tests (not live database certification)
+        run: npm test
+      - name: Compare packed build and consumer to frozen npm oracle
+        run: npm run compat:package
+      - name: Archive compatibility inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: compat-v2-node-${{ matrix.node }}
+          include-hidden-files: true
+          path: |
+            .compat-cache/devicer.js-2.0.3.tgz
+            .compat-cache/packed/devicer.js-2.0.3.tgz
+            tests/compat/v2.0.3.json

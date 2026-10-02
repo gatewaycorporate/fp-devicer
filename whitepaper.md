@@ -1,7 +1,7 @@
 ---
 title: "FP-Devicer: Open-Source Digital Fingerprinting Middleware"
 subtitle: "Technical Whitepaper — Version 2.0.3"
-author: "Gateway Corporate Solutions LLC"
+author: "Gateway Corporate LLC"
 date: "July 2026"
 lang: en-US
 table-of-contents: true

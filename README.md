@@ -1,5 +1,22 @@
 # FP-Devicer
 
+## NEXT Development
+
+NEXT has implemented and differentially verified the P2 Rust scorer/hash slice,
+but is not a Rust-backed release. Registry lifecycle, drift, graph, LSH,
+manager/storage integration, cross-target WASM and broader release evidence
+remain.
+See the [charter and implementation status](docs/next/charter.md),
+[compatibility contract](docs/compat/v2-contract.md), and
+[NEXT manifesto](next-manifesto.md). Run `npm ci --ignore-scripts` followed by
+`npm run compat:package` to check a freshly packed build against the pinned
+`devicer.js@2.0.3` oracle. The legacy implementation remains unchanged.
+
+`npm run bridge:check` builds and tests the isolated Rust/Node prototype with a
+local Rust toolchain. See its [supported scope and remaining gates](docs/next/architecture.md).
+`npm run bridge:portable` checks the injected portable-loader contract; CI also
+builds the compatibility core for `wasm32-unknown-unknown`.
+
 FP-Devicer is a digital fingerprinting middleware library designed for ease of
 use and near-universal compatibility with servers. Developed by [Gateway Corporate Solutions](https://gatewaycorporate.org).
 
