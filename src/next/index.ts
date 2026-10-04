@@ -21,6 +21,14 @@ export interface Observation<TFeatures extends Record<string, unknown> = Record<
   quality?: Record<string, number>;
   missingness?: Record<string, string>;
   provenance?: Record<string, string>;
+  acquisition?: Record<string, string | number | boolean>;
+}
+
+export interface ObservationContext {
+  observedAt?: Date;
+  id?: string;
+  signal?: AbortSignal;
+  acquisition?: Record<string, string | number | boolean>;
 }
 
 export interface Relationship {
@@ -76,7 +84,7 @@ export interface FingerprintAdapter<TInput, TFeatures extends Record<string, unk
   readonly extractorVersions: Record<string, string>;
   readonly relationships: readonly Relationship[];
   readonly configuration: Omit<Configuration, "digest">;
-  createObservation(input: TInput, context?: { observedAt?: Date; id?: string; signal?: AbortSignal }): Promise<Observation<TFeatures>> | Observation<TFeatures>;
+  createObservation(input: TInput, context?: ObservationContext): Promise<Observation<TFeatures>> | Observation<TFeatures>;
   compare(left: Observation<TFeatures>, right: Observation<TFeatures>, relation: Relationship): Evidence[];
 }
 
@@ -155,6 +163,7 @@ function createValueAdapter<TInput extends Record<string, unknown>, TFeatures ex
         domain, schemaVersion,
         observedAt: (context?.observedAt ?? new Date()).toISOString(),
         extractorVersions: { [`${domain}-extractor`]: "1" }, features,
+        ...(context?.acquisition ? { acquisition: context.acquisition } : {}),
       };
     },
     compare(left, right, relation) {
@@ -175,7 +184,7 @@ function createValueAdapter<TInput extends Record<string, unknown>, TFeatures ex
 export async function createFingerprint<TInput, TFeatures extends Record<string, unknown>>(
   adapter: FingerprintAdapter<TInput, TFeatures>,
   input: TInput,
-  context?: { observedAt?: Date; id?: string; signal?: AbortSignal },
+  context?: ObservationContext,
 ): Promise<Observation<TFeatures>> {
   return adapter.createObservation(input, context);
 }

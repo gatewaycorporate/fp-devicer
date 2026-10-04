@@ -291,7 +291,10 @@ describe('NEXT core contracts', () => {
       qualityGate: features => features.template && features.template.length < 2 ? 'template quality below minimum' : undefined,
     });
     const missing = await createFingerprint(physical, {}, { id: 'missing-template' });
-    const enrolled = await createFingerprint(physical, { template: [1, 0] }, { id: 'enrolled-template' });
+    const enrolled = await createFingerprint(physical, { template: [1, 0] }, {
+      id: 'enrolled-template', acquisition: { dpi: 500, width: 256, height: 256 },
+    });
+    expect(enrolled.acquisition).toEqual({ dpi: 500, width: 256, height: 256 });
     expect((await compareFingerprints(physical, missing, enrolled)).status).toBe('insufficient_data');
     const lowQuality = await createFingerprint(physical, { template: [1] }, { id: 'low-quality-template' });
     const qualityResult = await compareFingerprints(physical, lowQuality, enrolled);

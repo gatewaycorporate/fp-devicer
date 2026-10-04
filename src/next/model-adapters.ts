@@ -1,4 +1,4 @@
-import type { Evidence, FingerprintAdapter, Observation, Relationship } from './index.js';
+import type { Evidence, FingerprintAdapter, Observation, ObservationContext, Relationship } from './index.js';
 
 export interface ModelArtifactManifest {
   id: string;
@@ -197,6 +197,7 @@ export function createModelBackedAdapter<TInput, TFeatures extends Record<string
         },
         ...(quality ? { quality } : {}),
         ...(missingness && Object.keys(missingness).length > 0 ? { missingness } : {}),
+        ...(context?.acquisition ? { acquisition: context.acquisition } : {}),
       };
     },
     compare(left, right, relation) {

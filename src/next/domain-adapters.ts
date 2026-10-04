@@ -1,4 +1,4 @@
-import type { Evidence, FingerprintAdapter, Observation, Relationship } from './index.js';
+import type { Evidence, FingerprintAdapter, Observation, ObservationContext, Relationship } from './index.js';
 
 export interface HandwritingSample {
   [key: string]: unknown;
@@ -80,7 +80,7 @@ function createObservation<TFeatures extends Record<string, unknown>>(
   domain: string,
   schemaVersion: string,
   features: TFeatures,
-  context: { observedAt?: Date; id?: string } | undefined,
+  context: ObservationContext | undefined,
   quality: Record<string, number>,
 ): Observation<TFeatures> {
   return {
@@ -89,6 +89,7 @@ function createObservation<TFeatures extends Record<string, unknown>>(
     observedAt: (context?.observedAt ?? new Date()).toISOString(),
     extractorVersions: { [`${domain}-extractor`]: "external.v1" },
     features, quality,
+    ...(context?.acquisition ? { acquisition: context.acquisition } : {}),
     missingness: Object.fromEntries(Object.entries(quality).filter(([, value]) => value === 0).map(([key]) => [key, "not_provided"])),
   };
 }
