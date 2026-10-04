@@ -9,8 +9,6 @@ toc-depth: 3
 toc-title: "Table of Contents"
 numbersections: true
 colorlinks: true
-linkcolor: blue
-urlcolor: blue
 geometry: margin=1in
 fontsize: 11pt
 mainfont: "Fira Sans"
