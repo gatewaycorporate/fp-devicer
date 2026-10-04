@@ -1,94 +1,69 @@
 import {
 	createFingerprint,
 	createPhysicalFingerprintAdapter,
-	matchFingerprint,
+	compareFingerprints,
+	ModelInputError,
 	type ModelArtifactManifest,
+	type RasterSignal,
 } from '../next/index.js';
 
-type FingerprintCapture = {
-	image: Uint8Array;
-	width: number;
-	height: number;
-	dpi: 500;
-	template?: readonly number[];
-};
-
 const model: ModelArtifactManifest = {
-	id: 'physical-fingerprint-extractor-v1',
-	name: 'ExamplePhysicalFingerprintExtractor',
+	id: 'synthetic-row-bands-v1',
+	name: 'SyntheticRowBandBaseline',
 	version: '1.0.0',
-	sourceRepository: 'https://example.test/physical-fingerprint-extractor',
-	upstreamRevision: 'example-revision',
-	checkpointDigest: 'sha256:replace-with-your-model-digest',
-	license: 'replace-with-your-model-license',
-	runtime: 'application-injected',
-	preprocessing: 'fingerprint-gray-normalize.v1',
+	sourceRepository: 'https://example.test/synthetic-fixture',
+	upstreamRevision: 'synthetic-fixture-v1',
+	checkpointDigest: 'fixture:no-checkpoint',
+	license: 'synthetic-fixture',
+	runtime: 'model-free-example',
+	preprocessing: 'gray8-row-bands.v1',
 	supportedHardware: ['cpu'],
 	inputSchema: 'fingerprint-image.gray8',
-	outputSchema: 'fingerprint-template.f32',
+	outputSchema: 'synthetic-row-means.f32',
 };
 
-const fingerprintAdapter = createPhysicalFingerprintAdapter<FingerprintCapture, { template?: readonly number[] }>({
+const fingerprintAdapter = createPhysicalFingerprintAdapter<RasterSignal, { template: number[] }>({
 	model,
-	extractorVersions: { extractor: 'physical-fingerprint-extractor.v1' },
-
-	// Replace this with the call to the approved fingerprint extraction runtime.
+	featureDimension: 16,
+	extractorVersions: { extractor: 'synthetic-row-bands.v1' },
 	infer(capture) {
-		if (capture.dpi !== 500) throw new Error('Physical fingerprint images must be captured at 500 DPI');
-		return { template: capture.template };
-	},
-
-	qualityGate(features) {
-		return features.template && features.template.length >= 4
-			? undefined
-			: 'fingerprint template quality is below the minimum threshold';
+		const template = Array.from({ length: 16 }, (_, band) => {
+			const first = Math.floor(band * capture.height / 16) * capture.width;
+			const last = Math.floor((band + 1) * capture.height / 16) * capture.width;
+			let ink = 0;
+			for (let index = first; index < last; index += 1) ink += 1 - capture.image[index] / 255;
+			return ink / (last - first);
+		});
+		return { template };
 	},
 });
 
-const enrolledAlice = await createFingerprint(
-	fingerprintAdapter,
-	{ image: new Uint8Array([12, 24, 36]), width: 3, height: 1, dpi: 500, template: [0.91, 0.12, 0.34, 0.56] },
-	{ id: 'enrolled-alice', observedAt: new Date('2026-01-01T09:00:00Z'), acquisition: { dpi: 500, width: 3, height: 1 } },
-);
+function syntheticCapture(offset: number): RasterSignal {
+	const width = 256;
+	const height = 360;
+	const image = new Uint8Array(width * height).fill(255);
+	for (let row = 40; row < 320; row += 1) {
+		for (let column = 40; column < 216; column += 1) {
+			image[row * width + column] = (row + column + offset) % 12 < 4 ? 32 : 224;
+		}
+	}
+	return { image, width, height, dpi: 500 };
+}
 
-const enrolledBob = await createFingerprint(
-	fingerprintAdapter,
-	{ image: new Uint8Array([48, 60, 72]), width: 3, height: 1, dpi: 500, template: [0.18, 0.83, 0.41, 0.27] },
-	{ id: 'enrolled-bob', observedAt: new Date('2026-01-01T09:05:00Z'), acquisition: { dpi: 500, width: 3, height: 1 } },
-);
-
-const probe = await createFingerprint(
-	fingerprintAdapter,
-	{ image: new Uint8Array([15, 27, 39]), width: 3, height: 1, dpi: 500, template: [0.89, 0.15, 0.31, 0.58] },
-	{ id: 'probe-2026-01-02', acquisition: { dpi: 500, width: 3, height: 1 } },
-);
-
-const match = await matchFingerprint(fingerprintAdapter, probe, [enrolledAlice, enrolledBob], {
-	relation: 'same-enrolled-identity',
-	minimumSimilarity: 0.9,
-	calibrationStatus: 'supported',
-});
+const reference = await createFingerprint(fingerprintAdapter, syntheticCapture(0), { id: 'synthetic-reference' });
+const probe = await createFingerprint(fingerprintAdapter, syntheticCapture(1), { id: 'synthetic-probe' });
+const comparison = await compareFingerprints(fingerprintAdapter, reference, probe);
 
 console.log({
-	decision: match.decision,
-	candidateObservationId: match.candidateObservationId,
-	similarity: match.similarity,
-	calibrationStatus: match.calibrationStatus,
-	reasonCodes: match.reasonCodes,
+	comparison: 'Synthetic image baseline, not biometric verification',
+	similarity: comparison.similarity,
+	status: comparison.status,
+	acquisition: reference.acquisition,
 });
 
-const lowQualityProbe = await createFingerprint(
-	fingerprintAdapter,
-	{ image: new Uint8Array([15, 27]), width: 2, height: 1, dpi: 500, template: [0.89, 0.15] },
-	{ id: 'probe-low-quality', acquisition: { dpi: 500, width: 2, height: 1 } },
-);
-
-const abstained = await matchFingerprint(fingerprintAdapter, lowQualityProbe, [enrolledAlice], {
-	relation: 'same-enrolled-identity',
-	minimumSimilarity: 0.9,
-});
-
-console.log({
-	lowQualityDecision: abstained.decision,
-	lowQualityReasonCodes: abstained.reasonCodes,
-});
+try {
+	await createFingerprint(fingerprintAdapter, { ...syntheticCapture(0), dpi: 300 });
+} catch (error) {
+	if (!(error instanceof ModelInputError)) throw error;
+	console.log({ rejectedCapture: error.code, reason: error.message });
+}

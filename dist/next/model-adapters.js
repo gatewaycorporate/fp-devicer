@@ -1,3 +1,5 @@
+import { assertSignalProfile, FINGERPRINT_500_DPI, SIGNATURE_224, signalAcquisition, validateSignal } from './signal-profiles.js';
+import { vectorSimilarity } from './vector-similarity.js';
 export class ModelInputError extends Error {
     code = 'invalid_model_input';
     constructor(message) {
@@ -34,26 +36,48 @@ const sameTranscription = {
     id: 'same-transcription', direction: 'undirected', description: 'samples carrying the same transcription',
 };
 export function createFaceAdapter(options) {
+    if (!options.inputProfile)
+        throw new Error('Face adapters require an explicit input profile');
+    if (options.inputProfile.kind === 'raster' && (!options.inputProfile.width || !options.inputProfile.height)) {
+        throw new Error('Face raster profiles require explicit dimensions');
+    }
     return createVectorAdapter('face', 'face.v1', [sameEnrolledIdentity, sameSubject], options, 'embedding');
 }
 export function createPhysicalFingerprintAdapter(options) {
-    return createVectorAdapter('physical-fingerprint', 'physical-fingerprint.v1', [sameEnrolledIdentity], options, 'template');
+    if (options.inputProfile?.kind === 'raster' && options.inputProfile.dpi === undefined) {
+        throw new Error('Fingerprint raster profiles require acquisition DPI');
+    }
+    return createVectorAdapter('physical-fingerprint', 'physical-fingerprint.v1', [sameEnrolledIdentity], {
+        ...options, inputProfile: options.inputProfile ?? FINGERPRINT_500_DPI,
+    }, 'template');
 }
 export function createSignatureAdapter(options) {
+    if (options.inputProfile?.kind === 'raster' && (!options.inputProfile.width || !options.inputProfile.height
+        || options.inputProfile.preprocessing !== 'fit-pad-white')) {
+        throw new Error('Signature raster profiles require explicit fit-and-pad normalization');
+    }
+    assertFeatureDimension(options.featureDimension);
+    const featureDimension = options.featureDimension;
     return createModelBackedAdapter({
         domain: 'signature', schemaVersion: 'signature.v1', model: options.model,
+        inputProfile: options.inputProfile ?? SIGNATURE_224, featureDimension: options.featureDimension,
         relationships: [sameWriter, sameTranscription], extractorVersions: options.extractorVersions,
         infer: options.infer, runtime: options.runtime, validateInput: options.validateInput, quality: options.quality, qualityGate: options.qualityGate,
         compare(left, right, relation) {
             if (relation.id === sameTranscription.id) {
-                const available = left.features.transcription !== undefined && right.features.transcription !== undefined;
+                const available = typeof left.features.transcription === 'string' && typeof right.features.transcription === 'string';
                 return [createEvidence(left, right, relation, available ? (left.features.transcription === right.features.transcription ? 1 : 0) : Number.NaN, available, 'transcription')];
             }
-            return [createVectorEvidence(left, right, relation, 'embedding')];
+            return [createVectorEvidence(left, right, relation, 'embedding', featureDimension)];
         },
     });
 }
 export function createModelBackedAdapter(options) {
+    options = structuredCloneOptions(options);
+    if (options.inputProfile)
+        assertSignalProfile(options.inputProfile);
+    if (options.featureDimension !== undefined)
+        assertFeatureDimension(options.featureDimension);
     if (!options.model.id.trim() || !options.model.name.trim() || !options.model.version.trim() || !options.model.sourceRepository.trim()) {
         throw new Error('Model identity and version are required');
     }
@@ -86,9 +110,11 @@ export function createModelBackedAdapter(options) {
         extractors: options.extractorVersions,
         comparators: { [`${options.domain}-model`]: `${options.model.name}@${options.model.version}` },
         fusion: 'model.v1',
-        normalization: 'adapter-defined',
+        normalization: options.inputProfile?.id ?? options.model.preprocessing,
         runtime: options.model.runtime,
         model: options.model,
+        ...(options.inputProfile ? { signalProfile: options.inputProfile } : {}),
+        ...(options.featureDimension !== undefined ? { featureDimension: options.featureDimension } : {}),
     };
     return {
         domain: options.domain,
@@ -97,9 +123,16 @@ export function createModelBackedAdapter(options) {
         relationships: options.relationships,
         configuration,
         async createObservation(input, context) {
-            const invalidReason = options.validateInput?.(input);
+            const invalidReason = (options.inputProfile ? validateSignal(input, options.inputProfile) : undefined)
+                ?? options.validateInput?.(input);
             if (invalidReason)
                 throw new ModelInputError(invalidReason);
+            const acquisition = options.inputProfile ? signalAcquisition(input, options.inputProfile) : {};
+            for (const [key, value] of Object.entries(acquisition)) {
+                if (context?.acquisition?.[key] !== undefined && context.acquisition[key] !== value) {
+                    throw new ModelInputError(`acquisition_metadata_mismatch: ${key}`);
+                }
+            }
             if (context?.signal?.aborted)
                 throw new ModelInferenceCancelledError();
             const inferenceContext = { signal: context?.signal };
@@ -123,7 +156,7 @@ export function createModelBackedAdapter(options) {
                 domain: options.domain,
                 schemaVersion: options.schemaVersion,
                 observedAt: (context?.observedAt ?? new Date()).toISOString(),
-                extractorVersions: options.extractorVersions,
+                extractorVersions: { ...options.extractorVersions },
                 features,
                 provenance: {
                     modelId: options.model.id,
@@ -132,9 +165,14 @@ export function createModelBackedAdapter(options) {
                     checkpointDigest: options.model.checkpointDigest,
                     preprocessing: options.model.preprocessing,
                     runtime: options.model.runtime,
+                    ...(options.inputProfile ? { signalProfile: options.inputProfile.id } : {}),
+                    ...(options.featureDimension !== undefined ? { featureDimension: String(options.featureDimension) } : {}),
+                    modelManifest: JSON.stringify(options.model),
+                    ...(options.inputProfile ? { signalProfileManifest: JSON.stringify(options.inputProfile) } : {}),
                 },
                 ...(quality ? { quality } : {}),
                 ...(missingness && Object.keys(missingness).length > 0 ? { missingness } : {}),
+                ...(context?.acquisition || Object.keys(acquisition).length ? { acquisition: { ...context?.acquisition, ...acquisition } } : {}),
             };
         },
         compare(left, right, relation) {
@@ -154,41 +192,39 @@ export function createModelBackedAdapter(options) {
     };
 }
 function createVectorAdapter(domain, schemaVersion, relationships, options, vectorKey) {
+    assertFeatureDimension(options.featureDimension);
+    const featureDimension = options.featureDimension;
     return createModelBackedAdapter({
         domain, schemaVersion, model: options.model, relationships,
+        inputProfile: options.inputProfile, featureDimension: options.featureDimension,
         extractorVersions: options.extractorVersions, infer: options.infer, runtime: options.runtime, quality: options.quality, qualityGate: options.qualityGate,
         validateInput: options.validateInput,
         compare(left, right, relation) {
-            return [createVectorEvidence(left, right, relation, vectorKey)];
+            return [createVectorEvidence(left, right, relation, vectorKey, featureDimension)];
         },
     });
 }
-function createVectorEvidence(left, right, relation, key) {
+function assertFeatureDimension(dimension) {
+    if (!Number.isSafeInteger(dimension) || dimension <= 0)
+        throw new Error('A positive feature dimension is required');
+}
+function structuredCloneOptions(options) {
+    return {
+        ...options, model: structuredClone(options.model), extractorVersions: { ...options.extractorVersions },
+        ...(options.inputProfile ? { inputProfile: { ...options.inputProfile } } : {}),
+    };
+}
+function createVectorEvidence(left, right, relation, key, dimension) {
     const leftVector = left.features[key];
     const rightVector = right.features[key];
-    const available = Array.isArray(leftVector) && Array.isArray(rightVector);
-    return createEvidence(left, right, relation, available ? vectorSimilarity(leftVector, rightVector) : Number.NaN, available, key);
+    const similarity = vectorSimilarity(leftVector, rightVector, dimension);
+    return createEvidence(left, right, relation, similarity, Number.isFinite(similarity), key);
 }
 function createEvidence(left, right, relation, similarity, available, dependencyGroup) {
     return {
         relation: relation.id, leftObservationId: left.id, rightObservationId: right.id,
-        comparatorVersion: `${dependencyGroup}.cosine.v1`, similarity, available, dependencyGroup,
+        comparatorVersion: dependencyGroup === 'transcription' ? 'transcription.exact.v1' : `${dependencyGroup}.cosine.v2`,
+        similarity, available, dependencyGroup,
+        ...(!available ? { explanation: dependencyGroup === 'transcription' ? 'transcription_unavailable' : 'invalid_vector' } : {}),
     };
-}
-function vectorSimilarity(left, right) {
-    if (left.length === 0 || left.length !== right.length || !left.every(value => typeof value === 'number') || !right.every(value => typeof value === 'number'))
-        return Number.NaN;
-    let dot = 0;
-    let leftMagnitude = 0;
-    let rightMagnitude = 0;
-    for (let index = 0; index < left.length; index += 1) {
-        const leftValue = left[index];
-        const rightValue = right[index];
-        dot += leftValue * rightValue;
-        leftMagnitude += leftValue ** 2;
-        rightMagnitude += rightValue ** 2;
-    }
-    if (leftMagnitude === 0 || rightMagnitude === 0)
-        return Number.NaN;
-    return Math.max(0, Math.min(1, (dot / Math.sqrt(leftMagnitude * rightMagnitude) + 1) / 2));
 }

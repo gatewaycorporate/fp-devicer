@@ -1,4 +1,5 @@
 import type { ModelArtifactManifest } from './model-adapters.js';
+import type { SignalProfile } from './signal-profiles.js';
 export * from './node-model-runtime.js';
 export type CalibrationStatus = "uncalibrated" | "supported" | "insufficient_data" | "stale" | "unsupported_configuration";
 export type MatchDecision = "match" | "non_match" | "insufficient_evidence";
@@ -12,6 +13,13 @@ export interface Observation<TFeatures extends Record<string, unknown> = Record<
     quality?: Record<string, number>;
     missingness?: Record<string, string>;
     provenance?: Record<string, string>;
+    acquisition?: Record<string, string | number | boolean>;
+}
+export interface ObservationContext {
+    observedAt?: Date;
+    id?: string;
+    signal?: AbortSignal;
+    acquisition?: Record<string, string | number | boolean>;
 }
 export interface Relationship {
     id: string;
@@ -38,6 +46,8 @@ export interface Configuration {
     normalization: string;
     runtime: string;
     model?: ModelArtifactManifest;
+    signalProfile?: SignalProfile;
+    featureDimension?: number;
     digest: string;
 }
 export interface ComparisonResult {
@@ -61,11 +71,7 @@ export interface FingerprintAdapter<TInput, TFeatures extends Record<string, unk
     readonly extractorVersions: Record<string, string>;
     readonly relationships: readonly Relationship[];
     readonly configuration: Omit<Configuration, "digest">;
-    createObservation(input: TInput, context?: {
-        observedAt?: Date;
-        id?: string;
-        signal?: AbortSignal;
-    }): Promise<Observation<TFeatures>> | Observation<TFeatures>;
+    createObservation(input: TInput, context?: ObservationContext): Promise<Observation<TFeatures>> | Observation<TFeatures>;
     compare(left: Observation<TFeatures>, right: Observation<TFeatures>, relation: Relationship): Evidence[];
 }
 export interface MatchOptions {
@@ -86,11 +92,7 @@ export declare function createDocumentAdapter(): FingerprintAdapter<{
 }, {
     text: string;
 }>;
-export declare function createFingerprint<TInput, TFeatures extends Record<string, unknown>>(adapter: FingerprintAdapter<TInput, TFeatures>, input: TInput, context?: {
-    observedAt?: Date;
-    id?: string;
-    signal?: AbortSignal;
-}): Promise<Observation<TFeatures>>;
+export declare function createFingerprint<TInput, TFeatures extends Record<string, unknown>>(adapter: FingerprintAdapter<TInput, TFeatures>, input: TInput, context?: ObservationContext): Promise<Observation<TFeatures>>;
 export declare function compareFingerprints<TInput, TFeatures extends Record<string, unknown>>(adapter: FingerprintAdapter<TInput, TFeatures>, left: Observation<TFeatures>, right: Observation<TFeatures>, relation?: string): Promise<ComparisonResult>;
 export declare function matchFingerprint<TInput, TFeatures extends Record<string, unknown>>(adapter: FingerprintAdapter<TInput, TFeatures>, incoming: Observation<TFeatures>, candidates: readonly Observation<TFeatures>[], options: MatchOptions): Promise<MatchResult>;
 export declare function updateFingerprintHistory<TFeatures extends Record<string, unknown>>(history: readonly Observation<TFeatures>[], observation: Observation<TFeatures>): Observation<TFeatures>[];
@@ -101,6 +103,7 @@ export * from './retrieval.js';
 export * from './artifacts.js';
 export * from './storage.js';
 export * from './model-adapters.js';
+export * from './signal-profiles.js';
 export * from './evaluation.js';
 export * from './governance.js';
 export * from './benchmark.js';

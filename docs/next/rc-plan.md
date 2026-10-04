@@ -13,10 +13,10 @@ document workflows are the initial advertised domains. Handwriting and enrolled
 biometric adapters remain relation-scoped integration fixtures and are not RC
 supported domains unless separately evaluated with domain-specific data.
 
-The planned integrations for facial recognition, physical fingerprinting, and
-handwriting/signature verification are described in the [NEXT domain model
-implementation plan](domain-model-plan.md). That plan does not promote any of
-those domains to RC support by itself.
+Model-free input contracts for facial, physical fingerprint and signature
+adapters are described in the [NEXT domain signal contracts](domain-model-plan.md).
+Production model implementations, vendored sources and weights are excluded.
+Input-contract support does not promote these domains to evaluated RC support.
 
 ## Current NEXT Workflows
 

@@ -1,26 +1,15 @@
 //! Compare two scanned signature images after converting each to 224x224 grayscale.
 //!
-//! DetailSemNet is an offline signature model: it expects rasterized signature
-//! images rather than e-pen stroke reports. This example implements the input
-//! boundary and a deterministic pixel baseline. With the `candle-runtime`
-//! feature and a converted checkpoint, `--checkpoint` runs Candle DSNet.
-//!
 //! ```text
 //! cargo run -p devicer-compat-v2 --example signature_usb -- enrollment.png probe.png
-//! cargo run -p devicer-compat-v2 --features candle-runtime --example signature_usb -- \
-//!   --checkpoint models/DetailSemNet_BHSig_B_best.safetensors enrollment.png probe.png
 //! ```
 
-use image::{imageops::FilterType, ImageReader};
+use image::{imageops::FilterType, DynamicImage, GrayImage, ImageReader, Luma};
 use std::{env, process};
 
-#[cfg(feature = "candle-runtime")]
-use candle_core::{Device, Tensor};
-#[cfg(feature = "candle-runtime")]
-use devicer_compat_v2::dsnet::DsNet;
-
 const IMAGE_SIZE: u32 = 224;
-const MATCH_THRESHOLD: f32 = 0.90;
+const MAX_DIMENSION: u32 = 8192;
+const PROFILE: &str = "signature.gray8.fit-pad-224.ink.v1";
 
 #[derive(Debug)]
 struct ScannedSignature {
@@ -28,24 +17,57 @@ struct ScannedSignature {
     pixels: Vec<f32>,
     width: u32,
     height: u32,
-}
-
-#[derive(Debug)]
-enum Decision {
-    Match,
-    NonMatch,
-    InsufficientEvidence(&'static str),
+    source_width: u32,
+    source_height: u32,
 }
 
 fn load_signature(path: &str) -> Result<ScannedSignature, String> {
-    let image = ImageReader::open(path)
-        .map_err(|error| format!("open {path}: {error}"))?
+    let mut reader = ImageReader::open(path).map_err(|error| format!("open {path}: {error}"))?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_DIMENSION);
+    limits.max_image_height = Some(MAX_DIMENSION);
+    limits.max_alloc = Some(128 * 1024 * 1024);
+    reader.limits(limits);
+    let image = reader
         .decode()
-        .map_err(|error| format!("decode {path}: {error}"))?
-        .grayscale();
-    let resized = image.resize_exact(IMAGE_SIZE, IMAGE_SIZE, FilterType::Lanczos3);
-    let pixels = resized
-        .to_luma8()
+        .map_err(|error| format!("decode {path}: {error}"))?;
+    normalize_signature(image)
+}
+
+fn normalize_signature(image: DynamicImage) -> Result<ScannedSignature, String> {
+    let (source_width, source_height) = (image.width(), image.height());
+    if source_width == 0
+        || source_height == 0
+        || source_width > MAX_DIMENSION
+        || source_height > MAX_DIMENSION
+    {
+        return Err("unsupported source dimensions".into());
+    }
+    let mut gray = GrayImage::new(source_width, source_height);
+    for (target, source) in gray.pixels_mut().zip(image.to_rgba8().pixels()) {
+        let alpha = f32::from(source[3]) / 255.0;
+        let luminance = 0.299 * f32::from(source[0])
+            + 0.587 * f32::from(source[1])
+            + 0.114 * f32::from(source[2]);
+        *target = Luma([(luminance * alpha + 255.0 * (1.0 - alpha)).round() as u8]);
+    }
+    if !gray.pixels().any(|pixel| pixel[0] < 245)
+        || !gray.pixels().any(|pixel| pixel[0] > 10)
+        || gray.pixels().all(|pixel| pixel == gray.get_pixel(0, 0))
+    {
+        return Err("insufficient_evidence: blank signature".into());
+    }
+    let resized = DynamicImage::ImageLuma8(gray)
+        .resize(IMAGE_SIZE, IMAGE_SIZE, FilterType::Lanczos3)
+        .to_luma8();
+    let mut padded = GrayImage::from_pixel(IMAGE_SIZE, IMAGE_SIZE, Luma([255]));
+    image::imageops::replace(
+        &mut padded,
+        &resized,
+        i64::from((IMAGE_SIZE - resized.width()) / 2),
+        i64::from((IMAGE_SIZE - resized.height()) / 2),
+    );
+    let pixels = padded
         .pixels()
         .map(|pixel| 1.0 - f32::from(pixel[0]) / 255.0)
         .collect();
@@ -53,22 +75,22 @@ fn load_signature(path: &str) -> Result<ScannedSignature, String> {
         pixels,
         width: IMAGE_SIZE,
         height: IMAGE_SIZE,
+        source_width,
+        source_height,
     })
 }
 
-fn pixel_similarity(left: &ScannedSignature, right: &ScannedSignature) -> (Decision, f32) {
+fn pixel_similarity(
+    left: &ScannedSignature,
+    right: &ScannedSignature,
+) -> Result<f32, &'static str> {
     if left.width != right.width || left.height != right.height {
-        return (
-            Decision::InsufficientEvidence("incompatible image dimensions"),
-            0.0,
-        );
+        return Err("incompatible image dimensions");
     }
     if left.pixels.len() != right.pixels.len() || left.pixels.is_empty() {
-        return (Decision::InsufficientEvidence("empty image tensor"), 0.0);
+        return Err("empty image tensor");
     }
 
-    // This is only a baseline. DetailSemNet should replace this with its
-    // learned pairwise distance over the two preprocessed image tensors.
     let squared_error = left
         .pixels
         .iter()
@@ -76,60 +98,18 @@ fn pixel_similarity(left: &ScannedSignature, right: &ScannedSignature) -> (Decis
         .map(|(left, right)| (left - right).powi(2))
         .sum::<f32>()
         / left.pixels.len() as f32;
-    let similarity = (1.0 - squared_error.sqrt()).clamp(0.0, 1.0);
-    let decision = if similarity >= MATCH_THRESHOLD {
-        Decision::Match
-    } else {
-        Decision::NonMatch
-    };
-    (decision, similarity)
-}
-
-#[cfg(feature = "candle-runtime")]
-fn dsnet_similarity(
-    model: &DsNet,
-    left: &ScannedSignature,
-    right: &ScannedSignature,
-    device: &Device,
-) -> Result<(Decision, f32), String> {
-    let image_size = IMAGE_SIZE as usize;
-    let left = Tensor::from_vec(left.pixels.clone(), (1, 1, image_size, image_size), device)
-        .map_err(|error| format!("build enrollment tensor: {error}"))?;
-    let right = Tensor::from_vec(right.pixels.clone(), (1, 1, image_size, image_size), device)
-        .map_err(|error| format!("build probe tensor: {error}"))?;
-    let similarity = model
-        .similarity(&left, &right)
-        .map_err(|error| format!("run Candle DSNet: {error}"))?;
-    let decision = if similarity >= MATCH_THRESHOLD {
-        Decision::Match
-    } else {
-        Decision::NonMatch
-    };
-    Ok((decision, similarity))
+    Ok((1.0 - squared_error.sqrt()).clamp(0.0, 1.0))
 }
 
 fn main() {
     let arguments: Vec<String> = env::args().collect();
-    let (checkpoint, enrollment_path, probe_path) = match arguments.as_slice() {
-        [_, enrollment, probe] => (None, enrollment.as_str(), probe.as_str()),
-        [_, flag, checkpoint, enrollment, probe] if flag == "--checkpoint" => (
-            Some(checkpoint.as_str()),
-            enrollment.as_str(),
-            probe.as_str(),
-        ),
+    let (enrollment_path, probe_path) = match arguments.as_slice() {
+        [_, enrollment, probe] => (enrollment.as_str(), probe.as_str()),
         _ => {
-            eprintln!(
-                "usage: {} [--checkpoint model.safetensors] enrollment-image probe-image",
-                arguments[0]
-            );
+            eprintln!("usage: {} enrollment-image probe-image", arguments[0]);
             process::exit(2);
         }
     };
-    #[cfg(not(feature = "candle-runtime"))]
-    if checkpoint.is_some() {
-        eprintln!("--checkpoint requires --features candle-runtime");
-        process::exit(2);
-    }
     let enrollment = load_signature(enrollment_path).unwrap_or_else(|error| {
         eprintln!("{error}");
         process::exit(1);
@@ -138,40 +118,67 @@ fn main() {
         eprintln!("{error}");
         process::exit(1);
     });
-    #[cfg(feature = "candle-runtime")]
-    let (decision, similarity, comparison_kind) = if let Some(checkpoint) = checkpoint {
-        let device = Device::Cpu;
-        let model = DsNet::load(checkpoint, &device).unwrap_or_else(|error| {
-            eprintln!("load Candle DSNet checkpoint: {error}");
-            process::exit(1);
-        });
-        let (decision, similarity) = dsnet_similarity(&model, &enrollment, &probe, &device)
-            .unwrap_or_else(|error| {
-                eprintln!("{error}");
-                process::exit(1);
-            });
-        (decision, similarity, "Candle DSNet cosine embedding")
-    } else {
-        let (decision, similarity) = pixel_similarity(&enrollment, &probe);
-        (decision, similarity, "pixel baseline")
-    };
-    #[cfg(not(feature = "candle-runtime"))]
-    let (decision, similarity, comparison_kind) = {
-        let (decision, similarity) = pixel_similarity(&enrollment, &probe);
-        (decision, similarity, "pixel baseline")
-    };
+    let similarity = pixel_similarity(&enrollment, &probe).unwrap_or_else(|error| {
+        eprintln!("insufficient_evidence: {error}");
+        process::exit(1);
+    });
     println!(
         "input:      {}x{} grayscale",
         enrollment.width, enrollment.height
     );
     println!("tensor:     {} values in [0, 1]", enrollment.pixels.len());
-    println!("comparison: {comparison_kind}");
+    println!("profile:    {PROFILE}");
+    println!(
+        "sources:    {}x{}, {}x{}",
+        enrollment.source_width, enrollment.source_height, probe.source_width, probe.source_height
+    );
+    println!("comparison: uncalibrated pixel baseline (not writer verification)");
     println!("similarity: {similarity:.4}");
-    match decision {
-        Decision::Match => println!("decision:   match"),
-        Decision::NonMatch => println!("decision:   non_match"),
-        Decision::InsufficientEvidence(reason) => {
-            println!("decision:   insufficient_evidence ({reason})")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_blank_images() {
+        for value in [0, 128, 255] {
+            let image = GrayImage::from_pixel(224, 224, Luma([value]));
+            assert!(normalize_signature(image.into()).is_err());
+        }
+        assert!(normalize_signature(DynamicImage::new_rgba8(224, 224)).is_err());
+        assert!(normalize_signature(DynamicImage::new_luma8(0, 0)).is_err());
+        assert!(normalize_signature(DynamicImage::new_luma8(MAX_DIMENSION + 1, 1)).is_err());
+    }
+
+    #[test]
+    fn fits_and_pads_landscape_and_portrait() {
+        for (width, height) in [(448, 224), (224, 448)] {
+            let mut image = GrayImage::from_pixel(width, height, Luma([255]));
+            for row in height / 4..height * 3 / 4 {
+                for column in width / 4..width * 3 / 4 {
+                    image.put_pixel(column, row, Luma([0]));
+                }
+            }
+            let normalized = normalize_signature(image.into()).unwrap();
+            assert_eq!(normalized.pixels.len(), 224 * 224);
+            assert_eq!(
+                (normalized.source_width, normalized.source_height),
+                (width, height)
+            );
+            assert!(normalized
+                .pixels
+                .iter()
+                .all(|value| (0.0..=1.0).contains(value)));
+            assert_eq!(normalized.pixels[112 * 224 + 112], 1.0);
+            assert_eq!(normalized.pixels[30 * 224 + 30], 0.0);
+            let outside_fitted_ink = if width > height {
+                70 * 224 + 112
+            } else {
+                112 * 224 + 70
+            };
+            assert_eq!(normalized.pixels[outside_fitted_ink], 0.0);
+            assert_eq!(pixel_similarity(&normalized, &normalized), Ok(1.0));
         }
     }
 }

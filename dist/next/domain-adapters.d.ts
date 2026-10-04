@@ -1,4 +1,8 @@
 import type { FingerprintAdapter } from './index.js';
+export interface FeatureAdapterOptions {
+    featureDimension: number;
+    extractorVersion: string;
+}
 export interface HandwritingSample {
     [key: string]: unknown;
     embedding?: readonly number[];
@@ -9,6 +13,6 @@ export interface EnrolledBiometricSample {
     modality: string;
     template?: readonly number[];
 }
-export declare function createHandwritingAdapter(): FingerprintAdapter<HandwritingSample, HandwritingSample>;
-export declare function createEnrolledBiometricAdapter(modality: string): FingerprintAdapter<EnrolledBiometricSample, EnrolledBiometricSample>;
+export declare function createHandwritingAdapter(options: FeatureAdapterOptions): FingerprintAdapter<HandwritingSample, HandwritingSample>;
+export declare function createEnrolledBiometricAdapter(modality: string, options: FeatureAdapterOptions): FingerprintAdapter<EnrolledBiometricSample, EnrolledBiometricSample>;
 //# sourceMappingURL=domain-adapters.d.ts.map

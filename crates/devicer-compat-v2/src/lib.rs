@@ -3,9 +3,6 @@ mod graph;
 mod lsh;
 mod scorer;
 
-#[cfg(feature = "candle-runtime")]
-pub mod dsnet;
-
 pub use drift::compute_device_drift_json;
 pub use graph::{jaccard_similarity, subnet_key};
 pub use lsh::{

@@ -1,6 +1,6 @@
 {
   "name": "devicer.js",
-  "version": "2.0.3",
+  "version": "3.0.0",
   "type": "module",
   "description": "Open-Source Digital Fingerprinting Middleware",
   "main": "./dist/main.js",
@@ -48,8 +48,8 @@
     "migrate:v2": "node scripts/migrate-v2.mjs",
     "next:cli": "node scripts/next-cli.mjs",
     "next:release:check": "node scripts/next-release-check.mjs",
-    "next:models:check": "node scripts/check-model-upstreams.mjs",
-    "next:lfw:prepare": "node scripts/prepare-lfw-evaluation.mjs",
+    "test:release": "node --test tests/next-release.test.mjs",
+    "test:signal-example": "tsc --noEmit --target ES2022 --module nodenext --moduleResolution nodenext --strict --esModuleInterop --skipLibCheck src/examples/physical-fingerprint.ts",
     "next:storage:check": "node scripts/next-storage-check.mjs",
     "test:next": "npx vitest run src/tests/next",
     "bridge:check": "node scripts/bridge-spike.mjs",

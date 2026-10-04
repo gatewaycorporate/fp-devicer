@@ -1,7 +1,83 @@
-# NEXT Domain Model Implementation Plan
+# NEXT Domain Signal Contracts
 
-Status: integration foundation and operational safety controls implemented;
-these models are not currently shipped or RC-supported.
+Status: model-free integration preview. Production model implementations,
+vendored model repositories, checkpoints, conversion tools and model-specific
+dataset tooling are excluded from this branch. Generic adapter/runtime APIs
+and deterministic synthetic fixtures remain supported engineering surfaces.
+
+## Input Profiles
+
+`createPhysicalFingerprintAdapter` defaults to `FINGERPRINT_500_DPI`: a decoded,
+row-major single-channel gray8 `Uint8Array`, positive integer width/height,
+exact buffer length, and known acquisition `dpi: 500`. DPI is sampling density,
+not pixel dimensions or sensor certification. Missing/unsupported DPI is
+rejected before inference. Never label an unknown-density capture as 500 DPI.
+
+`createSignatureAdapter` defaults to `SIGNATURE_224`: 224x224 gray8, black ink
+on white, with `preprocessing` equal to the profile ID and positive
+`sourceWidth`/`sourceHeight`. The caller must fit the source without stretching
+and center it on white padding. The TypeScript boundary validates canonical
+rasters; it does not decode files or verify that a caller performed the declared
+transform. The Rust `signature_usb` example decodes PNG/JPEG, composites alpha
+onto white, fits/pads, and converts to ink intensity in [0, 1]. Its output
+profile is `signature.gray8.fit-pad-224.ink.v1`, distinct from gray8 ingress.
+224x224 is this release's normalization profile, not a universal standard.
+
+Both default raster profiles reject uniform, near-white and near-black images.
+This is only a blank-input guard, not biometric quality certification. Ingress
+is capped at 8192 pixels per dimension and 32 MiB decoded bytes. The Rust file
+decoder additionally limits allocations to 128 MiB. These are engineering
+budgets, not biometric standards.
+
+`createFaceAdapter` requires an explicit `inputProfile`: a raster profile with
+declared dimensions/channel count (one gray8 or three interleaved RGB8 channels)
+or a `kind: 'features'` profile. External face alignment and quality rules belong
+in the versioned preprocessing manifest and `validateInput` callback. No face
+size, alignment model or liveness guarantee is assumed.
+
+Every domain factory requires `featureDimension`. Inference is application
+supplied; no production matcher is bundled. Missing or invalid extracted
+vectors produce unavailable evidence. Finite, nonzero vectors of the declared
+dimension use scaled cosine similarity mapped to [0, 1].
+
+Explicit alternative `SignalProfile` IDs must end in `.vN`. Dimensions, DPI,
+channel order and normalization are part of the configuration, not implicit
+defaults. Feature-only profiles are for external embeddings/templates, not raw
+scanner input or ISO minutiae records. `createHandwritingAdapter` and
+`createEnrolledBiometricAdapter` require `{ featureDimension, extractorVersion }`;
+their vectors are compared with cosine and transcription remains exact text.
+Modality names remain extensible.
+
+## Compatibility And Migration
+
+Observations preserve validated acquisition fields and profile/model provenance.
+Conflicting caller acquisition metadata raises `ModelInputError` before inference.
+Schema, extractor, declared feature dimension, profile and complete model
+manifest must match the active adapter before comparisons are accepted.
+Historical observations lacking the required metadata are unsupported: migrate
+only from known original provenance, or re-extract/re-enroll. Do not invent DPI,
+profile metadata or extractor versions for old records.
+
+Profile, pipeline or comparator changes alter the configuration digest. Existing
+calibration guards reject reuse across changed configurations. Synthetic fixtures
+and pixel/row-band baselines are always uncalibrated and do not prove identity.
+
+## Verification
+
+Run `npm run test:next`, `npm run test:signal-example`, `npm run test:release`,
+`cargo test -p devicer-compat-v2 --all-targets --locked`, build, and
+`npm run next:release:check`. Release checks inspect tracked source and actual
+npm pack inventories; a clean release checkout must contain no model gitlinks
+or checkpoints. Filename and size checks complement, not replace, source review
+for embedded or disguised model weights. Local ignored research files are not
+release inputs. No checkpoint downloads or submodule initialization are needed.
+
+## Archived Model Proposal
+
+Everything below is a historical research proposal, not implementation work,
+installation guidance, default model selection or a release claim. It is
+superseded by the model-free scope above; no model promotion is planned for this
+branch. The historical [upstream inventory](model-upstreams.md) is reference only.
 
 Implemented foundation: `createModelBackedAdapter` now provides an injected
 inference boundary, requires checkpoint/license/runtime provenance, and binds

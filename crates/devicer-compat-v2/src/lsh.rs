@@ -12,7 +12,7 @@ pub struct LshIndex {
 
 impl LshIndex {
     pub fn new(num_hashes: usize, num_bands: usize) -> Result<Self, String> {
-        if num_hashes == 0 || num_bands == 0 || num_hashes % num_bands != 0 {
+        if num_hashes == 0 || num_bands == 0 || !num_hashes.is_multiple_of(num_bands) {
             return Err(format!(
                 "numHashes ({num_hashes}) must be divisible by numBands ({num_bands})"
             ));

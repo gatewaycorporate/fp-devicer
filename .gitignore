@@ -4,3 +4,10 @@ src/benchmarks/benchmark-db.sqlite
 coverage
 .compat-cache/
 /target/
+/vendor/models/
+/models/
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.safetensors

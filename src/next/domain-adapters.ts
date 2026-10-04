@@ -1,4 +1,15 @@
 import type { Evidence, FingerprintAdapter, Observation, ObservationContext, Relationship } from './index.js';
+import { vectorSimilarity } from './vector-similarity.js';
+
+export interface FeatureAdapterOptions {
+  featureDimension: number;
+  extractorVersion: string;
+}
+
+function validateOptions(options: FeatureAdapterOptions): void {
+  if (!options || !Number.isSafeInteger(options.featureDimension) || options.featureDimension <= 0
+    || !options.extractorVersion?.trim()) throw new Error('Feature dimension and extractor version are required');
+}
 
 export interface HandwritingSample {
   [key: string]: unknown;
@@ -22,56 +33,64 @@ const sameEnrolledIdentity: Relationship = {
   id: "same-enrolled-identity", direction: "undirected", description: "sample verified against one enrolled identity",
 };
 
-export function createHandwritingAdapter(): FingerprintAdapter<HandwritingSample, HandwritingSample> {
+export function createHandwritingAdapter(options: FeatureAdapterOptions): FingerprintAdapter<HandwritingSample, HandwritingSample> {
+  validateOptions(options);
+  options = { ...options };
+  const extractorVersions = { embedding: options.extractorVersion, transcription: options.extractorVersion };
   return {
     domain: "handwriting",
     schemaVersion: "handwriting.v1",
-    extractorVersions: { embedding: "external.v1", transcription: "external.v1" },
+    extractorVersions,
     relationships: [sameWriter, sameTranscription],
     configuration: {
       schemaVersion: "handwriting.v1", domain: "handwriting",
-      extractors: { embedding: "external.v1", transcription: "external.v1" },
-      comparators: { embedding: "cosine.v1", transcription: "exact.v1" },
-      fusion: "relation-specific.v1", normalization: "unit", runtime: "next.v1",
+      extractors: extractorVersions,
+      comparators: { embedding: "cosine.v2", transcription: "exact.v1" },
+      fusion: "relation-specific.v1", normalization: "cosine-scaled.v2", runtime: "next.v1",
+      featureDimension: options.featureDimension,
     },
     createObservation(input, context) {
-      return createObservation("handwriting", "handwriting.v1", input, context, {
+      return createObservation("handwriting", "handwriting.v1", input, context, extractorVersions, options.featureDimension, {
         embedding: input.embedding ? 1 : 0, transcription: input.transcription ? 1 : 0,
       });
     },
     compare(left, right, relation) {
       if (relation.id === sameTranscription.id) {
-        const available = left.features.transcription !== undefined && right.features.transcription !== undefined;
+        const available = typeof left.features.transcription === 'string' && typeof right.features.transcription === 'string';
         return evidence(left, right, relation, available ? (left.features.transcription === right.features.transcription ? 1 : 0) : Number.NaN, available, "transcription");
       }
-      const available = Boolean(left.features.embedding && right.features.embedding);
-      return evidence(left, right, relation, available ? vectorSimilarity(left.features.embedding!, right.features.embedding!) : Number.NaN, available, "embedding");
+      const similarity = vectorSimilarity(left.features.embedding, right.features.embedding, options.featureDimension);
+      return evidence(left, right, relation, similarity, Number.isFinite(similarity), "embedding");
     },
   };
 }
 
-export function createEnrolledBiometricAdapter(modality: string): FingerprintAdapter<EnrolledBiometricSample, EnrolledBiometricSample> {
+export function createEnrolledBiometricAdapter(modality: string, options: FeatureAdapterOptions): FingerprintAdapter<EnrolledBiometricSample, EnrolledBiometricSample> {
   if (!modality.trim()) throw new Error("Biometric modality is required");
+  validateOptions(options);
+  options = { ...options };
+  const extractorVersions = { template: options.extractorVersion };
   return {
     domain: `biometric:${modality}`,
     schemaVersion: "biometric.v1",
-    extractorVersions: { template: "external.v1" },
+    extractorVersions,
     relationships: [sameEnrolledIdentity],
     configuration: {
       schemaVersion: "biometric.v1", domain: `biometric:${modality}`,
-      extractors: { template: "external.v1" },
-      comparators: { template: "cosine.v1" },
-      fusion: "single-source.v1", normalization: "unit", runtime: "next.v1",
+      extractors: extractorVersions,
+      comparators: { template: "cosine.v2" },
+      fusion: "single-source.v1", normalization: "cosine-scaled.v2", runtime: "next.v1",
+      featureDimension: options.featureDimension,
     },
     createObservation(input, context) {
-      return createObservation(`biometric:${modality}`, "biometric.v1", input, context, {
+      return createObservation(`biometric:${modality}`, "biometric.v1", input, context, extractorVersions, options.featureDimension, {
         template: input.template ? 1 : 0,
       });
     },
     compare(left, right, relation) {
-      const available = left.features.modality === modality && right.features.modality === modality
-        && Boolean(left.features.template && right.features.template);
-      return evidence(left, right, relation, available ? vectorSimilarity(left.features.template!, right.features.template!) : Number.NaN, available, "template");
+      const similarity = left.features.modality === modality && right.features.modality === modality
+        ? vectorSimilarity(left.features.template, right.features.template, options.featureDimension) : Number.NaN;
+      return evidence(left, right, relation, similarity, Number.isFinite(similarity), "template");
     },
   };
 }
@@ -81,13 +100,16 @@ function createObservation<TFeatures extends Record<string, unknown>>(
   schemaVersion: string,
   features: TFeatures,
   context: ObservationContext | undefined,
+  extractorVersions: Record<string, string>,
+  featureDimension: number,
   quality: Record<string, number>,
 ): Observation<TFeatures> {
   return {
     id: context?.id ?? `${domain}-${JSON.stringify(features)}`,
     domain, schemaVersion,
     observedAt: (context?.observedAt ?? new Date()).toISOString(),
-    extractorVersions: { [`${domain}-extractor`]: "external.v1" },
+    extractorVersions: { ...extractorVersions },
+    provenance: { featureDimension: String(featureDimension) },
     features, quality,
     ...(context?.acquisition ? { acquisition: context.acquisition } : {}),
     missingness: Object.fromEntries(Object.entries(quality).filter(([, value]) => value === 0).map(([key]) => [key, "not_provided"])),
@@ -104,20 +126,8 @@ function evidence<TFeatures extends Record<string, unknown>>(
 ): Evidence[] {
   return [{
     relation: relation.id, leftObservationId: left.id, rightObservationId: right.id,
-    comparatorVersion: `${dependencyGroup}.v1`, similarity, available, dependencyGroup,
+    comparatorVersion: dependencyGroup === 'transcription' ? 'transcription.exact.v1' : `${dependencyGroup}.cosine.v2`,
+    similarity, available, dependencyGroup,
+    ...(!available ? { explanation: dependencyGroup === 'transcription' ? 'transcription_unavailable' : 'invalid_vector' } : {}),
   }];
-}
-
-function vectorSimilarity(left: readonly number[], right: readonly number[]): number {
-  if (left.length === 0 || left.length !== right.length) return Number.NaN;
-  let dot = 0;
-  let leftMagnitude = 0;
-  let rightMagnitude = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    dot += left[index] * right[index];
-    leftMagnitude += left[index] ** 2;
-    rightMagnitude += right[index] ** 2;
-  }
-  if (leftMagnitude === 0 || rightMagnitude === 0) return Number.NaN;
-  return Math.max(0, Math.min(1, (dot / Math.sqrt(leftMagnitude * rightMagnitude) + 1) / 2));
 }

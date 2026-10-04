@@ -1,4 +1,5 @@
 import type { Evidence, FingerprintAdapter, Observation, Relationship } from './index.js';
+import { type SignalProfile } from './signal-profiles.js';
 export interface ModelArtifactManifest {
     id: string;
     name: string;
@@ -16,6 +17,8 @@ export interface ModelArtifactManifest {
 }
 export interface ModelAdapterOptions<TInput, TFeatures extends Record<string, unknown>> {
     domain: string;
+    inputProfile?: SignalProfile;
+    featureDimension?: number;
     schemaVersion: string;
     model: ModelArtifactManifest;
     relationships: readonly Relationship[];
@@ -34,6 +37,8 @@ export interface VectorModelFeatures extends Record<string, unknown> {
 }
 export interface VectorModelAdapterOptions<TInput, TFeatures extends VectorModelFeatures> {
     model: ModelArtifactManifest;
+    inputProfile?: SignalProfile;
+    featureDimension: number;
     infer?(input: TInput, context: ModelInferenceContext): Promise<TFeatures> | TFeatures;
     runtime?: ModelRuntime<TInput, TFeatures>;
     validateInput?(input: TInput): string | undefined;

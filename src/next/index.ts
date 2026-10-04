@@ -1,4 +1,5 @@
 import type { ModelArtifactManifest } from './model-adapters.js';
+import type { SignalProfile } from './signal-profiles.js';
 
 export * from './node-model-runtime.js';
 
@@ -58,6 +59,8 @@ export interface Configuration {
   normalization: string;
   runtime: string;
   model?: ModelArtifactManifest;
+  signalProfile?: SignalProfile;
+  featureDimension?: number;
   digest: string;
 }
 
@@ -130,9 +133,9 @@ export function createBrowserAdapter(): FingerprintAdapter<Record<string, unknow
   return createValueAdapter("browser", "browser.v1", "same-installation", (left, right) => {
     const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
     const comparable = [...keys].filter(key => left[key] !== undefined && right[key] !== undefined);
-    if (comparable.length === 0) return 0;
+    if (comparable.length === 0) return Number.NaN;
     return comparable.filter(key => stableJson(left[key]) === stableJson(right[key])).length / comparable.length;
-  });
+  }, '2');
 }
 
 export function createDocumentAdapter(): FingerprintAdapter<{ text: string }, { text: string }> {
@@ -144,6 +147,7 @@ function createValueAdapter<TInput extends Record<string, unknown>, TFeatures ex
   schemaVersion: string,
   relationshipId: string,
   similarity: (left: TFeatures, right: TFeatures) => number,
+  comparatorVersion = '1',
 ): FingerprintAdapter<TInput, TFeatures> {
   const adapter: FingerprintAdapter<TInput, TFeatures> = {
     domain,
@@ -153,7 +157,7 @@ function createValueAdapter<TInput extends Record<string, unknown>, TFeatures ex
     configuration: {
       schemaVersion, domain,
       extractors: { [`${domain}-extractor`]: "1" },
-      comparators: { [`${domain}-comparator`]: "1" },
+      comparators: { [`${domain}-comparator`]: comparatorVersion },
       fusion: "mean.v1", normalization: "unit", runtime: "next.v1",
     },
     createObservation(input, context) {
@@ -167,13 +171,15 @@ function createValueAdapter<TInput extends Record<string, unknown>, TFeatures ex
       };
     },
     compare(left, right, relation) {
+      const score = similarity(left.features, right.features);
       return [{
         relation: relation.id,
         leftObservationId: left.id,
         rightObservationId: right.id,
-        comparatorVersion: `${domain}-comparator.v1`,
-        similarity: similarity(left.features, right.features),
-        available: true,
+        comparatorVersion: `${domain}-comparator.v${comparatorVersion}`,
+        similarity: score,
+        available: Number.isFinite(score),
+        ...(!Number.isFinite(score) ? { explanation: 'no_comparable_fields' } : {}),
         dependencyGroup: domain,
       }];
     },
@@ -197,7 +203,7 @@ export async function compareFingerprints<TInput, TFeatures extends Record<strin
 ): Promise<ComparisonResult> {
   const selected = adapter.relationships.find(item => item.id === relation);
   const configuration = await withDigest(adapter.configuration);
-  if (!selected || left.domain !== adapter.domain || right.domain !== adapter.domain) {
+  if (!selected || !observationCompatible(adapter, left) || !observationCompatible(adapter, right)) {
     return { evidence: [], similarity: null, status: "unsupported_configuration", configuration };
   }
   const evidence = adapter.compare(left, right, selected);
@@ -207,6 +213,34 @@ export async function compareFingerprints<TInput, TFeatures extends Record<strin
   }
   const similarity = available.reduce((sum, item) => sum + Math.max(0, Math.min(1, item.similarity)), 0) / available.length;
   return { evidence, similarity, status: "uncalibrated", configuration };
+}
+
+function observationCompatible<TInput, TFeatures extends Record<string, unknown>>(
+  adapter: FingerprintAdapter<TInput, TFeatures>, observation: Observation<TFeatures>,
+): boolean {
+  if (observation.domain !== adapter.domain || observation.schemaVersion !== adapter.schemaVersion
+    || stableJson(observation.extractorVersions) !== stableJson(adapter.extractorVersions)) return false;
+  const { model, signalProfile, featureDimension } = adapter.configuration;
+  if (featureDimension !== undefined && observation.provenance?.featureDimension !== String(featureDimension)) return false;
+  if (signalProfile && (observation.provenance?.signalProfile !== signalProfile.id
+    || !manifestMatches(observation.provenance?.signalProfileManifest, signalProfile))) return false;
+  if (model && (observation.provenance?.modelId !== model.id
+    || observation.provenance.modelVersion !== model.version
+    || observation.provenance.checkpointDigest !== model.checkpointDigest
+    || observation.provenance.preprocessing !== model.preprocessing
+    || observation.provenance.upstreamRevision !== model.upstreamRevision
+    || observation.provenance.runtime !== model.runtime
+    || !manifestMatches(observation.provenance.modelManifest, model))) return false;
+  return true;
+}
+
+function manifestMatches(serialized: string | undefined, expected: unknown): boolean {
+  if (!serialized) return false;
+  try {
+    return stableJson(JSON.parse(serialized)) === stableJson(expected);
+  } catch {
+    return false;
+  }
 }
 
 export async function matchFingerprint<TInput, TFeatures extends Record<string, unknown>>(
@@ -273,6 +307,7 @@ export * from './retrieval.js';
 export * from './artifacts.js';
 export * from './storage.js';
 export * from './model-adapters.js';
+export * from './signal-profiles.js';
 export * from './evaluation.js';
 export * from './governance.js';
 export * from './benchmark.js';

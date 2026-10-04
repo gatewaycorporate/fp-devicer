@@ -4,6 +4,7 @@ import { createFaceAdapter, createFingerprint, runEvaluation, type EvaluationPai
 describe('NEXT evaluation runner', () => {
   it('reports operating metrics, abstentions, quality slices, and latency', async () => {
     const adapter = createFaceAdapter({
+      inputProfile: { id: 'fixture.features.v1', kind: 'features' }, featureDimension: 2,
       model: {
         id: 'fixture-face', name: 'fixture-face', version: '1', sourceRepository: 'https://example.test/face',
         upstreamRevision: 'fixture', checkpointDigest: 'sha256:fixture', license: 'test', runtime: 'fixture',

@@ -27,14 +27,14 @@ export function createBrowserAdapter() {
         const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
         const comparable = [...keys].filter(key => left[key] !== undefined && right[key] !== undefined);
         if (comparable.length === 0)
-            return 0;
+            return Number.NaN;
         return comparable.filter(key => stableJson(left[key]) === stableJson(right[key])).length / comparable.length;
-    });
+    }, '2');
 }
 export function createDocumentAdapter() {
     return createValueAdapter("document", "document.v1", "exact-content", (left, right) => left.text === right.text ? 1 : 0);
 }
-function createValueAdapter(domain, schemaVersion, relationshipId, similarity) {
+function createValueAdapter(domain, schemaVersion, relationshipId, similarity, comparatorVersion = '1') {
     const adapter = {
         domain,
         schemaVersion,
@@ -43,7 +43,7 @@ function createValueAdapter(domain, schemaVersion, relationshipId, similarity) {
         configuration: {
             schemaVersion, domain,
             extractors: { [`${domain}-extractor`]: "1" },
-            comparators: { [`${domain}-comparator`]: "1" },
+            comparators: { [`${domain}-comparator`]: comparatorVersion },
             fusion: "mean.v1", normalization: "unit", runtime: "next.v1",
         },
         createObservation(input, context) {
@@ -53,16 +53,19 @@ function createValueAdapter(domain, schemaVersion, relationshipId, similarity) {
                 domain, schemaVersion,
                 observedAt: (context?.observedAt ?? new Date()).toISOString(),
                 extractorVersions: { [`${domain}-extractor`]: "1" }, features,
+                ...(context?.acquisition ? { acquisition: context.acquisition } : {}),
             };
         },
         compare(left, right, relation) {
+            const score = similarity(left.features, right.features);
             return [{
                     relation: relation.id,
                     leftObservationId: left.id,
                     rightObservationId: right.id,
-                    comparatorVersion: `${domain}-comparator.v1`,
-                    similarity: similarity(left.features, right.features),
-                    available: true,
+                    comparatorVersion: `${domain}-comparator.v${comparatorVersion}`,
+                    similarity: score,
+                    available: Number.isFinite(score),
+                    ...(!Number.isFinite(score) ? { explanation: 'no_comparable_fields' } : {}),
                     dependencyGroup: domain,
                 }];
         },
@@ -75,7 +78,7 @@ export async function createFingerprint(adapter, input, context) {
 export async function compareFingerprints(adapter, left, right, relation = adapter.relationships[0]?.id) {
     const selected = adapter.relationships.find(item => item.id === relation);
     const configuration = await withDigest(adapter.configuration);
-    if (!selected || left.domain !== adapter.domain || right.domain !== adapter.domain) {
+    if (!selected || !observationCompatible(adapter, left) || !observationCompatible(adapter, right)) {
         return { evidence: [], similarity: null, status: "unsupported_configuration", configuration };
     }
     const evidence = adapter.compare(left, right, selected);
@@ -85,6 +88,36 @@ export async function compareFingerprints(adapter, left, right, relation = adapt
     }
     const similarity = available.reduce((sum, item) => sum + Math.max(0, Math.min(1, item.similarity)), 0) / available.length;
     return { evidence, similarity, status: "uncalibrated", configuration };
+}
+function observationCompatible(adapter, observation) {
+    if (observation.domain !== adapter.domain || observation.schemaVersion !== adapter.schemaVersion
+        || stableJson(observation.extractorVersions) !== stableJson(adapter.extractorVersions))
+        return false;
+    const { model, signalProfile, featureDimension } = adapter.configuration;
+    if (featureDimension !== undefined && observation.provenance?.featureDimension !== String(featureDimension))
+        return false;
+    if (signalProfile && (observation.provenance?.signalProfile !== signalProfile.id
+        || !manifestMatches(observation.provenance?.signalProfileManifest, signalProfile)))
+        return false;
+    if (model && (observation.provenance?.modelId !== model.id
+        || observation.provenance.modelVersion !== model.version
+        || observation.provenance.checkpointDigest !== model.checkpointDigest
+        || observation.provenance.preprocessing !== model.preprocessing
+        || observation.provenance.upstreamRevision !== model.upstreamRevision
+        || observation.provenance.runtime !== model.runtime
+        || !manifestMatches(observation.provenance.modelManifest, model)))
+        return false;
+    return true;
+}
+function manifestMatches(serialized, expected) {
+    if (!serialized)
+        return false;
+    try {
+        return stableJson(JSON.parse(serialized)) === stableJson(expected);
+    }
+    catch {
+        return false;
+    }
 }
 export async function matchFingerprint(adapter, incoming, candidates, options) {
     const comparisons = await Promise.all(candidates.map(candidate => compareFingerprints(adapter, incoming, candidate, options.relation)));
@@ -139,6 +172,7 @@ export * from './retrieval.js';
 export * from './artifacts.js';
 export * from './storage.js';
 export * from './model-adapters.js';
+export * from './signal-profiles.js';
 export * from './evaluation.js';
 export * from './governance.js';
 export * from './benchmark.js';

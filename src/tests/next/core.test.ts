@@ -63,6 +63,45 @@ const noteAdapter: FingerprintAdapter<Note, { text: string }> = {
 };
 
 describe('NEXT core contracts', () => {
+  it('abstains for browser observations with no jointly available fields', async () => {
+    const adapter = createBrowserAdapter();
+    const left = await createFingerprint(adapter, { language: 'en' });
+    const right = await createFingerprint(adapter, { timezone: 'UTC' });
+    expect(await compareFingerprints(adapter, left, right)).toMatchObject({
+      status: 'insufficient_data', similarity: null, evidence: [{ available: false, explanation: 'no_comparable_fields' }],
+    });
+    expect(await matchFingerprint(adapter, left, [right], { relation: 'same-installation', minimumSimilarity: 0.5 }))
+      .toMatchObject({ decision: 'insufficient_evidence' });
+  });
+
+  it('marks malformed vectors unavailable in both feature-only adapters', async () => {
+    const handwriting = createHandwritingAdapter({ featureDimension: 2, extractorVersion: 'fixture.v1' });
+    const biometric = createEnrolledBiometricAdapter('custom-sensor', { featureDimension: 2, extractorVersion: 'fixture.v1' });
+    const invalidVectors = [undefined, [], [1], [0, 0], [NaN, 1], [Infinity, 1], ['1', 0], new Array(2)];
+    for (const vector of invalidVectors) {
+      const writer = await createFingerprint(handwriting, { embedding: vector as number[] });
+      const template = await createFingerprint(biometric, { modality: 'custom-sensor', template: vector as number[] });
+      const writerResult = await compareFingerprints(handwriting, writer, writer, 'same-writer');
+      const templateResult = await compareFingerprints(biometric, template, template);
+      for (const result of [writerResult, templateResult]) {
+        expect(result).toMatchObject({ status: 'insufficient_data', similarity: null });
+        expect(result.evidence[0]).toMatchObject({ available: false, explanation: 'invalid_vector' });
+      }
+    }
+  });
+
+  it('rejects schema and extractor mismatches before calling a comparator', async () => {
+    const observation = await createFingerprint(noteAdapter, { text: 'same' });
+    for (const altered of [
+      { ...observation, schemaVersion: 'note.v2' },
+      { ...observation, extractorVersions: { text: '2' } },
+    ]) {
+      expect(await compareFingerprints(noteAdapter, observation, altered)).toMatchObject({
+        status: 'unsupported_configuration', similarity: null, evidence: [],
+      });
+    }
+  });
+
   it('creates versioned observations and deterministic configuration identities', async () => {
     const observation = await createFingerprint(noteAdapter, { text: 'alpha' }, {
       id: 'left', observedAt: new Date('2026-01-02T00:00:00Z'),
@@ -209,14 +248,14 @@ describe('NEXT core contracts', () => {
   });
 
   it('keeps handwriting and biometric relationships domain-specific', async () => {
-    const handwriting = createHandwritingAdapter();
+    const handwriting = createHandwritingAdapter({ featureDimension: 2, extractorVersion: 'fixture.v1' });
     const writerLeft = await createFingerprint(handwriting, { embedding: [1, 0], transcription: 'hello' }, { id: 'writer-left' });
     const writerRight = await createFingerprint(handwriting, { embedding: [0.9, 0.1], transcription: 'world' }, { id: 'writer-right' });
     expect((await compareFingerprints(handwriting, writerLeft, writerRight, 'same-writer')).similarity).toBeGreaterThan(0.9);
     expect((await compareFingerprints(handwriting, writerLeft, writerRight, 'same-transcription')).similarity).toBe(0);
     const missing = await createFingerprint(handwriting, { transcription: 'hello' }, { id: 'missing-embedding' });
     expect((await compareFingerprints(handwriting, missing, writerRight, 'same-writer')).status).toBe('insufficient_data');
-    const biometric = createEnrolledBiometricAdapter('face-v1');
+    const biometric = createEnrolledBiometricAdapter('face-v1', { featureDimension: 2, extractorVersion: 'fixture.v1' });
     const enrolled = await createFingerprint(biometric, { modality: 'face-v1', template: [1, 0] }, { id: 'enrolled' });
     const probe = await createFingerprint(biometric, { modality: 'face-v1', template: [0.8, 0.2] }, { id: 'probe' });
     expect((await compareFingerprints(biometric, enrolled, probe)).similarity).toBeGreaterThan(0.9);
@@ -278,6 +317,7 @@ describe('NEXT core contracts', () => {
       inputSchema: 'fixture.input', outputSchema: 'fixture.vector',
     };
     const face = createFaceAdapter({
+      inputProfile: { id: 'fixture.features.v1', kind: 'features' }, featureDimension: 2,
       model, extractorVersions: { face: 'kr-rpe.v1', matcher: 'adaface.v1' },
       infer: (input: { vector?: number[] }) => ({ embedding: input.vector }),
     });
@@ -286,6 +326,7 @@ describe('NEXT core contracts', () => {
     expect((await compareFingerprints(face, faceLeft, faceRight, 'same-subject')).similarity).toBeGreaterThan(0.9);
 
     const physical = createPhysicalFingerprintAdapter({
+      inputProfile: { id: 'fixture.features.v1', kind: 'features' }, featureDimension: 2,
       model, extractorVersions: { fingerprint: 'jipnet.v1' },
       infer: (input: { template?: number[] }) => ({ template: input.template }),
       qualityGate: features => features.template && features.template.length < 2 ? 'template quality below minimum' : undefined,
@@ -302,6 +343,7 @@ describe('NEXT core contracts', () => {
     expect(qualityResult.evidence[0].available).toBe(false);
 
     const signature = createSignatureAdapter({
+      inputProfile: { id: 'fixture.features.v1', kind: 'features' }, featureDimension: 2,
       model, extractorVersions: { signature: 'detailsemnet.v1' },
       infer: (input: { embedding?: number[]; transcription?: string }) => input,
     });

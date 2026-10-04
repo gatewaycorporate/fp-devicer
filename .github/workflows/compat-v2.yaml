@@ -50,6 +50,7 @@ jobs:
         run: |
           cargo fmt --all --check
           cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo test -p devicer-compat-v2 --all-targets --locked
       - name: Test the isolated Rust-backed bridge against the oracle
         run: npm run bridge:check
 
@@ -97,12 +98,20 @@ jobs:
           cache: npm
       - name: Install locked dependencies without native build scripts
         run: npm ci --ignore-scripts
+      - name: Build SQLite native dependency for persistence tests
+        run: npm rebuild better-sqlite3
       - name: Check source types
         run: npx tsc --noEmit
       - name: Run legacy unit tests (not live database certification)
         run: npm test
+      - name: Check model-free signal example and release policy
+        run: |
+          npm run test:signal-example
+          npm run test:release
       - name: Compare packed build and consumer to frozen npm oracle
         run: npm run compat:package
+      - name: Verify model-free source and package inventory
+        run: npm run next:release:check
       - name: Archive compatibility inputs
         uses: actions/upload-artifact@v4
         with:

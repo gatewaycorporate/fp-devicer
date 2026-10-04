@@ -9,13 +9,12 @@ crate-type = ["rlib", "cdylib"]
 
 [features]
 default = []
-candle-runtime = ["dep:candle-core", "dep:candle-nn"]
 
 [dependencies]
-candle-core = { version = "0.8.4", optional = true }
-candle-nn = { version = "0.8.4", optional = true }
-image = "0.25.8"
 libm = { version = "=0.2.16", default-features = false }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.151"
 tlsh = { package = "tlsh-fixed", version = "=0.2.0" }
+
+[dev-dependencies]
+image = { version = "0.25.8", default-features = false, features = ["png", "jpeg"] }

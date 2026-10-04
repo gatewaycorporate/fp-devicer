@@ -1,5 +1,9 @@
 # NEXT Evaluation Datasets
 
+Status: historical external-data investigation. Model-specific dataset tooling
+is excluded from the model-free branch. Current conformance tests use synthetic
+signals; they do not establish biometric accuracy.
+
 ## Labeled Faces in the Wild
 
 The local structural evaluation used the public LFW archive distributed through
@@ -16,13 +20,8 @@ therefore suitable for local engineering validation only after the operator
 reviews the upstream LFW terms; this repository does not redistribute it or
 make a biometric deployment or accuracy claim from it.
 
-Prepare hashed references and subject-disjoint manifests with:
-
-```sh
-node scripts/prepare-lfw-evaluation.mjs \
-  /tmp/devicer-datasets/lfw/images \
-  /tmp/devicer-datasets/lfw/evaluation
-```
+The model-specific preparation script has been removed; this section records
+past research only and is not an installation or release prerequisite.
 
 The generated metadata contains image paths, content digests, subject groups,
 and labels, but not image bytes. The current output is explicitly marked
