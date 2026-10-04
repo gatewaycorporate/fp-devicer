@@ -1,56 +1,261 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>FP-Devicer - v2.0.3</title><meta name="description" content="Documentation for FP-Devicer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">FP-Devicer - v2.0.3</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>FP-Devicer - v2.0.3</h1></div><div class="tsd-panel tsd-typography"><h1 id="fp-devicer" class="tsd-anchor-link">FP-Devicer<a href="#fp-devicer" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
-<p>FP-Devicer is a digital fingerprinting middleware library designed for ease of
-use and near-universal compatibility with servers. Developed by <a href="https://gatewaycorporate.org">Gateway Corporate Solutions</a>.</p>
-<h2 id="usage" class="tsd-anchor-link">Usage<a href="#usage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>Importing and using the library to compare fingerprints between users is as
-simple as collecting some user data and running the calculateConfidence
-function.</p>
-<pre><code class="javascript"><span class="hl-0">// 1. Simple Method (Using defaults)</span><br/><span class="hl-1">import</span><span class="hl-2"> { </span><span class="hl-3">calculateConfidence</span><span class="hl-2"> } </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&quot;devicer.js&quot;</span><span class="hl-2">;</span><br/><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">score</span><span class="hl-2"> = </span><span class="hl-7">calculateConfidence</span><span class="hl-2">(</span><span class="hl-3">fpData1</span><span class="hl-2">, </span><span class="hl-3">fpData2</span><span class="hl-2">);</span><br/><br/><span class="hl-0">// 2. Advanced Method (Custom weights &amp; comparitors)</span><br/><span class="hl-1">import</span><span class="hl-2"> { </span><span class="hl-3">createConfidenceCalculator</span><span class="hl-2">, </span><span class="hl-3">registerPlugin</span><span class="hl-2"> } </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&quot;devicer.js&quot;</span><span class="hl-2">;</span><br/><br/><span class="hl-7">registerPlugin</span><span class="hl-2">(</span><span class="hl-4">&quot;userAgent&quot;</span><span class="hl-2">, {</span><br/><span class="hl-2">  </span><span class="hl-3">weight:</span><span class="hl-2"> </span><span class="hl-8">25</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-7">comparator</span><span class="hl-3">:</span><span class="hl-2"> (</span><span class="hl-3">a</span><span class="hl-2">, </span><span class="hl-3">b</span><span class="hl-2">) </span><span class="hl-5">=&gt;</span><span class="hl-2"> </span><span class="hl-7">levenshteinSimilarity</span><span class="hl-2">(</span><span class="hl-7">String</span><span class="hl-2">(</span><span class="hl-3">a</span><span class="hl-2"> || </span><span class="hl-4">&quot;&quot;</span><span class="hl-2">).</span><span class="hl-7">toLowerCase</span><span class="hl-2">(), </span><span class="hl-7">String</span><span class="hl-2">(</span><span class="hl-3">b</span><span class="hl-2"> || </span><span class="hl-4">&quot;&quot;</span><span class="hl-2">).</span><span class="hl-7">toLowerCase</span><span class="hl-2">())</span><br/><span class="hl-2">});</span><br/><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">advancedCalculator</span><span class="hl-2"> = </span><span class="hl-7">createConfidenceCalculator</span><span class="hl-2">({</span><br/><span class="hl-2">  </span><span class="hl-3">weights:</span><span class="hl-2"> {</span><br/><span class="hl-2">    </span><span class="hl-3">platform:</span><span class="hl-2"> </span><span class="hl-8">20</span><span class="hl-2">,</span><br/><span class="hl-2">    </span><span class="hl-3">fonts:</span><span class="hl-2"> </span><span class="hl-8">20</span><span class="hl-2">,</span><br/><span class="hl-2">    </span><span class="hl-3">screen:</span><span class="hl-2"> </span><span class="hl-8">15</span><br/><span class="hl-2">  }</span><br/><span class="hl-2">})</span><br/><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">advancedScore</span><span class="hl-2"> = </span><span class="hl-3">advancedCalculator</span><span class="hl-2">.</span><span class="hl-7">calculateConfidence</span><span class="hl-2">(</span><span class="hl-3">fpData1</span><span class="hl-2">, </span><span class="hl-3">fpData2</span><span class="hl-2">);</span><br/><br/><span class="hl-0">// 3. Enterprise usage (DeviceManager)</span><br/><span class="hl-1">import</span><span class="hl-2"> </span><span class="hl-3">express</span><span class="hl-2"> </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&#39;express&#39;</span><span class="hl-2">;</span><br/><span class="hl-1">import</span><span class="hl-2"> { </span><span class="hl-3">DeviceManager</span><span class="hl-2">, </span><span class="hl-3">createInMemoryAdapter</span><span class="hl-2"> } </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&#39;devicer.js&#39;</span><span class="hl-2">;</span><br/><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">manager</span><span class="hl-2"> = </span><span class="hl-5">new</span><span class="hl-2"> </span><span class="hl-7">DeviceManager</span><span class="hl-2">(</span><span class="hl-7">createInMemoryAdapter</span><span class="hl-2">());</span><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">app</span><span class="hl-2"> = </span><span class="hl-7">express</span><span class="hl-2">();</span><br/><span class="hl-3">app</span><span class="hl-2">.</span><span class="hl-7">use</span><span class="hl-2">(</span><span class="hl-3">express</span><span class="hl-2">.</span><span class="hl-7">json</span><span class="hl-2">());</span><br/><br/><span class="hl-3">app</span><span class="hl-2">.</span><span class="hl-7">get</span><span class="hl-2">(</span><span class="hl-4">&#39;/&#39;</span><span class="hl-2">, (</span><span class="hl-3">req</span><span class="hl-2">, </span><span class="hl-3">res</span><span class="hl-2">) </span><span class="hl-5">=&gt;</span><span class="hl-2"> {</span><br/><span class="hl-2">	</span><span class="hl-3">res</span><span class="hl-2">.</span><span class="hl-7">sendFile</span><span class="hl-2">(</span><span class="hl-4">&#39;public/index.html&#39;</span><span class="hl-2">, { </span><span class="hl-3">root:</span><span class="hl-2"> </span><span class="hl-3">process</span><span class="hl-2">.</span><span class="hl-7">cwd</span><span class="hl-2">() });</span><br/><span class="hl-2">});</span><br/><br/><span class="hl-3">app</span><span class="hl-2">.</span><span class="hl-7">post</span><span class="hl-2">(</span><span class="hl-4">&#39;/identify&#39;</span><span class="hl-2">, </span><span class="hl-5">async</span><span class="hl-2"> (</span><span class="hl-3">req</span><span class="hl-2">, </span><span class="hl-3">res</span><span class="hl-2">) </span><span class="hl-5">=&gt;</span><span class="hl-2"> {</span><br/><span class="hl-2">  </span><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">result</span><span class="hl-2"> = </span><span class="hl-1">await</span><span class="hl-2"> </span><span class="hl-3">manager</span><span class="hl-2">.</span><span class="hl-7">identify</span><span class="hl-2">(</span><span class="hl-3">req</span><span class="hl-2">.</span><span class="hl-3">body</span><span class="hl-2">, { </span><span class="hl-3">userId:</span><span class="hl-2"> (</span><span class="hl-3">req</span><span class="hl-2"> </span><span class="hl-1">as</span><span class="hl-2"> </span><span class="hl-9">any</span><span class="hl-2">).</span><span class="hl-3">user</span><span class="hl-2">?.</span><span class="hl-3">id</span><span class="hl-2">, </span><span class="hl-3">ip:</span><span class="hl-2"> </span><span class="hl-3">req</span><span class="hl-2">.</span><span class="hl-3">ip</span><span class="hl-2"> });</span><br/><span class="hl-2">  </span><span class="hl-3">res</span><span class="hl-2">.</span><span class="hl-7">json</span><span class="hl-2">(</span><span class="hl-3">result</span><span class="hl-2">); </span><span class="hl-0">// → { deviceId, confidence, isNewDevice, linkedUserId }</span><br/><span class="hl-2">});</span><br/><br/><span class="hl-3">app</span><span class="hl-2">.</span><span class="hl-7">listen</span><span class="hl-2">(</span><span class="hl-8">3000</span><span class="hl-2">, () </span><span class="hl-5">=&gt;</span><span class="hl-2"> </span><span class="hl-3">console</span><span class="hl-2">.</span><span class="hl-7">log</span><span class="hl-2">(</span><span class="hl-4">&#39;✅ FP-Devicer server ready at http://localhost:3000&#39;</span><span class="hl-2">));</span>
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>FP-Devicer - v3.0.0</title><meta name="description" content="Documentation for FP-Devicer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">FP-Devicer - v3.0.0</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>FP-Devicer - v3.0.0</h1></div><div class="tsd-panel tsd-typography"><h1 id="devicer-next" class="tsd-anchor-link">Devicer NEXT<a href="#devicer-next" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p><strong>Versioned fingerprints. Explainable comparisons. Explicit uncertainty.</strong></p>
+<p>Devicer is a TypeScript/Node.js library for turning application-supplied signals
+into comparable observations. NEXT extends its browser-fingerprinting roots
+with a domain-neutral workflow for document deduplication, custom signal
+adapters, calibration, retrieval, persistence, and governance.</p>
+<p>Build browser change-detection workflows, find exact document duplicates, or
+connect your own feature extractor without treating every similarity score as
+proof of identity. Developed by <a href="https://gatewaycorporate.org">Gateway Corporate</a>.</p>
+<p>The 3.0.0 codebase keeps the legacy <code>devicer.js</code> API and introduces NEXT through
+<code>devicer.js/next</code>. NEXT remains an engineering preview: browser and document
+workflows are the initial advertised domains; biometric adapters are input and
+integration contracts, not evaluated biometric products. See the
+<a href="media/releases.md">release scope and verification record</a>.</p>
+<h2 id="whats-new" class="tsd-anchor-link">What's New<a href="#whats-new" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>What NEXT provides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Versioned observations</td>
+<td>Domain, schema, extractor versions, timestamps, acquisition metadata, and pipeline provenance.</td>
+</tr>
+<tr>
+<td>Relationship-aware comparison</td>
+<td>Compare exact content, browser installations, writers, or enrolled subjects through explicitly declared relationships.</td>
+</tr>
+<tr>
+<td>Evidence and abstention</td>
+<td>Per-comparator evidence, configuration digests, and explicit unavailable or incompatible states instead of fabricated certainty.</td>
+</tr>
+<tr>
+<td>Calibration and evaluation</td>
+<td>Labeled-data calibration artifacts, prediction sets, held-out evaluation, evidence-mask reporting, and configuration-bound reuse checks.</td>
+</tr>
+<tr>
+<td>Exact retrieval</td>
+<td>Content-derived IDs, bounded result sets, deterministic pagination, integrity-checked snapshots, and recall evaluation.</td>
+</tr>
+<tr>
+<td>Durable observations</td>
+<td>In-memory, SQLite, PostgreSQL, and Redis stores with scoped observations, snapshot restore, and transaction rollback.</td>
+</tr>
+<tr>
+<td>Operational controls</td>
+<td>Retention purge, authorization hooks, metadata-only audit events, and calibration-artifact activation and rollback.</td>
+</tr>
+<tr>
+<td>Extensible runtimes</td>
+<td>Typed adapters and injected inference, including a bounded Node process runtime with cancellation and teardown.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="install" class="tsd-anchor-link">Install<a href="#install" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Use Node.js with ESM imports. The current source has been checked on Node
+20.20.2, 22.23.3, and 24.21.0; TypeScript declarations are included.</p>
+<pre><code class="sh"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">devicer.js@^3</span>
 </code><button type="button">Copy</button></pre>
 
-<p>The resulting confidence will range between 0 and 100, with 100 providing the
-highest confidence of the users being identical.</p>
-<h2 id="installation" class="tsd-anchor-link">Installation<a href="#installation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>You can install FP-Devicer with</p>
-<pre><code class="bash"><span class="hl-7">npm</span><span class="hl-2"> </span><span class="hl-4">install</span><span class="hl-2"> </span><span class="hl-4">devicer.js</span>
+<p>The examples below target the 3.x NEXT API. If that version is not yet available
+from your registry, build this checkout using the development commands below.
+Storage drivers are peer dependencies: SQLite uses <code>better-sqlite3</code>, PostgreSQL
+uses <code>postgres</code>, and Redis uses <code>ioredis</code>. SQLite may require a native addon
+build; normal NEXT JavaScript usage does not require Rust.</p>
+<table>
+<thead>
+<tr>
+<th>Import</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>devicer.js/next</code></td>
+<td>Observations, adapters, comparison, calibration, retrieval, and governance.</td>
+</tr>
+<tr>
+<td><code>devicer.js/next/sqlite</code></td>
+<td>SQLite observation store.</td>
+</tr>
+<tr>
+<td><code>devicer.js/next/postgres</code></td>
+<td>PostgreSQL observation store.</td>
+</tr>
+<tr>
+<td><code>devicer.js/next/redis</code></td>
+<td>Redis observation store.</td>
+</tr>
+<tr>
+<td><code>devicer.js/next/node-runtime</code></td>
+<td>Application-owned process inference runtime.</td>
+</tr>
+<tr>
+<td><code>devicer.js</code></td>
+<td>Legacy scoring, <code>DeviceManager</code>, registries, plugins, and storage adapters.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="compare-observations" class="tsd-anchor-link">Compare Observations<a href="#compare-observations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>The built-in browser adapter compares jointly available fields for exact
+agreement. It is a transparent baseline, not the legacy weighted scorer or an
+automatic identity detector. Your application supplies the signals; NEXT does
+not collect them from a browser or device.</p>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">createBrowserAdapter</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">createFingerprint</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">compareFingerprints</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;devicer.js/next&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">adapter</span><span class="hl-1"> = </span><span class="hl-0">createBrowserAdapter</span><span class="hl-1">();</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">earlier</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">createFingerprint</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">language:</span><span class="hl-1"> </span><span class="hl-2">&#39;en-US&#39;</span><span class="hl-1">, </span><span class="hl-4">timezone:</span><span class="hl-1"> </span><span class="hl-2">&#39;UTC&#39;</span><span class="hl-1">, </span><span class="hl-4">platform:</span><span class="hl-1"> </span><span class="hl-2">&#39;Linux&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">}, { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;browser-earlier&#39;</span><span class="hl-1"> });</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">later</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">createFingerprint</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">language:</span><span class="hl-1"> </span><span class="hl-2">&#39;en-US&#39;</span><span class="hl-1">, </span><span class="hl-4">timezone:</span><span class="hl-1"> </span><span class="hl-2">&#39;Europe/Paris&#39;</span><span class="hl-1">, </span><span class="hl-4">platform:</span><span class="hl-1"> </span><span class="hl-2">&#39;Linux&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">}, { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;browser-later&#39;</span><span class="hl-1"> });</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">result</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">compareFingerprints</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, </span><span class="hl-4">earlier</span><span class="hl-1">, </span><span class="hl-4">later</span><span class="hl-1">, </span><span class="hl-2">&#39;same-installation&#39;</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">similarity</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">status</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">evidence</span><span class="hl-1">, </span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">configuration</span><span class="hl-1">.</span><span class="hl-4">digest</span><span class="hl-1">);</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">missing</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">createFingerprint</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, {}, { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;browser-missing&#39;</span><span class="hl-1"> });</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">unavailable</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">compareFingerprints</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, </span><span class="hl-4">earlier</span><span class="hl-1">, </span><span class="hl-4">missing</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">unavailable</span><span class="hl-1">.</span><span class="hl-4">status</span><span class="hl-1">, </span><span class="hl-4">unavailable</span><span class="hl-1">.</span><span class="hl-4">similarity</span><span class="hl-1">);</span>
 </code><button type="button">Copy</button></pre>
 
-<p>You can also install the meta-package for the entire Devicer Intelligence Suite
-with</p>
-<pre><code class="bash"><span class="hl-7">npm</span><span class="hl-2"> </span><span class="hl-4">install</span><span class="hl-2"> </span><span class="hl-4">@gatewaycorporate/devicer-intel</span>
+<p>The first comparison returns a similarity of approximately <code>0.667</code> and status
+<code>uncalibrated</code>. The empty observation produces <code>insufficient_data</code> and <code>null</code>,
+not a non-match. Mismatched domains, schemas, extractors, or required pipeline
+provenance produce <code>unsupported_configuration</code>.</p>
+<p><code>matchFingerprint</code> can rank a supplied candidate list and apply an application
+threshold, returning <code>match</code>, <code>non_match</code>, or <code>insufficient_evidence</code>. It does
+not establish a calibrated probability or mint a verified identity.</p>
+<h2 id="find-exact-duplicates" class="tsd-anchor-link">Find Exact Duplicates<a href="#find-exact-duplicates" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Document comparison uses exact text; retrieval uses content-derived keys scoped
+to a domain and schema. Similarity search, OCR, and semantic embeddings are not
+implied by this adapter.</p>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">createDocumentAdapter</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">createFingerprint</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">ExactRetrievalIndex</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;devicer.js/next&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">adapter</span><span class="hl-1"> = </span><span class="hl-0">createDocumentAdapter</span><span class="hl-1">();</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">document</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">createFingerprint</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-4">text:</span><span class="hl-1"> </span><span class="hl-2">&#39;Invoice 1042: total USD 125.00&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">}, { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;invoice-1042&#39;</span><span class="hl-1"> });</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">index</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">ExactRetrievalIndex</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">.</span><span class="hl-4">domain</span><span class="hl-1">, </span><span class="hl-4">adapter</span><span class="hl-1">.</span><span class="hl-4">schemaVersion</span><span class="hl-1">);</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">contentId</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">index</span><span class="hl-1">.</span><span class="hl-0">add</span><span class="hl-1">(</span><span class="hl-4">document</span><span class="hl-1">);</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">candidates</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">index</span><span class="hl-1">.</span><span class="hl-0">findExact</span><span class="hl-1">(</span><span class="hl-4">document</span><span class="hl-1">.</span><span class="hl-4">features</span><span class="hl-1">, </span><span class="hl-7">10</span><span class="hl-1">);</span><br/><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">contentId</span><span class="hl-1">);</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">candidates</span><span class="hl-1">.</span><span class="hl-0">map</span><span class="hl-1">(</span><span class="hl-4">candidate</span><span class="hl-1"> </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">candidate</span><span class="hl-1">.</span><span class="hl-4">observation</span><span class="hl-1">.</span><span class="hl-4">id</span><span class="hl-1">));</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">index</span><span class="hl-1">.</span><span class="hl-0">manifest</span><span class="hl-1">());</span>
 </code><button type="button">Copy</button></pre>
 
-<h2 id="quickstart" class="tsd-anchor-link">Quickstart<a href="#quickstart" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>To run the quickstart example:</p>
-<pre><code class="sh"><span class="hl-7">npm</span><span class="hl-2"> </span><span class="hl-4">install</span><span class="hl-2"> </span><span class="hl-4">express</span><span class="hl-2"> </span><span class="hl-4">devicer.js</span><br/><span class="hl-7">npx</span><span class="hl-2"> </span><span class="hl-4">tsx</span><span class="hl-2"> </span><span class="hl-4">src/examples/quickstart.ts</span>
+<p>The index is in memory and supports snapshot export/restore and deterministic
+rebuilds. The result limit bounds returned candidates, not search complexity:
+this is not a production-scale approximate-nearest-neighbor index. A content
+match establishes duplication, not common authorship.</p>
+<h2 id="persist-and-govern" class="tsd-anchor-link">Persist And Govern<a href="#persist-and-govern" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>NEXT stores preserve observation IDs, timestamps, features, and provenance.
+SQLite, PostgreSQL, and Redis implementations have live reopen and rollback
+checks. The following independent example uses temporary in-memory SQLite;
+replace <code>':memory:'</code> with a file path for durable local storage.</p>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">createDocumentAdapter</span><span class="hl-1">, </span><span class="hl-4">createFingerprint</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;devicer.js/next&#39;</span><span class="hl-1">;</span><br/><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">createSqliteNextStore</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;devicer.js/next/sqlite&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">adapter</span><span class="hl-1"> = </span><span class="hl-0">createDocumentAdapter</span><span class="hl-1">();</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">store</span><span class="hl-1"> = </span><span class="hl-0">createSqliteNextStore</span><span class="hl-1">(</span><span class="hl-2">&#39;:memory:&#39;</span><span class="hl-1">, </span><span class="hl-4">adapter</span><span class="hl-1">.</span><span class="hl-4">domain</span><span class="hl-1">, </span><span class="hl-4">adapter</span><span class="hl-1">.</span><span class="hl-4">schemaVersion</span><span class="hl-1">);</span><br/><br/><span class="hl-3">try</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">store</span><span class="hl-1">.</span><span class="hl-0">init</span><span class="hl-1">();</span><br/><span class="hl-1">  </span><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">observation</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-0">createFingerprint</span><span class="hl-1">(</span><span class="hl-4">adapter</span><span class="hl-1">, {</span><br/><span class="hl-1">    </span><span class="hl-4">text:</span><span class="hl-1"> </span><span class="hl-2">&#39;Approved purchase order&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  }, { </span><span class="hl-4">id:</span><span class="hl-1"> </span><span class="hl-2">&#39;purchase-order-17&#39;</span><span class="hl-1"> });</span><br/><br/><span class="hl-1">  </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">store</span><span class="hl-1">.</span><span class="hl-0">save</span><span class="hl-1">(</span><span class="hl-4">observation</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">store</span><span class="hl-1">.</span><span class="hl-0">get</span><span class="hl-1">(</span><span class="hl-4">observation</span><span class="hl-1">.</span><span class="hl-4">id</span><span class="hl-1">));</span><br/><span class="hl-1">  </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">((</span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">store</span><span class="hl-1">.</span><span class="hl-0">snapshot</span><span class="hl-1">()).</span><span class="hl-4">observations</span><span class="hl-1">.</span><span class="hl-4">length</span><span class="hl-1">);</span><br/><span class="hl-1">} </span><span class="hl-3">finally</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">store</span><span class="hl-1">.</span><span class="hl-0">close</span><span class="hl-1">();</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
-<h2 id="demo" class="tsd-anchor-link">Demo<a href="#demo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>There is a public demo of FP-Devicer (FP-Cicis Command and Control) available
-for viewing at <a href="https://cicis.info/">cicis.info</a>.</p>
+<p>Use <code>createGovernedNextStore</code> to add application-defined authorization and audit
+callbacks, then schedule <code>purgeExpired()</code> for retention enforcement. These hooks
+do not replace authentication, encryption, lawful collection, or a deployment
+threat model. Storage is snapshot-oriented; high-volume scale and distributed
+concurrency guarantees need separate evaluation.</p>
+<h2 id="calibrate-separately" class="tsd-anchor-link">Calibrate Separately<a href="#calibrate-separately" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>NEXT separates raw similarity, calibrated predictions, and application decisions:</p>
+<ol>
+<li>Create labeled comparison samples for a declared population and task.</li>
+<li>Build an artifact with <code>createCalibrationArtifact</code> on a calibration split.</li>
+<li>Apply <code>calibrateComparison</code> and evaluate on independent held-out data with
+<code>evaluateCalibration</code> or the pairwise <code>runEvaluation</code> runner.</li>
+<li>Track Brier score, log loss, coverage, prediction-set size, abstentions,
+quality slices, and latency rather than a single universal accuracy number.</li>
+</ol>
+<p>Artifacts are bound to configuration digests and supported evidence masks.
+Changed configurations or stale artifacts return explicit non-success states;
+<code>assessCalibrationReuse</code> makes transitions inspectable. The in-memory
+<code>CalibrationArtifactRegistry</code> supports activation history and rollback by
+artifact selection. It does not rewrite historical observations or labels.</p>
+<p>See <a href="media/uncertainty.md">uncertainty and calibration</a> for the contract.
+A similarity of <code>1</code> is not a 100% probability of shared identity, and changing
+an extractor does not make an old calibration valid for the new pipeline.</p>
+<h2 id="bring-your-own-signals" class="tsd-anchor-link">Bring Your Own Signals<a href="#bring-your-own-signals" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Implement <code>FingerprintAdapter</code> for a new domain, or inject your inference
+function or <code>ModelRuntime</code> through the model-backed factories. Define the input
+profile, feature dimension, extractor versions, supported relationships, and
+quality checks explicitly. See the <a href="media/adapter-sdk.md">adapter SDK</a> and
+<a href="media/domain-model-plan.md">signal contracts</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Adapter</th>
+<th>Input contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Physical fingerprint</td>
+<td>Defaults to <code>FINGERPRINT_500_DPI</code>: single-channel gray8, known 500-DPI acquisition, valid dimensions and buffer length. DPI is not an image size or sensor certification.</td>
+</tr>
+<tr>
+<td>Signature</td>
+<td>Defaults to <code>SIGNATURE_224</code>: caller-normalized 224x224 gray8, aspect-preserving fit with white padding, and source/normalization provenance. This is a versioned profile, not a universal signature standard.</td>
+</tr>
+<tr>
+<td>Face</td>
+<td>Requires an explicit raster or feature-only profile. Image dimensions, channel count, alignment assumptions, and external extraction must be declared.</td>
+</tr>
+<tr>
+<td>Handwriting / enrolled biometric</td>
+<td>Feature-only vectors with declared dimensions and extractor versions; relationships and modality remain scoped. Transcription comparison is exact text.</td>
+</tr>
+</tbody>
+</table>
+<p>Versioned alternative profiles are supported. Default raster validation rejects
+blank or malformed input before inference. Invalid or zero-magnitude vectors
+become unavailable evidence; incompatible pipeline provenance is rejected
+before scoring. Older observations without required metadata need migration
+from known provenance or re-extraction, not guessed defaults.</p>
+<p><strong>No production ML implementations, weights, or model downloads are bundled.</strong>
+<code>ProcessModelRuntime</code> integrates an application-owned process over JSON lines
+with timeouts, cancellation, and teardown. It is an integration boundary, not
+a supplied recognition engine or a sandbox for untrusted executables.</p>
+<p>The <a href="media/physical-fingerprint.ts">fingerprint example</a> uses sensor-shaped
+synthetic captures. The <a href="media/signature_usb.rs">Rust signature example</a>
+decodes PNG/JPEG files, fits and pads them, and reports an uncalibrated pixel
+baseline. Neither establishes biometric accuracy, liveness, or identity proof.</p>
+<h2 id="keep-the-legacy-api" class="tsd-anchor-link">Keep The Legacy API<a href="#keep-the-legacy-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Existing applications can continue using the root package. The legacy surface
+includes weighted confidence scoring, TLSH hashing, drift analysis, identity
+graph helpers, LSH candidate lookup, storage adapters, and the <code>DeviceManager</code>
+identification workflow. Registries customize scoring, while <code>DeviceManager.use()</code>
+registers enrichment plugins and returns an unregister function.</p>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">DeviceManager</span><span class="hl-1">, </span><span class="hl-4">createInMemoryAdapter</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;devicer.js&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">manager</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">DeviceManager</span><span class="hl-1">(</span><span class="hl-0">createInMemoryAdapter</span><span class="hl-1">());</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">result</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">manager</span><span class="hl-1">.</span><span class="hl-0">identify</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">userAgent:</span><span class="hl-1"> </span><span class="hl-2">&#39;Example browser&#39;</span><span class="hl-1">, </span><span class="hl-4">platform:</span><span class="hl-1"> </span><span class="hl-2">&#39;Linux&#39;</span><span class="hl-1">, </span><span class="hl-4">language:</span><span class="hl-1"> </span><span class="hl-2">&#39;en-US&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">deviceId</span><span class="hl-1">, </span><span class="hl-4">result</span><span class="hl-1">.</span><span class="hl-4">isNewDevice</span><span class="hl-1">);</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Legacy confidence uses a <code>0-100</code> scale; NEXT similarity uses <code>0-1</code> or <code>null</code>.
+They are different contracts, not interchangeable probabilities. NEXT adds
+scoped observations and evidence rather than silently changing the root API.
+Packaged differential checks compare the claimed legacy surface against the
+integrity-pinned <code>devicer.js@2.0.3</code> oracle, not every historical 2.x release.
+See the <a href="media/v2-contract.md">compatibility contract</a> and
+<a href="media/v2-to-next.md">migration guide</a>.</p>
+<h2 id="typescript-and-rust" class="tsd-anchor-link">TypeScript And Rust<a href="#typescript-and-rust" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>The published API is TypeScript/JavaScript. The Rust workspace and isolated
+Node bridge exercise compatibility algorithms, host callbacks, and lifecycle
+behavior against the legacy oracle. This is not yet a complete Rust-backed
+replacement for the package or its storage layer.</p>
+<p>The portable Rust core builds as WASM and its module can be instantiated, but
+currently exports only memory. <code>bridge:portable</code> tests an injected loader
+contract; it does not supply a callable WASM scoring backend. See
+<a href="media/architecture.md">architecture and boundaries</a>.</p>
+<h2 id="develop-and-verify" class="tsd-anchor-link">Develop And Verify<a href="#develop-and-verify" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>From this checkout:</p>
+<pre><code class="sh"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">ci</span><span class="hl-1"> </span><span class="hl-5">--ignore-scripts</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">rebuild</span><span class="hl-1"> </span><span class="hl-2">better-sqlite3</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:signal-example</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test:release</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">compat:package</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">next:release:check</span>
+</code><button type="button">Copy</button></pre>
+
+<p>With a matching Rust toolchain:</p>
+<pre><code class="sh"><span class="hl-0">cargo</span><span class="hl-1"> </span><span class="hl-2">fmt</span><span class="hl-1"> </span><span class="hl-5">--all</span><span class="hl-1"> </span><span class="hl-5">--check</span><br/><span class="hl-0">cargo</span><span class="hl-1"> </span><span class="hl-2">clippy</span><span class="hl-1"> </span><span class="hl-5">--workspace</span><span class="hl-1"> </span><span class="hl-5">--all-targets</span><span class="hl-1"> </span><span class="hl-5">--locked</span><span class="hl-1"> </span><span class="hl-5">--</span><span class="hl-1"> </span><span class="hl-5">-D</span><span class="hl-1"> </span><span class="hl-2">warnings</span><br/><span class="hl-0">cargo</span><span class="hl-1"> </span><span class="hl-2">test</span><span class="hl-1"> </span><span class="hl-5">--workspace</span><span class="hl-1"> </span><span class="hl-5">--all-targets</span><span class="hl-1"> </span><span class="hl-5">--locked</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">bridge:check</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">bridge:portable</span>
+</code><button type="button">Copy</button></pre>
+
+<p><code>npm run next:storage:check</code> checks SQLite and configured live services; set
+<code>NEXT_POSTGRES_URL</code>, <code>NEXT_REDIS_URL</code>, and <code>NEXT_REQUIRE_LIVE_STORAGE=1</code> to
+require all backends. The <a href="media/operations.md">operations guide</a> covers storage
+and migration workflows. <code>npm run bench</code> runs local benchmarks; results depend
+on the workload, hardware, data, and calibration, not a universal speed or
+accuracy guarantee.</p>
+<p>The <a href="media/releases.md">verification record</a> reports 346 passing tests across
+clean Node 20/22/24 snapshots and 26 native bridge checks per runtime. Release
+promotion still requires final-commit CI and review of recorded dependency
+advisories; successful tests alone are not production certification.</p>
 <h2 id="documentation" class="tsd-anchor-link">Documentation<a href="#documentation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>This project uses typedoc and autodeploys via GitHub Pages. You can view the
-generated documentation <a href="https://gatewaycorporate.github.io/fp-devicer/">here</a>.</p>
-<h2 id="plugin-architecture" class="tsd-anchor-link">Plugin Architecture<a href="#plugin-architecture" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p><code>DeviceManager</code> supports a universal plugin system via <code>use()</code>. Any object
-implementing <code>DeviceManagerPlugin</code> (with a <code>registerWith(deviceManager)</code> method)
-can extend <code>identify()</code> results with additional signals.</p>
-<pre><code class="typescript"><span class="hl-1">import</span><span class="hl-2"> { </span><span class="hl-3">createSqliteAdapter</span><span class="hl-2">, </span><span class="hl-3">DeviceManager</span><span class="hl-2"> } </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&quot;devicer.js&quot;</span><span class="hl-2">;</span><br/><span class="hl-1">import</span><span class="hl-2"> { </span><span class="hl-3">IpManager</span><span class="hl-2"> } </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&quot;ip-devicer&quot;</span><span class="hl-2">;</span><br/><span class="hl-1">import</span><span class="hl-2"> { </span><span class="hl-3">TlsManager</span><span class="hl-2"> } </span><span class="hl-1">from</span><span class="hl-2"> </span><span class="hl-4">&quot;tls-devicer&quot;</span><span class="hl-2">;</span><br/><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">manager</span><span class="hl-2"> = </span><span class="hl-5">new</span><span class="hl-2"> </span><span class="hl-7">DeviceManager</span><span class="hl-2">(</span><span class="hl-7">createSqliteAdapter</span><span class="hl-2">(</span><span class="hl-4">&quot;./db.sqlite&quot;</span><span class="hl-2">));</span><br/><br/><span class="hl-3">manager</span><span class="hl-2">.</span><span class="hl-7">use</span><span class="hl-2">(</span><span class="hl-5">new</span><span class="hl-2"> </span><span class="hl-7">IpManager</span><span class="hl-2">({ </span><span class="hl-3">licenseKey:</span><span class="hl-2"> </span><span class="hl-3">process</span><span class="hl-2">.</span><span class="hl-3">env</span><span class="hl-2">.</span><span class="hl-6">DEVICER_LICENSE_KEY</span><span class="hl-2"> }));</span><br/><span class="hl-3">manager</span><span class="hl-2">.</span><span class="hl-7">use</span><span class="hl-2">(</span><span class="hl-5">new</span><span class="hl-2"> </span><span class="hl-7">TlsManager</span><span class="hl-2">({ </span><span class="hl-3">licenseKey:</span><span class="hl-2"> </span><span class="hl-3">process</span><span class="hl-2">.</span><span class="hl-3">env</span><span class="hl-2">.</span><span class="hl-6">DEVICER_LICENSE_KEY</span><span class="hl-2"> }));</span><br/><br/><span class="hl-0">// result now includes ipEnrichment, tlsConsistency, etc.</span><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">result</span><span class="hl-2"> = </span><span class="hl-1">await</span><span class="hl-2"> </span><span class="hl-3">manager</span><span class="hl-2">.</span><span class="hl-7">identify</span><span class="hl-2">(</span><span class="hl-3">fp</span><span class="hl-2">, {</span><br/><span class="hl-2">	</span><span class="hl-3">ip:</span><span class="hl-2"> </span><span class="hl-3">req</span><span class="hl-2">.</span><span class="hl-3">ip</span><span class="hl-2">,</span><br/><span class="hl-2">	</span><span class="hl-3">tlsProfile:</span><span class="hl-2"> </span><span class="hl-3">req</span><span class="hl-2">.</span><span class="hl-3">tlsProfile</span><span class="hl-2">,</span><br/><span class="hl-2">});</span><br/><br/><span class="hl-0">// Optionally unregister a plugin later:</span><br/><span class="hl-5">const</span><span class="hl-2"> </span><span class="hl-6">unregister</span><span class="hl-2"> = </span><span class="hl-3">manager</span><span class="hl-2">.</span><span class="hl-7">use</span><span class="hl-2">(</span><span class="hl-3">myPlugin</span><span class="hl-2">);</span><br/><span class="hl-7">unregister</span><span class="hl-2">();</span>
-</code><button type="button">Copy</button></pre>
-
-<p>Custom plugins implement <code>DeviceManagerPlugin</code> from <code>devicer.js</code>. See the
-<a href="https://gatewaycorporate.github.io/fp-devicer/">documentation</a> for the full
-interface reference.</p>
-<h2 id="benchmarks" class="tsd-anchor-link">Benchmarks<a href="#benchmarks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>When calibrated correctly, FP-Devicer is over 99% accurate and gets more
-accurate as it analyzes fingerprints. The average time to calculate the
-difference between two fingerprints is less than 1ms. To view/run the benchmarks
-on your machine:</p>
-<pre><code class="sh"><span class="hl-7">npm</span><span class="hl-2"> </span><span class="hl-4">run</span><span class="hl-2"> </span><span class="hl-4">bench</span>
-</code><button type="button">Copy</button></pre>
-
-<h2 id="whitepaper" class="tsd-anchor-link">Whitepaper<a href="#whitepaper" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>The whitepaper covers the theory, architecture, and design decisions behind
-FP-Devicer. You can read it
-<a href="https://gatewaycorporate.org/papers/FP-Devicer.pdf">here</a>.</p>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#fp-devicer"><span>FP-<wbr/>Devicer</span></a><ul><li><a href="#usage"><span>Usage</span></a></li><li><a href="#installation"><span>Installation</span></a></li><li><a href="#quickstart"><span>Quickstart</span></a></li><li><a href="#demo"><span>Demo</span></a></li><li><a href="#documentation"><span>Documentation</span></a></li><li><a href="#plugin-architecture"><span>Plugin <wbr/>Architecture</span></a></li><li><a href="#benchmarks"><span>Benchmarks</span></a></li><li><a href="#whitepaper"><span>Whitepaper</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">FP-Devicer - v2.0.3</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+<ul>
+<li><a href="media/next-manifesto.md">NEXT manifesto</a>: goals and design principles.</li>
+<li><a href="media/data-model.md">Data model</a>: observations, evidence, and configuration.</li>
+<li><a href="media/adapter-sdk.md">Adapter SDK</a>: extending NEXT without core edits.</li>
+<li><a href="media/domain-model-plan.md">Signal profiles and migration</a>: input validation and provenance.</li>
+<li><a href="media/releases.md">Release scope</a> and <a href="media/rc-plan.md">RC plan</a>: evidence, limitations, and promotion gates.</li>
+<li><a href="https://gatewaycorporate.github.io/fp-devicer/">Generated API reference</a>: legacy and NEXT APIs, including storage and process-runtime entry points. Regenerate with <code>npm run docs</code> or use <code>npm run docs:watch</code> while developing.</li>
+<li><a href="media/whitepaper.md">Whitepaper</a>: theory and research context, separate from release guarantees.</li>
+</ul>
+<h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>See <a href="media/license.txt">license.txt</a> and <a href="media/terms-of-service.md">terms of service</a>.</p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#devicer-next"><span>Devicer <wbr/>NEXT</span></a><ul><li><a href="#whats-new"><span>What&#39;s <wbr/>New</span></a></li><li><a href="#install"><span>Install</span></a></li><li><a href="#compare-observations"><span>Compare <wbr/>Observations</span></a></li><li><a href="#find-exact-duplicates"><span>Find <wbr/>Exact <wbr/>Duplicates</span></a></li><li><a href="#persist-and-govern"><span>Persist <wbr/>And <wbr/>Govern</span></a></li><li><a href="#calibrate-separately"><span>Calibrate <wbr/>Separately</span></a></li><li><a href="#bring-your-own-signals"><span>Bring <wbr/>Your <wbr/>Own <wbr/>Signals</span></a></li><li><a href="#keep-the-legacy-api"><span>Keep <wbr/>The <wbr/>Legacy <wbr/>API</span></a></li><li><a href="#typescript-and-rust"><span>Type<wbr/>Script <wbr/>And <wbr/>Rust</span></a></li><li><a href="#develop-and-verify"><span>Develop <wbr/>And <wbr/>Verify</span></a></li><li><a href="#documentation"><span>Documentation</span></a></li><li><a href="#license"><span>License</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">FP-Devicer - v3.0.0</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

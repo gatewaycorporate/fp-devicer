@@ -61,8 +61,8 @@
     "bench:watch": "npx vitest bench",
     "bench:ci": "npx vitest bench --run",
     "build": "tsc --outDir dist",
-    "docs": "typedoc --out docs src/main.ts",
-    "docs:watch": "typedoc --out docs src/main.ts --watch"
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch"
   },
   "repository": {
     "type": "git",
