@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: devicer
+      POSTGRES_PASSWORD: devicer_test
+      POSTGRES_DB: devicer_next
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devicer -d devicer_next"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

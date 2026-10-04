@@ -1,7 +1,15 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["src/main.ts"],
+  "entryPoints": [
+    "src/main.ts",
+    "src/next.ts",
+    "src/next/sqlite-storage.ts",
+    "src/next/postgres-storage.ts",
+    "src/next/redis-storage.ts",
+    "src/next/node-model-runtime.ts"
+  ],
   "out": "docs",
+  "cleanOutputDir": false,
   "name": "FP-Devicer",
   "readme": "README.md",
   "includeVersion": true,

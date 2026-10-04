@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   createBaseFingerprint,
   generateAdversarialPerturbation,
@@ -31,16 +31,25 @@ describe('Data Generator', () => {
     expect(fp.audio!.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('should generate attractor-zone devices', () => {
-    const dataset = generateDataset(20, 1);
-    const attractors = dataset.filter(f => f.isAttractor);  // use the flag, not id prefix
-    expect(attractors.length).toBeGreaterThan(0);
-    for (const f of attractors) {
-      expect(f.data.platform).toBe('Win32');
-      expect(f.data.language).toBe('en-US');
-      expect(f.data.timezone).toBe('America/New_York');
-      expect(f.data.hardwareConcurrency).toBe(8);
-      expect(f.data.deviceMemory).toBe(8);
+  it.each([
+    { draw: 0.124999, expectedAttractors: 20 },
+    { draw: 0.125, expectedAttractors: 0 },
+  ])('samples attractor-zone devices at random draw $draw', ({ draw, expectedAttractors }) => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(draw);
+    try {
+      const dataset = generateDataset(20, 1);
+      const attractors = dataset.filter(fingerprint => fingerprint.isAttractor);
+      expect(dataset).toHaveLength(20);
+      expect(attractors).toHaveLength(expectedAttractors);
+      for (const fingerprint of attractors) {
+        expect(fingerprint.data.platform).toBe('Win32');
+        expect(fingerprint.data.language).toBe('en-US');
+        expect(fingerprint.data.timezone).toBe('America/New_York');
+        expect(fingerprint.data.hardwareConcurrency).toBe(8);
+        expect(fingerprint.data.deviceMemory).toBe(8);
+      }
+    } finally {
+      random.mockRestore();
     }
   });
 

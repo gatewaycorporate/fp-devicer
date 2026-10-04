@@ -1,6 +1,6 @@
 {
   "name": "devicer.js",
-  "version": "2.0.3",
+  "version": "3.0.0",
   "type": "module",
   "description": "Open-Source Digital Fingerprinting Middleware",
   "main": "./dist/main.js",
@@ -10,12 +10,50 @@
       "types": "./dist/main.d.ts",
       "import": "./dist/main.js",
       "default": "./dist/main.js"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js",
+      "default": "./dist/next.js"
+    },
+    "./next/sqlite": {
+      "types": "./dist/next/sqlite-storage.d.ts",
+      "import": "./dist/next/sqlite-storage.js",
+      "default": "./dist/next/sqlite-storage.js"
+    },
+    "./next/postgres": {
+      "types": "./dist/next/postgres-storage.d.ts",
+      "import": "./dist/next/postgres-storage.js",
+      "default": "./dist/next/postgres-storage.js"
+    },
+    "./next/redis": {
+      "types": "./dist/next/redis-storage.d.ts",
+      "import": "./dist/next/redis-storage.js",
+      "default": "./dist/next/redis-storage.js"
+    },
+    "./next/node-runtime": {
+      "types": "./dist/next/node-model-runtime.d.ts",
+      "import": "./dist/next/node-model-runtime.js",
+      "default": "./dist/next/node-model-runtime.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
+    "compat:record": "node scripts/compat-v2.mjs --record",
+    "compat:check": "node scripts/compat-v2.mjs",
+    "compat:package": "node scripts/compat-v2.mjs --pack",
+    "compat:storage": "node scripts/compat-storage.mjs",
+    "migrate:v2": "node scripts/migrate-v2.mjs",
+    "next:cli": "node scripts/next-cli.mjs",
+    "next:release:check": "node scripts/next-release-check.mjs",
+    "test:release": "node --test tests/next-release.test.mjs",
+    "test:signal-example": "tsc --noEmit --target ES2022 --module nodenext --moduleResolution nodenext --strict --esModuleInterop --skipLibCheck src/examples/physical-fingerprint.ts",
+    "next:storage:check": "node scripts/next-storage-check.mjs",
+    "test:next": "npx vitest run src/tests/next",
+    "bridge:check": "node scripts/bridge-spike.mjs",
+    "bridge:portable": "node scripts/portable-loader.mjs",
     "test": "npx vitest run",
     "test:watch": "npx vitest watch",
     "test:coverage": "npx vitest run --coverage",
@@ -23,8 +61,8 @@
     "bench:watch": "npx vitest bench",
     "bench:ci": "npx vitest bench --run",
     "build": "tsc --outDir dist",
-    "docs": "typedoc --out docs src/main.ts",
-    "docs:watch": "typedoc --out docs src/main.ts --watch"
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch"
   },
   "repository": {
     "type": "git",
@@ -54,6 +92,7 @@
     "drizzle-kit": "^0.18.1",
     "happy-dom": "^20.8.3",
     "typedoc": "^0.28.17",
+    "typescript": "5.9.3",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
@@ -63,5 +102,8 @@
     "ioredis": "^5.10.0",
     "postgres": "^3.4.8",
     "prom-client": "^14.2.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.6.2": true
   }
 }

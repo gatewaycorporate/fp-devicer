@@ -1,0 +1,2906 @@
+{
+  "baseline": {
+    "package": "devicer.js",
+    "version": "2.0.3",
+    "commit": "62572742c9a1d920d9f91dbbb7f5dd3c38bd0fb8",
+    "url": "https://registry.npmjs.org/devicer.js/-/devicer.js-2.0.3.tgz",
+    "integrity": "sha512-CKpAy7nOw9s9rXaw3VvxGKEPO0hHIB+sRi9qCYRGLCwvFxQ7GTh1HfqWWukcS0rWozqrVm3ZLwbdYDLeVGknGw=="
+  },
+  "snapshot": {
+    "package": {
+      "type": "module",
+      "main": "./dist/main.js",
+      "types": "./dist/main.d.ts",
+      "exports": {
+        ".": {
+          "types": "./dist/main.d.ts",
+          "import": "./dist/main.js",
+          "default": "./dist/main.js"
+        }
+      }
+    },
+    "runtime": [
+      {
+        "name": "AdapterFactory",
+        "type": "function"
+      },
+      {
+        "name": "DEFAULT_DECAY_HALF_LIFE_MS",
+        "type": "number"
+      },
+      {
+        "name": "DEFAULT_WEIGHTS",
+        "type": "object"
+      },
+      {
+        "name": "DefaultAttractorModel",
+        "type": "function"
+      },
+      {
+        "name": "DeviceManager",
+        "type": "function"
+      },
+      {
+        "name": "FrequencyTableAttractorModel",
+        "type": "function"
+      },
+      {
+        "name": "IdentityGraph",
+        "type": "function"
+      },
+      {
+        "name": "PluginRegistrar",
+        "type": "function"
+      },
+      {
+        "name": "buildLshIndex",
+        "type": "function"
+      },
+      {
+        "name": "calculateConfidence",
+        "type": "function"
+      },
+      {
+        "name": "calculateScoreBreakdown",
+        "type": "function"
+      },
+      {
+        "name": "clearRegistry",
+        "type": "function"
+      },
+      {
+        "name": "compareHashes",
+        "type": "function"
+      },
+      {
+        "name": "computeAdaptiveStabilityWeights",
+        "type": "function"
+      },
+      {
+        "name": "computeAttractorRisk",
+        "type": "function"
+      },
+      {
+        "name": "computeDeviceDrift",
+        "type": "function"
+      },
+      {
+        "name": "computeEntropyContribution",
+        "type": "function"
+      },
+      {
+        "name": "computeEvidenceRichness",
+        "type": "function"
+      },
+      {
+        "name": "computeFieldAgreement",
+        "type": "function"
+      },
+      {
+        "name": "computeMissingBothSides",
+        "type": "function"
+      },
+      {
+        "name": "computeMissingOneSide",
+        "type": "function"
+      },
+      {
+        "name": "computeStructuralStability",
+        "type": "function"
+      },
+      {
+        "name": "computeTemporalDecayFactor",
+        "type": "function"
+      },
+      {
+        "name": "createConfidenceCalculator",
+        "type": "function"
+      },
+      {
+        "name": "createFrequencyTableAttractorModel",
+        "type": "function"
+      },
+      {
+        "name": "createInMemoryAdapter",
+        "type": "function"
+      },
+      {
+        "name": "createLshIndex",
+        "type": "function"
+      },
+      {
+        "name": "createPostgresAdapter",
+        "type": "function"
+      },
+      {
+        "name": "createRedisAdapter",
+        "type": "function"
+      },
+      {
+        "name": "createSqliteAdapter",
+        "type": "function"
+      },
+      {
+        "name": "defaultLogger",
+        "type": "object"
+      },
+      {
+        "name": "defaultMetrics",
+        "type": "object"
+      },
+      {
+        "name": "getHash",
+        "type": "function"
+      },
+      {
+        "name": "initializeDefaultRegistry",
+        "type": "function"
+      },
+      {
+        "name": "jaccardSimilarity",
+        "type": "function"
+      },
+      {
+        "name": "registerComparator",
+        "type": "function"
+      },
+      {
+        "name": "registerPlugin",
+        "type": "function"
+      },
+      {
+        "name": "registerWeight",
+        "type": "function"
+      },
+      {
+        "name": "setDefaultWeight",
+        "type": "function"
+      },
+      {
+        "name": "subnetKey",
+        "type": "function"
+      },
+      {
+        "name": "unregisterComparator",
+        "type": "function"
+      },
+      {
+        "name": "unregisterWeight",
+        "type": "function"
+      }
+    ],
+    "declarations": [
+      {
+        "name": "AdapterFactory",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "typeof AdapterFactory",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "create",
+              "optional": false,
+              "type": "(type: AdapterType, options?: AdapterFactoryOptions) => StorageAdapter"
+            },
+            {
+              "name": "prototype",
+              "optional": false,
+              "type": "AdapterFactory"
+            }
+          ]
+        },
+        "constructors": [
+          "(): AdapterFactory"
+        ],
+        "declared": {
+          "type": "AdapterFactory",
+          "calls": [],
+          "indices": [],
+          "members": []
+        }
+      },
+      {
+        "name": "AdapterFactoryOptions",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "AdapterFactoryOptions",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "postgres",
+              "optional": true,
+              "type": "{ connectionString: string; } | undefined"
+            },
+            {
+              "name": "redis",
+              "optional": true,
+              "type": "{ url: string; } | undefined"
+            },
+            {
+              "name": "sqlite",
+              "optional": true,
+              "type": "{ filePath: string; } | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "AttractorModel",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "AttractorModel",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "score",
+              "optional": false,
+              "type": "(fp: FPDataSet) => number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "BehavioralMetrics",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "BehavioralMetrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "collectionDurationMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "hasTouchEvents",
+              "optional": false,
+              "type": "boolean"
+            },
+            {
+              "name": "keyboard",
+              "optional": true,
+              "type": "KeyboardBehaviorMetrics | undefined"
+            },
+            {
+              "name": "mouse",
+              "optional": true,
+              "type": "MouseBehaviorMetrics | undefined"
+            },
+            {
+              "name": "scroll",
+              "optional": true,
+              "type": "ScrollBehaviorMetrics | undefined"
+            },
+            {
+              "name": "session",
+              "optional": false,
+              "type": "SessionTimingMetrics"
+            }
+          ]
+        }
+      },
+      {
+        "name": "buildLshIndex",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(entries: Array<{ deviceId: string; fingerprint: FPDataSet; }>, options?: LshOptions) => LshIndex",
+          "calls": [
+            "(entries: Array<{ deviceId: string; fingerprint: FPDataSet; }>, options?: LshOptions): LshIndex"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "calculateConfidence",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet) => number",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "calculateScoreBreakdown",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions) => ScoreBreakdown",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): ScoreBreakdown"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "clearRegistry",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "() => void",
+          "calls": [
+            "(): void"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "compareHashes",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(hash1: string, hash2: string) => number",
+          "calls": [
+            "(hash1: string, hash2: string): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeAdaptiveStabilityWeights",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(stabilities?: FieldStabilityMap) => DimensionWeights",
+          "calls": [
+            "(stabilities?: FieldStabilityMap): DimensionWeights"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeAttractorRisk",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data: FPDataSet) => number",
+          "calls": [
+            "(data: FPDataSet): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeDeviceDrift",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(incoming: FPDataSet, history: StoredFingerprint[], options?: DriftAnalysisOptions) => Omit<DriftReport, \"deviceId\">",
+          "calls": [
+            "(incoming: FPDataSet, history: StoredFingerprint[], options?: DriftAnalysisOptions): Omit<DriftReport, \"deviceId\">"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeEntropyContribution",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions) => number",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeEvidenceRichness",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data: FPDataSet) => number",
+          "calls": [
+            "(data: FPDataSet): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeFieldAgreement",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions) => number",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeMissingBothSides",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet) => number",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeMissingOneSide",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet) => number",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeStructuralStability",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions) => number",
+          "calls": [
+            "(data1: FPDataSet, data2: FPDataSet, options?: ComparisonOptions): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "computeTemporalDecayFactor",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(snapshotAgeMs: number, halfLifeMs?: number) => number",
+          "calls": [
+            "(snapshotAgeMs: number, halfLifeMs?: number): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createConfidenceCalculator",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(userOptions?: ComparisonOptions) => { calculateScoreBreakdown(data1: FPDataSet, data2: FPDataSet): ScoreBreakdown; calculateConfidence(data1: FPDataSet, data2: FPDataSet): number; }",
+          "calls": [
+            "(userOptions?: ComparisonOptions): { calculateScoreBreakdown(data1: FPDataSet, data2: FPDataSet): ScoreBreakdown; calculateConfidence(data1: FPDataSet, data2: FPDataSet): number; }"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createFrequencyTableAttractorModel",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(table: FrequencyTable) => AttractorModel",
+          "calls": [
+            "(table: FrequencyTable): AttractorModel"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createInMemoryAdapter",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "() => StorageAdapter",
+          "calls": [
+            "(): StorageAdapter"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createLshIndex",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(options?: LshOptions) => LshIndex",
+          "calls": [
+            "(options?: LshOptions): LshIndex"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createPostgresAdapter",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(dbUrlOrClient: string) => StorageAdapter",
+          "calls": [
+            "(dbUrlOrClient: string): StorageAdapter"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createRedisAdapter",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(redisUrl?: string) => StorageAdapter",
+          "calls": [
+            "(redisUrl?: string): StorageAdapter"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "createSqliteAdapter",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(dbUrlOrClient: string) => StorageAdapter",
+          "calls": [
+            "(dbUrlOrClient: string): StorageAdapter"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "DEFAULT_DECAY_HALF_LIFE_MS",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "number",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "toExponential",
+              "optional": false,
+              "type": "(fractionDigits?: number) => string"
+            },
+            {
+              "name": "toFixed",
+              "optional": false,
+              "type": "(fractionDigits?: number) => string"
+            },
+            {
+              "name": "toLocaleString",
+              "optional": false,
+              "type": "{ (locales?: string | string[], options?: Intl.NumberFormatOptions): string; (locales?: Intl.LocalesArgument, options?: Intl.NumberFormatOptions): string; }"
+            },
+            {
+              "name": "toPrecision",
+              "optional": false,
+              "type": "(precision?: number) => string"
+            },
+            {
+              "name": "toString",
+              "optional": false,
+              "type": "(radix?: number) => string"
+            },
+            {
+              "name": "valueOf",
+              "optional": false,
+              "type": "() => number"
+            }
+          ]
+        },
+        "constructors": []
+      },
+      {
+        "name": "DEFAULT_WEIGHTS",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "Record<string, number>",
+          "calls": [],
+          "indices": [
+            {
+              "key": "string",
+              "value": "number",
+              "readonly": false
+            }
+          ],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "DefaultAttractorModel",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "typeof DefaultAttractorModel",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "prototype",
+              "optional": false,
+              "type": "DefaultAttractorModel"
+            }
+          ]
+        },
+        "constructors": [
+          "(): DefaultAttractorModel"
+        ],
+        "declared": {
+          "type": "DefaultAttractorModel",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "score",
+              "optional": false,
+              "type": "(fp: FPDataSet) => number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "defaultLogger",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "Logger",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "debug",
+              "optional": true,
+              "type": "((message: string, meta?: Record<string, any>) => void) | undefined"
+            },
+            {
+              "name": "error",
+              "optional": false,
+              "type": "(message: string, meta?: Record<string, any>) => void"
+            },
+            {
+              "name": "info",
+              "optional": false,
+              "type": "(message: string, meta?: Record<string, any>) => void"
+            },
+            {
+              "name": "warn",
+              "optional": false,
+              "type": "(message: string, meta?: Record<string, any>) => void"
+            }
+          ]
+        },
+        "constructors": []
+      },
+      {
+        "name": "defaultMetrics",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "DefaultMetrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "getSummary",
+              "optional": false,
+              "type": "() => { counters: { [k: string]: number; }; avgLatency: number; }"
+            },
+            {
+              "name": "incrementCounter",
+              "optional": false,
+              "type": "(name: string, value?: number) => void"
+            },
+            {
+              "name": "recordGauge",
+              "optional": false,
+              "type": "(name: string, value: number) => void"
+            },
+            {
+              "name": "recordHistogram",
+              "optional": false,
+              "type": "(name: string, value: number) => void"
+            },
+            {
+              "name": "recordIdentify",
+              "optional": false,
+              "type": "(durationMs: number, confidence: number, isNewDevice: boolean, candidatesCount: number, matched: boolean) => void"
+            }
+          ]
+        },
+        "constructors": []
+      },
+      {
+        "name": "DeviceManager",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "typeof DeviceManager",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "prototype",
+              "optional": false,
+              "type": "DeviceManager"
+            }
+          ]
+        },
+        "constructors": [
+          "(adapter: StorageAdapter, context?: { matchThreshold?: number; candidateMinScore?: number; stabilityWindowSize?: number; dedupWindowMs?: number; } & ObservabilityOptions): DeviceManager"
+        ],
+        "declared": {
+          "type": "DeviceManager",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "analyzeDeviceDrift",
+              "optional": false,
+              "type": "(deviceId: string, incoming: FPDataSet, options?: DriftAnalysisOptions) => Promise<DriftReport | null>"
+            },
+            {
+              "name": "buildLshIndex",
+              "optional": false,
+              "type": "(options?: LshOptions) => Promise<void>"
+            },
+            {
+              "name": "clearDedupCache",
+              "optional": false,
+              "type": "() => void"
+            },
+            {
+              "name": "findRelatedDevices",
+              "optional": false,
+              "type": "(deviceId: string) => RelatedDevice[]"
+            },
+            {
+              "name": "getIdentityGraph",
+              "optional": false,
+              "type": "() => IdentityGraph"
+            },
+            {
+              "name": "getLshIndexSize",
+              "optional": false,
+              "type": "() => number | undefined"
+            },
+            {
+              "name": "getMetricsSummary",
+              "optional": false,
+              "type": "() => Record<string, any> | null"
+            },
+            {
+              "name": "getPlugins",
+              "optional": false,
+              "type": "() => readonly DeviceManagerPlugin[]"
+            },
+            {
+              "name": "identify",
+              "optional": false,
+              "type": "(incoming: FPDataSet, context?: IdentifyContext) => Promise<IdentifyResult>"
+            },
+            {
+              "name": "identifyMany",
+              "optional": false,
+              "type": "(incomingList: FPDataSet[], context?: IdentifyContext) => Promise<IdentifyResult[]>"
+            },
+            {
+              "name": "registerIdentifyPostProcessor",
+              "optional": false,
+              "type": "(name: string, processor: IdentifyPostProcessor) => () => void"
+            },
+            {
+              "name": "use",
+              "optional": false,
+              "type": "(plugin: DeviceManagerPlugin) => () => void"
+            }
+          ]
+        }
+      },
+      {
+        "name": "DeviceManagerLike",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "DeviceManagerLike",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "registerIdentifyPostProcessor",
+              "optional": false,
+              "type": "(name: string, processor: IdentifyPostProcessor) => () => void"
+            }
+          ]
+        }
+      },
+      {
+        "name": "DeviceManagerPlugin",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "DeviceManagerPlugin",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "registerWith",
+              "optional": false,
+              "type": "(deviceManager: DeviceManagerLike) => (() => void) | void"
+            }
+          ]
+        }
+      },
+      {
+        "name": "DeviceMatch",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "DeviceMatch",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "confidence",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "deviceId",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "lastSeen",
+              "optional": false,
+              "type": "Date"
+            }
+          ]
+        }
+      },
+      {
+        "name": "DriftAnalysisOptions",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "DriftAnalysisOptions",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "stabilityWindowSize",
+              "optional": true,
+              "type": "number | undefined"
+            },
+            {
+              "name": "suspiciousZScoreThreshold",
+              "optional": true,
+              "type": "number | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "DriftPatternFlag",
+        "typeParameters": [],
+        "aliases": [
+          "'NORMAL_AGING' | 'INCREMENTAL_DRIFT' | 'ABRUPT_CHANGE' | 'CANONICAL_INJECTION'"
+        ],
+        "declared": {
+          "type": "DriftPatternFlag",
+          "calls": [],
+          "indices": [
+            {
+              "key": "number",
+              "value": "string",
+              "readonly": true
+            }
+          ],
+          "members": [
+            {
+              "name": "[Symbol.iterator]",
+              "optional": false,
+              "type": "() => StringIterator<string>"
+            },
+            {
+              "name": "anchor",
+              "optional": false,
+              "type": "(name: string) => string"
+            },
+            {
+              "name": "at",
+              "optional": false,
+              "type": "(index: number) => string | undefined"
+            },
+            {
+              "name": "big",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "blink",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "bold",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "charAt",
+              "optional": false,
+              "type": "(pos: number) => string"
+            },
+            {
+              "name": "charCodeAt",
+              "optional": false,
+              "type": "(index: number) => number"
+            },
+            {
+              "name": "codePointAt",
+              "optional": false,
+              "type": "(pos: number) => number | undefined"
+            },
+            {
+              "name": "concat",
+              "optional": false,
+              "type": "(...strings: string[]) => string"
+            },
+            {
+              "name": "endsWith",
+              "optional": false,
+              "type": "(searchString: string, endPosition?: number) => boolean"
+            },
+            {
+              "name": "fixed",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "fontcolor",
+              "optional": false,
+              "type": "(color: string) => string"
+            },
+            {
+              "name": "fontsize",
+              "optional": false,
+              "type": "{ (size: number): string; (size: string): string; }"
+            },
+            {
+              "name": "includes",
+              "optional": false,
+              "type": "(searchString: string, position?: number) => boolean"
+            },
+            {
+              "name": "indexOf",
+              "optional": false,
+              "type": "(searchString: string, position?: number) => number"
+            },
+            {
+              "name": "italics",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "lastIndexOf",
+              "optional": false,
+              "type": "(searchString: string, position?: number) => number"
+            },
+            {
+              "name": "length",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "link",
+              "optional": false,
+              "type": "(url: string) => string"
+            },
+            {
+              "name": "localeCompare",
+              "optional": false,
+              "type": "{ (that: string): number; (that: string, locales?: string | string[], options?: Intl.CollatorOptions): number; (that: string, locales?: Intl.LocalesArgument, options?: Intl.CollatorOptions): number; }"
+            },
+            {
+              "name": "match",
+              "optional": false,
+              "type": "{ (regexp: string | RegExp): RegExpMatchArray | null; (matcher: { [Symbol.match](string: string): RegExpMatchArray | null; }): RegExpMatchArray | null; }"
+            },
+            {
+              "name": "matchAll",
+              "optional": false,
+              "type": "(regexp: RegExp) => RegExpStringIterator<RegExpExecArray>"
+            },
+            {
+              "name": "normalize",
+              "optional": false,
+              "type": "{ (form: \"NFC\" | \"NFD\" | \"NFKC\" | \"NFKD\"): string; (form?: string): string; }"
+            },
+            {
+              "name": "padEnd",
+              "optional": false,
+              "type": "(maxLength: number, fillString?: string) => string"
+            },
+            {
+              "name": "padStart",
+              "optional": false,
+              "type": "(maxLength: number, fillString?: string) => string"
+            },
+            {
+              "name": "repeat",
+              "optional": false,
+              "type": "(count: number) => string"
+            },
+            {
+              "name": "replace",
+              "optional": false,
+              "type": "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; (searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string): string; (searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string): string; }"
+            },
+            {
+              "name": "replaceAll",
+              "optional": false,
+              "type": "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; }"
+            },
+            {
+              "name": "search",
+              "optional": false,
+              "type": "{ (regexp: string | RegExp): number; (searcher: { [Symbol.search](string: string): number; }): number; }"
+            },
+            {
+              "name": "slice",
+              "optional": false,
+              "type": "(start?: number, end?: number) => string"
+            },
+            {
+              "name": "small",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "split",
+              "optional": false,
+              "type": "{ (separator: string | RegExp, limit?: number): string[]; (splitter: { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number): string[]; }"
+            },
+            {
+              "name": "startsWith",
+              "optional": false,
+              "type": "(searchString: string, position?: number) => boolean"
+            },
+            {
+              "name": "strike",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "sub",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "substr",
+              "optional": false,
+              "type": "(from: number, length?: number) => string"
+            },
+            {
+              "name": "substring",
+              "optional": false,
+              "type": "(start: number, end?: number) => string"
+            },
+            {
+              "name": "sup",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "toLocaleLowerCase",
+              "optional": false,
+              "type": "{ (locales?: string | string[]): string; (locales?: Intl.LocalesArgument): string; }"
+            },
+            {
+              "name": "toLocaleUpperCase",
+              "optional": false,
+              "type": "{ (locales?: string | string[]): string; (locales?: Intl.LocalesArgument): string; }"
+            },
+            {
+              "name": "toLowerCase",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "toString",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "toUpperCase",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "trim",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "trimEnd",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "trimLeft",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "trimRight",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "trimStart",
+              "optional": false,
+              "type": "() => string"
+            },
+            {
+              "name": "valueOf",
+              "optional": false,
+              "type": "() => string"
+            }
+          ]
+        }
+      },
+      {
+        "name": "DriftReport",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "DriftReport",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "baselineWindowMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "deviceId",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "driftScore",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "patternFlag",
+              "optional": false,
+              "type": "DriftPatternFlag"
+            },
+            {
+              "name": "snapshotsAnalyzed",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "suspiciousFields",
+              "optional": false,
+              "type": "SuspiciousField[]"
+            }
+          ]
+        }
+      },
+      {
+        "name": "FieldStabilityMap",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "FieldStabilityMap",
+          "calls": [],
+          "indices": [
+            {
+              "key": "string",
+              "value": "number",
+              "readonly": false
+            }
+          ],
+          "members": []
+        }
+      },
+      {
+        "name": "FPDataSet",
+        "typeParameters": [
+          "T extends Record<string, any> = FPUserDataSet"
+        ],
+        "aliases": [
+          "T"
+        ],
+        "declared": {
+          "type": "T",
+          "calls": [],
+          "indices": [
+            {
+              "key": "string",
+              "value": "any",
+              "readonly": false
+            }
+          ],
+          "members": []
+        }
+      },
+      {
+        "name": "FPUserDataSet",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "FPUserDataSet",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "appCodeName",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "appMinorVersion",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "appName",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "appVersion",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "audio",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "behavioralMetrics",
+              "optional": true,
+              "type": "BehavioralMetrics | undefined"
+            },
+            {
+              "name": "buildID",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "canvas",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "cookieEnabled",
+              "optional": true,
+              "type": "boolean | undefined"
+            },
+            {
+              "name": "deviceMemory",
+              "optional": true,
+              "type": "string | number | undefined"
+            },
+            {
+              "name": "doNotTrack",
+              "optional": true,
+              "type": "string | boolean | undefined"
+            },
+            {
+              "name": "fonts",
+              "optional": true,
+              "type": "string[] | undefined"
+            },
+            {
+              "name": "hardwareConcurrency",
+              "optional": true,
+              "type": "number | undefined"
+            },
+            {
+              "name": "highEntropyValues",
+              "optional": true,
+              "type": "{ architecture?: string; bitness?: string; brands?: { brand: string; version: string; }[]; mobile?: boolean; model?: string; platform?: string; platformVersion?: string; uaFullVersion?: string; } | undefined"
+            },
+            {
+              "name": "language",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "languages",
+              "optional": true,
+              "type": "string[] | undefined"
+            },
+            {
+              "name": "mimeTypes",
+              "optional": true,
+              "type": "{ type: string; suffixes: string; description: string; }[] | undefined"
+            },
+            {
+              "name": "platform",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "plugins",
+              "optional": true,
+              "type": "{ name: string; description: string; }[] | undefined"
+            },
+            {
+              "name": "product",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "productSub",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "screen",
+              "optional": true,
+              "type": "{ width: number; height: number; colorDepth?: number; pixelDepth?: number; orientation?: { type: string; angle: number; }; } | undefined"
+            },
+            {
+              "name": "timezone",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "userAgent",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "vendor",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "vendorSub",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "webgl",
+              "optional": true,
+              "type": "string | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "FrequencyTable",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "FrequencyTable",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "browserFamilies",
+              "optional": true,
+              "type": "Record<string, number> | undefined"
+            },
+            {
+              "name": "hardwareProfiles",
+              "optional": true,
+              "type": "{ concurrency: number; memory: number; frequency: number; }[] | undefined"
+            },
+            {
+              "name": "languages",
+              "optional": true,
+              "type": "Record<string, number> | undefined"
+            },
+            {
+              "name": "platforms",
+              "optional": true,
+              "type": "Record<string, number> | undefined"
+            },
+            {
+              "name": "resolutions",
+              "optional": true,
+              "type": "Record<string, number> | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "FrequencyTableAttractorModel",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "typeof FrequencyTableAttractorModel",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "prototype",
+              "optional": false,
+              "type": "FrequencyTableAttractorModel"
+            }
+          ]
+        },
+        "constructors": [
+          "(table: FrequencyTable): FrequencyTableAttractorModel"
+        ],
+        "declared": {
+          "type": "FrequencyTableAttractorModel",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "score",
+              "optional": false,
+              "type": "(fp: FPDataSet) => number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "getHash",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(data: string) => string",
+          "calls": [
+            "(data: string): string"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "IdentifyContext",
+        "typeParameters": [],
+        "aliases": [
+          "Record<string, unknown> & {\n    userId?: string;\n    ip?: string;\n}"
+        ],
+        "declared": {
+          "type": "IdentifyContext",
+          "calls": [],
+          "indices": [
+            {
+              "key": "string",
+              "value": "unknown",
+              "readonly": false
+            }
+          ],
+          "members": [
+            {
+              "name": "ip",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "userId",
+              "optional": true,
+              "type": "string | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "IdentifyEnrichmentInfo",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "IdentifyEnrichmentInfo",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "details",
+              "optional": false,
+              "type": "Record<string, Record<string, unknown>>"
+            },
+            {
+              "name": "failures",
+              "optional": false,
+              "type": "{ plugin: string; message: string; }[]"
+            },
+            {
+              "name": "plugins",
+              "optional": false,
+              "type": "string[]"
+            }
+          ]
+        }
+      },
+      {
+        "name": "IdentifyPostProcessor",
+        "typeParameters": [],
+        "aliases": [
+          "(payload: IdentifyPostProcessorPayload) => Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void"
+        ],
+        "declared": {
+          "type": "IdentifyPostProcessor",
+          "calls": [
+            "(payload: IdentifyPostProcessorPayload): Promise<IdentifyPostProcessorResult | void> | IdentifyPostProcessorResult | void"
+          ],
+          "indices": [],
+          "members": []
+        }
+      },
+      {
+        "name": "IdentifyPostProcessorPayload",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "IdentifyPostProcessorPayload",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "baseResult",
+              "optional": false,
+              "type": "IdentifyResult"
+            },
+            {
+              "name": "cacheHit",
+              "optional": false,
+              "type": "boolean"
+            },
+            {
+              "name": "candidatesCount",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "context",
+              "optional": true,
+              "type": "IdentifyContext | undefined"
+            },
+            {
+              "name": "durationMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "incoming",
+              "optional": false,
+              "type": "FPUserDataSet"
+            },
+            {
+              "name": "matched",
+              "optional": false,
+              "type": "boolean"
+            },
+            {
+              "name": "result",
+              "optional": false,
+              "type": "IdentifyResult"
+            }
+          ]
+        }
+      },
+      {
+        "name": "IdentifyPostProcessorResult",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "IdentifyPostProcessorResult",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "enrichmentInfo",
+              "optional": true,
+              "type": "Record<string, unknown> | undefined"
+            },
+            {
+              "name": "logMeta",
+              "optional": true,
+              "type": "Record<string, unknown> | undefined"
+            },
+            {
+              "name": "result",
+              "optional": true,
+              "type": "Record<string, unknown> | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "IdentifyResult",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "IdentifyResult",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "confidence",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "deviceId",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "enrichmentInfo",
+              "optional": false,
+              "type": "IdentifyEnrichmentInfo"
+            },
+            {
+              "name": "isNewDevice",
+              "optional": false,
+              "type": "boolean"
+            },
+            {
+              "name": "linkedUserId",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "matchConfidence",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "IdentityEdge",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "IdentityEdge",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "deviceIdA",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "deviceIdB",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "firstSeen",
+              "optional": false,
+              "type": "Date"
+            },
+            {
+              "name": "lastSeen",
+              "optional": false,
+              "type": "Date"
+            },
+            {
+              "name": "occurrences",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "reasons",
+              "optional": false,
+              "type": "string[]"
+            },
+            {
+              "name": "weight",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "IdentityGraph",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "typeof IdentityGraph",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "prototype",
+              "optional": false,
+              "type": "IdentityGraph"
+            }
+          ]
+        },
+        "constructors": [
+          "(): IdentityGraph"
+        ],
+        "declared": {
+          "type": "IdentityGraph",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "addEdge",
+              "optional": false,
+              "type": "(deviceIdA: string, deviceIdB: string, reason: string, weight?: number) => void"
+            },
+            {
+              "name": "allEdges",
+              "optional": false,
+              "type": "() => IdentityEdge[]"
+            },
+            {
+              "name": "getEdge",
+              "optional": false,
+              "type": "(deviceIdA: string, deviceIdB: string) => IdentityEdge | undefined"
+            },
+            {
+              "name": "getRelated",
+              "optional": false,
+              "type": "(deviceId: string) => RelatedDevice[]"
+            },
+            {
+              "name": "prune",
+              "optional": false,
+              "type": "(maxAgeMs: number) => number"
+            },
+            {
+              "name": "size",
+              "optional": false,
+              "type": "() => number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "initializeDefaultRegistry",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "() => void",
+          "calls": [
+            "(): void"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "jaccardSimilarity",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(a: string[], b: string[]) => number",
+          "calls": [
+            "(a: string[], b: string[]): number"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "KeyboardBehaviorMetrics",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "KeyboardBehaviorMetrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "avgDwellMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "avgFlightMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "dwellStdDev",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "estimatedWpm",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "flightStdDev",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "keystrokeCount",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "Logger",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "Logger",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "debug",
+              "optional": true,
+              "type": "((message: string, meta?: Record<string, any>) => void) | undefined"
+            },
+            {
+              "name": "error",
+              "optional": false,
+              "type": "(message: string, meta?: Record<string, any>) => void"
+            },
+            {
+              "name": "info",
+              "optional": false,
+              "type": "(message: string, meta?: Record<string, any>) => void"
+            },
+            {
+              "name": "warn",
+              "optional": false,
+              "type": "(message: string, meta?: Record<string, any>) => void"
+            }
+          ]
+        }
+      },
+      {
+        "name": "LshIndex",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "LshIndex",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "add",
+              "optional": false,
+              "type": "(deviceId: string, fp: FPDataSet) => void"
+            },
+            {
+              "name": "clear",
+              "optional": false,
+              "type": "() => void"
+            },
+            {
+              "name": "query",
+              "optional": false,
+              "type": "(fp: FPDataSet) => string[]"
+            },
+            {
+              "name": "remove",
+              "optional": false,
+              "type": "(deviceId: string) => void"
+            },
+            {
+              "name": "size",
+              "optional": false,
+              "type": "() => number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "LshOptions",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "LshOptions",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "numBands",
+              "optional": true,
+              "type": "number | undefined"
+            },
+            {
+              "name": "numHashes",
+              "optional": true,
+              "type": "number | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "Metrics",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "Metrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "getSummary",
+              "optional": true,
+              "type": "(() => Record<string, any>) | undefined"
+            },
+            {
+              "name": "incrementCounter",
+              "optional": false,
+              "type": "(name: string, value?: number) => void"
+            },
+            {
+              "name": "recordGauge",
+              "optional": false,
+              "type": "(name: string, value: number) => void"
+            },
+            {
+              "name": "recordHistogram",
+              "optional": false,
+              "type": "(name: string, value: number) => void"
+            },
+            {
+              "name": "recordIdentify",
+              "optional": false,
+              "type": "(durationMs: number, confidence: number, isNewDevice: boolean, candidatesCount: number, matched: boolean) => void"
+            }
+          ]
+        }
+      },
+      {
+        "name": "MouseBehaviorMetrics",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "MouseBehaviorMetrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "avgAcceleration",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "avgVelocityPxMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "hasMovement",
+              "optional": false,
+              "type": "boolean"
+            },
+            {
+              "name": "sampleCount",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "straightnessRatio",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "velocityStdDev",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "ObservabilityOptions",
+        "typeParameters": [],
+        "aliases": [
+          "{\n    logger?: Logger;\n    metrics?: Metrics;\n}"
+        ],
+        "declared": {
+          "type": "ObservabilityOptions",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "logger",
+              "optional": true,
+              "type": "Logger | undefined"
+            },
+            {
+              "name": "metrics",
+              "optional": true,
+              "type": "Metrics | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "PluginRegistrar",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "typeof PluginRegistrar",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "prototype",
+              "optional": false,
+              "type": "PluginRegistrar"
+            }
+          ]
+        },
+        "constructors": [
+          "(): PluginRegistrar"
+        ],
+        "declared": {
+          "type": "PluginRegistrar",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "getRegisteredPlugins",
+              "optional": false,
+              "type": "() => readonly DeviceManagerPlugin[]"
+            },
+            {
+              "name": "register",
+              "optional": false,
+              "type": "(deviceManager: DeviceManagerLike, plugin: DeviceManagerPlugin) => () => void"
+            }
+          ]
+        }
+      },
+      {
+        "name": "registerComparator",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(path: string, comparator: Comparator) => void",
+          "calls": [
+            "(path: string, comparator: Comparator): void"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "registerPlugin",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(path: string, config: { weight?: number; comparator?: Comparator; }) => void",
+          "calls": [
+            "(path: string, config: { weight?: number; comparator?: Comparator; }): void"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "registerWeight",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(path: string, weight: number) => void",
+          "calls": [
+            "(path: string, weight: number): void"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "RelatedDevice",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "RelatedDevice",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "deviceId",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "edgeWeight",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "lastSeen",
+              "optional": false,
+              "type": "Date"
+            },
+            {
+              "name": "occurrences",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "reasons",
+              "optional": false,
+              "type": "string[]"
+            }
+          ]
+        }
+      },
+      {
+        "name": "ScoreBreakdown",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "ScoreBreakdown",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "attractorRisk",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "composite",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "deviceSimilarity",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "entropyContribution",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "evidenceRichness",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "fieldAgreement",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "missingBothSides",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "missingOneSide",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "structuralStability",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "ScrollBehaviorMetrics",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "ScrollBehaviorMetrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "avgVelocityPxMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "directionChangeCount",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "eventCount",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "totalDistancePx",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "velocityStdDev",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "SessionTimingMetrics",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "SessionTimingMetrics",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "interactionEventCount",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "sessionDurationMs",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "timeToFirstInteractionMs",
+              "optional": false,
+              "type": "number | null"
+            },
+            {
+              "name": "touchEventCount",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "setDefaultWeight",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(weight: number) => void",
+          "calls": [
+            "(weight: number): void"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "StorageAdapter",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "StorageAdapter",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "close",
+              "optional": true,
+              "type": "(() => Promise<void>) | undefined"
+            },
+            {
+              "name": "deleteOldSnapshots",
+              "optional": false,
+              "type": "(olderThanDays: number) => Promise<number>"
+            },
+            {
+              "name": "findCandidates",
+              "optional": false,
+              "type": "(query: FPDataSet, minConfidence: number, limit?: number) => Promise<DeviceMatch[]>"
+            },
+            {
+              "name": "getAllFingerprints",
+              "optional": false,
+              "type": "() => Promise<StoredFingerprint[]>"
+            },
+            {
+              "name": "getHistory",
+              "optional": false,
+              "type": "(deviceId: string, limit?: number) => Promise<StoredFingerprint[]>"
+            },
+            {
+              "name": "init",
+              "optional": false,
+              "type": "() => Promise<void>"
+            },
+            {
+              "name": "linkToUser",
+              "optional": false,
+              "type": "(deviceId: string, userId: string) => Promise<void>"
+            },
+            {
+              "name": "save",
+              "optional": false,
+              "type": "(snapshot: StoredFingerprint) => Promise<string>"
+            }
+          ]
+        }
+      },
+      {
+        "name": "StoredFingerprint",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "StoredFingerprint",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "deviceId",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "fingerprint",
+              "optional": false,
+              "type": "FPUserDataSet"
+            },
+            {
+              "name": "id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "ip",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "matchConfidence",
+              "optional": true,
+              "type": "number | undefined"
+            },
+            {
+              "name": "metadata",
+              "optional": true,
+              "type": "Record<string, any> | undefined"
+            },
+            {
+              "name": "signalsHash",
+              "optional": true,
+              "type": "string | undefined"
+            },
+            {
+              "name": "timestamp",
+              "optional": false,
+              "type": "Date"
+            },
+            {
+              "name": "userId",
+              "optional": true,
+              "type": "string | undefined"
+            }
+          ]
+        }
+      },
+      {
+        "name": "subnetKey",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(ip: string) => string | null",
+          "calls": [
+            "(ip: string): string | null"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "SuspiciousField",
+        "typeParameters": [],
+        "aliases": [],
+        "declared": {
+          "type": "SuspiciousField",
+          "calls": [],
+          "indices": [],
+          "members": [
+            {
+              "name": "currentDeviation",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "field",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "historicalStability",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "zScore",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        }
+      },
+      {
+        "name": "unregisterComparator",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(path: string) => boolean",
+          "calls": [
+            "(path: string): boolean"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      },
+      {
+        "name": "unregisterWeight",
+        "typeParameters": [],
+        "aliases": [],
+        "value": {
+          "type": "(path: string) => boolean",
+          "calls": [
+            "(path: string): boolean"
+          ],
+          "indices": [],
+          "members": []
+        },
+        "constructors": []
+      }
+    ],
+    "behavior": {
+      "hashes": [
+        {
+          "error": {
+            "name": "InsufficientComplexityError",
+            "message": "Input data hasn't enough complexity"
+          }
+        },
+        {
+          "error": {
+            "name": "InsufficientComplexityError",
+            "message": "Input data hasn't enough complexity"
+          }
+        },
+        {
+          "error": {
+            "name": "InsufficientComplexityError",
+            "message": "Input data hasn't enough complexity"
+          }
+        },
+        {
+          "error": {
+            "name": "InsufficientComplexityError",
+            "message": "Input data hasn't enough complexity"
+          }
+        },
+        {
+          "error": {
+            "name": "InsufficientComplexityError",
+            "message": "Input data hasn't enough complexity"
+          }
+        },
+        {
+          "value": "BE410CFEA11538F71377CEC2C61766C8A27204AEC14B588C4B9AAFD176D31D15D712D4"
+        },
+        {
+          "value": "AA511AFEA01538F71377CA82C61326C8A27204AEC14B288C4B9AABD276D31D169702D4"
+        },
+        {
+          "value": "AA511AFEA01538F71377CA82C61326C8A27204AEC14B288C4B9AABD276D31D169702D4"
+        },
+        {
+          "value": "B5512CFEA01638F71377CEC2C61366C8A27204AEC14B2C8C4B9AAFD276D31D169712D4"
+        },
+        {
+          "value": "46512CFEA01538F71377CEC2C61366C8A27204AEC14B188C4B9AAFD176D31D16D702D4"
+        },
+        {
+          "value": "BE410CFEA11538F71377CEC2C61766C8A27204AEC14B588C4B9AAFD176D31D15D712D4"
+        }
+      ],
+      "hashDistance": [
+        {
+          "value": 0
+        },
+        {
+          "value": 6
+        },
+        {
+          "error": {
+            "name": "RangeError",
+            "message": "Invalid array length"
+          }
+        }
+      ],
+      "scores": [
+        {
+          "confidence": {
+            "value": 100
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 100,
+              "evidenceRichness": 42,
+              "fieldAgreement": 100,
+              "structuralStability": 97,
+              "entropyContribution": 100,
+              "attractorRisk": 50,
+              "missingOneSide": 0,
+              "missingBothSides": 58,
+              "composite": 100
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 92
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 91,
+              "evidenceRichness": 42,
+              "fieldAgreement": 82,
+              "structuralStability": 83,
+              "entropyContribution": 100,
+              "attractorRisk": 42,
+              "missingOneSide": 0,
+              "missingBothSides": 58,
+              "composite": 92
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 0
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 0,
+              "evidenceRichness": 0,
+              "fieldAgreement": 0,
+              "structuralStability": 0,
+              "entropyContribution": 0,
+              "attractorRisk": 0,
+              "missingOneSide": 0,
+              "missingBothSides": 0,
+              "composite": 0
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 0
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 0,
+              "evidenceRichness": 0,
+              "fieldAgreement": 0,
+              "structuralStability": 0,
+              "entropyContribution": 0,
+              "attractorRisk": 0,
+              "missingOneSide": 0,
+              "missingBothSides": 0,
+              "composite": 0
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 0
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 0,
+              "evidenceRichness": 0,
+              "fieldAgreement": 0,
+              "structuralStability": 0,
+              "entropyContribution": 0,
+              "attractorRisk": 0,
+              "missingOneSide": 0,
+              "missingBothSides": 0,
+              "composite": 0
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 100
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 100,
+              "evidenceRichness": 42,
+              "fieldAgreement": 100,
+              "structuralStability": 97,
+              "entropyContribution": 100,
+              "attractorRisk": 50,
+              "missingOneSide": 0,
+              "missingBothSides": 58,
+              "composite": 100
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 100
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 100,
+              "evidenceRichness": 42,
+              "fieldAgreement": 100,
+              "structuralStability": 97,
+              "entropyContribution": 100,
+              "attractorRisk": 50,
+              "missingOneSide": 0,
+              "missingBothSides": 58,
+              "composite": 100
+            }
+          }
+        },
+        {
+          "confidence": {
+            "value": 100
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 100,
+              "evidenceRichness": 42,
+              "fieldAgreement": 100,
+              "structuralStability": 97,
+              "entropyContribution": 100,
+              "attractorRisk": 50,
+              "missingOneSide": 0,
+              "missingBothSides": 58,
+              "composite": 100
+            }
+          }
+        }
+      ],
+      "registry": {
+        "beforeFirstUse": {
+          "deviceSimilarity": 83,
+          "evidenceRichness": 42,
+          "fieldAgreement": 82,
+          "structuralStability": 97,
+          "entropyContribution": 100,
+          "attractorRisk": 42,
+          "missingOneSide": 0,
+          "missingBothSides": 58,
+          "composite": 88
+        },
+        "afterFirstUse": {
+          "deviceSimilarity": 88,
+          "evidenceRichness": 42,
+          "fieldAgreement": 82,
+          "structuralStability": 97,
+          "entropyContribution": 100,
+          "attractorRisk": 42,
+          "missingOneSide": 0,
+          "missingBothSides": 58,
+          "composite": 91
+        },
+        "afterClear": {
+          "deviceSimilarity": 89,
+          "evidenceRichness": 42,
+          "fieldAgreement": 82,
+          "structuralStability": 100,
+          "entropyContribution": 100,
+          "attractorRisk": 42,
+          "missingOneSide": 0,
+          "missingBothSides": 58,
+          "composite": 92
+        },
+        "afterInitialize": {
+          "deviceSimilarity": 83,
+          "evidenceRichness": 42,
+          "fieldAgreement": 82,
+          "structuralStability": 97,
+          "entropyContribution": 100,
+          "attractorRisk": 42,
+          "missingOneSide": 0,
+          "missingBothSides": 58,
+          "composite": 88
+        },
+        "missingComparator": true,
+        "missingWeight": true,
+        "invalidComparator": {
+          "error": {
+            "name": "Error",
+            "message": "Comparator must be a function returning a 0–1 similarity score"
+          }
+        },
+        "invalidWeight": {
+          "error": {
+            "name": "Error",
+            "message": "Weight must be a non-negative number"
+          }
+        }
+      },
+      "callbacks": {
+        "result": {
+          "confidence": {
+            "value": 96
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 98,
+              "evidenceRichness": 42,
+              "fieldAgreement": 100,
+              "structuralStability": 97,
+              "entropyContribution": 100,
+              "attractorRisk": 50,
+              "missingOneSide": 0,
+              "missingBothSides": 58,
+              "composite": 96
+            }
+          }
+        },
+        "calls": [
+          {
+            "firstIsOriginal": true,
+            "secondIsOriginal": true
+          },
+          {
+            "firstIsOriginal": true,
+            "secondIsOriginal": true
+          }
+        ],
+        "thrown": {
+          "confidence": {
+            "value": 0
+          },
+          "breakdown": {
+            "value": {
+              "deviceSimilarity": 0,
+              "evidenceRichness": 0,
+              "fieldAgreement": 0,
+              "structuralStability": 0,
+              "entropyContribution": 0,
+              "attractorRisk": 0,
+              "missingOneSide": 0,
+              "missingBothSides": 0,
+              "composite": 0
+            }
+          }
+        }
+      },
+      "helpers": {
+        "decayAtZero": 1,
+        "decayAtParameter": 0.36787944117144233,
+        "emptyGraphJaccard": 1,
+        "graphJaccard": 0.3333333333333333,
+        "subnet": "192.168.1",
+        "weights": {
+          "userAgent": 10,
+          "platform": 20,
+          "timezone": 10,
+          "language": 15,
+          "languages": 20,
+          "cookieEnabled": 5,
+          "doNotTrack": 5,
+          "hardwareConcurrency": 5,
+          "deviceMemory": 5,
+          "product": 5,
+          "productSub": 5,
+          "vendor": 5,
+          "vendorSub": 5,
+          "appName": 5,
+          "appVersion": 5,
+          "appCodeName": 5,
+          "appMinorVersion": 5,
+          "buildID": 5,
+          "plugins": 15,
+          "mimeTypes": 15,
+          "screen": 10,
+          "fonts": 15,
+          "canvas": 30,
+          "webgl": 25,
+          "audio": 25,
+          "highEntropyValues": 20
+        },
+        "decayParameter": 2592000000
+      }
+    },
+    "consumer": {
+      "confidence": 100,
+      "events": [
+        "init",
+        "register",
+        "candidates",
+        "save",
+        "enrich",
+        "enrich",
+        "teardown"
+      ],
+      "cacheHits": [
+        false,
+        true
+      ]
+    }
+  }
+}

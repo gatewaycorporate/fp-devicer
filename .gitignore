@@ -2,3 +2,12 @@ node_modules
 src/tests/storage/test-db.sqlite
 src/benchmarks/benchmark-db.sqlite
 coverage
+.compat-cache/
+/target/
+/vendor/models/
+/models/
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.safetensors
